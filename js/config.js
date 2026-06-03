@@ -1,0 +1,3 @@
+const SUPABASE_URL = "https://pjgcfmzoleqgurmsovsv.supabase.co";
+
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBqZ2NmbXpvbGVxZ3VybXNvdnN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MjIzNDEsImV4cCI6MjA5MTA5ODM0MX0.LfcW4jYGp-QGJ9L3QjhUEr1Z9VVz71dYGGuliYDsT0o";

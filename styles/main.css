@@ -808,10 +808,32 @@ button {
   flex-shrink: 0;
 }
 
-.shield {
+/* .shield {
   width: 18px;
   height: 18px;
   font-size: 0.34rem;
+} */
+
+/* .shield {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+} */
+
+.shield {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.shield img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .mr-score,

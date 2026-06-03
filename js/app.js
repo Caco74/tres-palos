@@ -1,7 +1,7 @@
 /* Datos mockeados: estructura pensada para reemplazar por Supabase */
 
 const TOTAL_FECHAS = 14;
-let fechaActual = 14;
+let fechaActual = 1;
 let zonaActual = 1;
 
 const fechaData = {
@@ -132,72 +132,191 @@ document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => switchTab(t.dataset.tab));
 });
 
-function renderMatches() {
-  const cont = document.getElementById('matchContent');
-  const data = fechaData[fechaActual];
+// function renderMatches() {
+//   const cont = document.getElementById('matchContent');
+//   const data = fechaData[fechaActual];
 
-  if (!data) {
-    cont.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Sin datos para esta fecha</div>';
+//   if (!data) {
+//     cont.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Sin datos para esta fecha</div>';
+//     return;
+//   }
+
+//   const zColors = { zona1:'var(--zone1)', zona2:'var(--zone2)', zona3:'var(--zone3)' };
+//   const zNames = { zona1:'Zona 1', zona2:'Zona 2', zona3:'Zona 3' };
+
+//   let html = '';
+
+//   ['zona1','zona2','zona3'].forEach(z => {
+//     const zd = data[z];
+
+//     html += `
+//       <div class="zona-block">
+//         <div class="zona-head">
+//           <div class="zona-pip" style="background:${zColors[z]}"></div>
+//           <div class="zona-name">${zNames[z]}</div>
+//           <div class="zona-count">7 equipos</div>
+//         </div>
+//     `;
+
+//     zd.matches.forEach(m => {
+//       const statusLabel = m.status === 'final' ? 'FINAL' : m.status === 'live' ? 'EN VIVO' : 'PRÓXIMO';
+//       const statusClass = m.status === 'final' ? 'final' : m.status === 'live' ? 'live' : 'next';
+//       const homeClass = m.aw ? 'loser' : '';
+//       const awayClass = m.hw ? 'loser' : '';
+
+//       const center = m.status === 'next'
+//         ? `<div class="mr-time">${m.time}</div>`
+//         : `<div class="mr-score">${m.score}</div>`;
+
+//       html += `
+//         <div class="match-row">
+//           <div class="mr-status ${statusClass}">${statusLabel}</div>
+//           <div class="mr-team ${homeClass}">
+//             <div class="shield ${m.hs}">${m.ha}</div>
+//             <span class="name">${m.home}</span>
+//           </div>
+//           ${center}
+//           <div class="mr-team away ${awayClass}">
+//             <span class="name">${m.away}</span>
+//             <div class="shield ${m.as}">${m.aa}</div>
+//           </div>
+//           <div class="mr-chev">›</div>
+//         </div>
+//       `;
+//     });
+
+//     if (zd.libre) {
+//       html += `
+//         <div class="match-libre">
+//           <div class="libre-tag">Libre</div>
+//           <div class="libre-team">
+//             <div class="shield ${zd.libre.shield}" style="width:16px;height:16px;font-size:.32rem">${zd.libre.abbr}</div>
+//             ${zd.libre.team}
+//           </div>
+//         </div>
+//       `;
+//     }
+
+//     html += '</div>';
+//   });
+
+//   cont.innerHTML = html;
+// }
+
+function renderMatches() {
+    console.log("renderMatches ejecuta");
+console.log("fechaActual:", fechaActual);
+console.log("partidos state:", state.partidos.length);
+  const cont = document.getElementById("matchContent");
+  if (!cont) return;
+
+  const partidosFecha = state.partidos.filter(
+    p =>
+      p.tipo !== "playoff" &&
+      p.fecha == fechaActual
+  );
+
+  console.log("partidosFecha:", partidosFecha);
+
+  if (partidosFecha.length === 0) {
+    cont.innerHTML = `
+      <div style="padding:2rem;text-align:center;color:var(--muted)">
+        Sin datos para esta fecha
+      </div>
+    `;
     return;
   }
 
-  const zColors = { zona1:'var(--zone1)', zona2:'var(--zone2)', zona3:'var(--zone3)' };
-  const zNames = { zona1:'Zona 1', zona2:'Zona 2', zona3:'Zona 3' };
+  const zonas = {
+    zona1: partidosFecha.filter(p => Number(p.zona) === 1),
+    zona2: partidosFecha.filter(p => Number(p.zona) === 2),
+    zona3: partidosFecha.filter(p => Number(p.zona) === 3)
+  };
 
-  let html = '';
+  const zColors = {
+    zona1: "var(--zone1)",
+    zona2: "var(--zone2)",
+    zona3: "var(--zone3)"
+  };
 
-  ['zona1','zona2','zona3'].forEach(z => {
-    const zd = data[z];
+  const zNames = {
+    zona1: "Zona 1",
+    zona2: "Zona 2",
+    zona3: "Zona 3"
+  };
+
+  let html = "";
+
+  ["zona1", "zona2", "zona3"].forEach(z => {
+    const partidosZona = zonas[z];
+
+    if (partidosZona.length === 0) return;
 
     html += `
       <div class="zona-block">
         <div class="zona-head">
           <div class="zona-pip" style="background:${zColors[z]}"></div>
           <div class="zona-name">${zNames[z]}</div>
-          <div class="zona-count">7 equipos</div>
+          <div class="zona-count">${partidosZona.length * 2} equipos</div>
         </div>
     `;
 
-    zd.matches.forEach(m => {
-      const statusLabel = m.status === 'final' ? 'FINAL' : m.status === 'live' ? 'EN VIVO' : 'PRÓXIMO';
-      const statusClass = m.status === 'final' ? 'final' : m.status === 'live' ? 'live' : 'next';
-      const homeClass = m.aw ? 'loser' : '';
-      const awayClass = m.hw ? 'loser' : '';
+    partidosZona.forEach(p => {
+      const jugado =
+        p.goles_local !== null &&
+        p.goles_visitante !== null;
 
-      const center = m.status === 'next'
-        ? `<div class="mr-time">${m.time}</div>`
-        : `<div class="mr-score">${m.score}</div>`;
+      const statusLabel = jugado ? "FINAL" : "PRÓXIMO";
+      const statusClass = jugado ? "final" : "next";
+
+      const localGano =
+        jugado && p.goles_local > p.goles_visitante;
+
+      const visitanteGano =
+        jugado && p.goles_visitante > p.goles_local;
+
+      const homeClass = visitanteGano ? "loser" : "";
+      const awayClass = localGano ? "loser" : "";
+
+      const center = jugado
+        ? `<div class="mr-score">${p.goles_local} - ${p.goles_visitante}</div>`
+        : `<div class="mr-time">${p.hora || "A confirmar"}</div>`;
 
       html += `
         <div class="match-row">
           <div class="mr-status ${statusClass}">${statusLabel}</div>
+
           <div class="mr-team ${homeClass}">
-            <div class="shield ${m.hs}">${m.ha}</div>
-            <span class="name">${m.home}</span>
+          <span class="name">${nombre(p.local)}</span>
+            <div class="shield">
+              ${
+                escudos[p.local]
+                  ? `<img src="${escudos[p.local]}" alt="${nombre(p.local)}">`
+                  : nombre(p.local).slice(0, 2)
+              }
+            </div>
+            
           </div>
+
           ${center}
+
           <div class="mr-team away ${awayClass}">
-            <span class="name">${m.away}</span>
-            <div class="shield ${m.as}">${m.aa}</div>
+            <span class="name">${nombre(p.visitante)}</span>
+            <div class="shield">
+              ${
+                escudos[p.visitante]
+                  ? `<img src="${escudos[p.visitante]}" alt="${nombre(p.visitante)}">`
+                  : nombre(p.visitante).slice(0, 2)
+              }
+            </div>
           </div>
+
           <div class="mr-chev">›</div>
         </div>
       `;
     });
 
-    if (zd.libre) {
-      html += `
-        <div class="match-libre">
-          <div class="libre-tag">Libre</div>
-          <div class="libre-team">
-            <div class="shield ${zd.libre.shield}" style="width:16px;height:16px;font-size:.32rem">${zd.libre.abbr}</div>
-            ${zd.libre.team}
-          </div>
-        </div>
-      `;
-    }
-
-    html += '</div>';
+    html += "</div>";
   });
 
   cont.innerHTML = html;
@@ -307,7 +426,53 @@ function renderTeams() {
 document.getElementById('btnPrev').disabled = fechaActual <= 1;
 document.getElementById('btnNext').disabled = fechaActual >= TOTAL_FECHAS + 1;
 
-renderMatches();
+// renderMatches();
 renderTabla(1);
 renderScorers();
 renderTeams();
+
+async function obtenerPartidos() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/partidos`,
+    {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`
+      }
+    }
+  );
+
+  const data = await res.json();
+
+  state.partidos = data;
+
+  console.log("PARTIDOS:", state.partidos);
+
+  renderMatches();
+}
+
+function renderPartidos() {
+
+  const cont = document.getElementById("matchContent");
+
+  if (!cont) return;
+
+  cont.innerHTML = "";
+
+  state.partidos.slice(0, 10).forEach(p => {
+
+    cont.innerHTML += `
+      <div style="
+        padding:1rem;
+        border-bottom:1px solid #222;
+      ">
+        ${p.local}
+        vs
+        ${p.visitante}
+      </div>
+    `;
+  });
+
+}
+
+obtenerPartidos();
