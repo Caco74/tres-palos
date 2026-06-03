@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tres Palos v11</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────────────────────
+   TRES PALOS v11
+   Mezcla final:
+   - v7 = estética app / oscuro / mobile first
+   - v10 = estructura funcional / zonas / playoffs / fecha
+───────────────────────────────────────── */
+
+:root {
+  --bg:       #0c0c0d;
+  --bg2:      #131315;
+  --card:     #1a1a1d;
+  --card2:    #202024;
+  --border:   #28282e;
+  --border2:  #363640;
+  --white:    #f4f4f6;
+  --text:     #a0a0aa;
+  --muted:    #555562;
+
+  --red:      #e8192c;
+  --red2:     #b81222;
+  --red-lo:   rgba(232,25,44,0.1);
+
+  --blue:     #3d8ef0;
+  --win:      #30b86a;
+  --draw:     #666674;
+  --loss:     #cc4040;
+
+  --zone1:    #3d8ef0;
+  --zone2:    #9b59b6;
+  --zone3:    #e67e22;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: #060607;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border2);
+}
+
+/* APP SHELL */
+
+.app {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+@media (min-width: 520px) {
+  .app {
+    box-shadow: 0 0 80px rgba(0,0,0,0.75);
+  }
+}
+
+@media (min-width: 980px) {
+  .app {
+    max-width: 1180px;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    box-shadow: none;
+  }
+
+  .desktop-sidebar {
+    display: flex !important;
+  }
+
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .main-column {
+    min-height: 100vh;
+    border-right: 1px solid var(--border);
+  }
+}
+
+/* SIDEBAR DESKTOP */
+
+.desktop-sidebar {
+  display: none;
+  flex-direction: column;
+  gap: 1.4rem;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 1.4rem 1.2rem;
+}
+
+.sb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-gp {
+  width: 26px;
+  height: 23px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.logo-gp::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--red);
+  border-radius: 1px;
+}
+
+.logo-gp::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--red);
+  border-radius: 0 0 1px 1px;
+}
+
+.logo-gp-r {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--red);
+  border-radius: 0 0 1px 1px;
+}
+
+.sb-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.55rem;
+  letter-spacing: 0.1em;
+  color: var(--white);
+  line-height: 1;
+}
+
+.sb-tag {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.sb-desc {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.sb-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.sb-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red), transparent);
+}
+
+.sb-eye {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 6px;
+}
+
+.sb-team {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.65rem;
+  letter-spacing: 0.06em;
+  color: var(--white);
+  line-height: 1;
+}
+
+.sb-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 10px;
+}
+
+.sb-stat-n {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.35rem;
+  color: var(--white);
+  line-height: 1;
+}
+
+.sb-stat-l {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.sb-links {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+}
+
+.sb-link {
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 9px 10px;
+  border-radius: 7px;
+  transition: all .2s;
+}
+
+.sb-link:hover {
+  background: var(--card);
+  color: var(--text);
+}
+
+.sb-link.on {
+  background: var(--red-lo);
+  color: var(--red);
+}
+
+/* HEADER */
+
+.main-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.league-strip {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 1rem;
+  gap: 6px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.league-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.ls-chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 12px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.ls-chip.on {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+.ls-chip.soon {
+  opacity: 0.3;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 54px;
+  padding: 0 1rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.logo-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.1em;
+  color: var(--white);
+}
+
+.ctx-pill {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ctx-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--red);
+  border-radius: 50%;
+}
+
+/* HERO */
+
+.hero {
+  height: 170px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.hero-img {
+  position: absolute;
+  inset: 0;
+  background-image: url('https://images.unsplash.com/photo-1540747913346-19212a4cf528?w=900&q=80&auto=format&fit=crop&crop=center');
+  background-size: cover;
+  background-position: center 40%;
+  filter: brightness(0.34) saturate(0.65);
+}
+
+.hero-grad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 20%, var(--bg) 100%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.1rem 1rem;
+}
+
+.hero-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 4px;
+}
+
+.hero-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.45rem;
+  line-height: 0.9;
+  color: var(--white);
+  letter-spacing: 0.03em;
+}
+
+.hero-title em {
+  color: var(--red);
+  font-style: normal;
+}
+
+/* TABS */
+
+.tab-nav {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1rem;
+}
+
+.tab-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 12px 13px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  user-select: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.on {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+/* CONTENT */
+
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 72px;
+}
+
+@media(min-width:980px) {
+  .app-main {
+    padding-bottom: 0;
+  }
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.on {
+  display: block;
+}
+
+.sec {
+  padding: 1.25rem 1rem 0;
+}
+
+.sec-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.sec-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sec-title::before {
+  content: '';
+  width: 2px;
+  height: 11px;
+  background: var(--red);
+  display: block;
+}
+
+.sec-link {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+/* HOME */
+
+.next-card {
+  margin: 0 1rem 1.25rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.next-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red), transparent);
+}
+
+.nc-top,
+.nc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+}
+
+.nc-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--blue);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nc-pulse {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--blue);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .45; transform: scale(.75); }
+}
+
+.nc-round,
+.nc-footer-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nc-footer {
+  border-top: 1px solid var(--border);
+}
+
+.nc-footer-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  color: var(--red);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+}
+
+.nc-match {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  padding: 12px 14px 16px;
+  align-items: center;
+}
+
+.nc-team {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.nc-shield {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: white;
+  font-size: 0.55rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nc-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--white);
+  line-height: 1.15;
+}
+
+.nc-role {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nc-center {
+  text-align: center;
+}
+
+.nc-vs {
+  display: block;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: 0.08em;
+  color: var(--border2);
+}
+
+.nc-time,
+.nc-venue {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+}
+
+.nc-time {
+  color: var(--blue);
+  margin-top: 2px;
+}
+
+.nc-venue {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* MATCHES BY ZONE */
+
+.date-nav {
+  display: flex;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.dn-btn {
+  width: 52px;
+  height: 46px;
+  background: var(--card);
+  color: var(--text);
+  border: none;
+  border-right: 1px solid var(--border);
+}
+
+.dn-btn:last-child {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.dn-btn:disabled {
+  opacity: .3;
+  pointer-events: none;
+}
+
+.dn-label-wrap {
+  flex: 1;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dn-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.zona-block {
+  border-bottom: 1px solid var(--border);
+}
+
+.zona-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 1rem;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.zona-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.zona-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.zona-count {
+  margin-left: auto;
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+
+.match-row {
+  display: grid;
+  grid-template-columns: 58px 1fr auto 1fr 12px;
+  gap: 7px;
+  align-items: center;
+  padding: 11px 1rem;
+  border-bottom: 1px solid rgba(40,40,46,0.8);
+  cursor: pointer;
+}
+
+.match-row:hover {
+  background: var(--card);
+}
+
+.match-row:last-child {
+  border-bottom: none;
+}
+
+.mr-status {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mr-status.final { color: var(--text); }
+.mr-status.next { color: var(--blue); }
+.mr-status.live { color: var(--red); }
+
+.mr-team {
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mr-team.away {
+  flex-direction: row-reverse;
+}
+
+.mr-team.loser {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.mr-team .name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shield,
+.badge,
+.sm-badge,
+.po-tshield,
+.tr-shield,
+.uc-b,
+.rb {
+  border-radius: 50%;
+  color: white;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.shield {
+  width: 18px;
+  height: 18px;
+  font-size: 0.34rem;
+}
+
+.mr-score,
+.mr-time {
+  min-width: 56px;
+  text-align: center;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--white);
+}
+
+.mr-time {
+  color: var(--blue);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.56rem;
+}
+
+.mr-chev {
+  color: var(--border2);
+}
+
+.match-libre {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 1rem;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+}
+
+.libre-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.libre-team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 0.76rem;
+}
+
+/* RESULTS LIST HOME */
+
+.results-list,
+.scorers,
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 1rem 1.25rem;
+}
+
+.result,
+.scorer,
+.uc {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.result {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  position: relative;
+}
+
+.result-meta {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rt {
+  margin-top: 10px;
+  color: var(--white);
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rt.r {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.rb,
+.uc-b {
+  width: 18px;
+  height: 18px;
+  font-size: 0.36rem;
+}
+
+.rs {
+  margin-top: 10px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+/* TABLE */
+
+.cat-row,
+.zona-tab-bar {
+  display: flex;
+  gap: 6px;
+  padding: 0 1rem 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.zona-tab-bar {
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+
+.cp,
+.zt {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.cp.on {
+  color: white;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.cp.dim {
+  opacity: .35;
+}
+
+.zt {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.zt.on {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+.zt-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.tabla-wrap {
+  overflow-x: auto;
+  padding: 0 1rem 1.5rem;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 360px;
+}
+
+.tabla th {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 7px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla th:nth-child(-n+2) {
+  text-align: left;
+}
+
+.tabla td {
+  padding: 10px 7px;
+  text-align: right;
+  color: var(--text);
+  font-size: 0.77rem;
+  border-bottom: 1px solid rgba(40,40,46,0.75);
+}
+
+.tabla td:first-child {
+  text-align: center;
+}
+
+.tabla td:nth-child(2) {
+  text-align: left;
+}
+
+.t-pos {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  color: var(--muted);
+}
+
+.t-name {
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.t-pts {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: var(--red);
+}
+
+.t-dg {
+  color: var(--win);
+}
+
+.t-leader {
+  background: var(--red-lo);
+}
+
+.sm-badge {
+  width: 17px;
+  height: 17px;
+  font-size: 0.34rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 3px;
+  justify-content: flex-end;
+}
+
+.fd {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.fw { background: var(--win); }
+.fe { background: var(--draw); }
+.fl { background: var(--loss); }
+
+/* SCORERS */
+
+.scorer {
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sc-pos {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.2rem;
+  min-width: 20px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.sc-pos.gold {
+  color: var(--red);
+}
+
+.sc-info {
+  flex: 1;
+}
+
+.sc-name {
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.sc-club {
+  font-family: 'DM Mono', monospace;
+  color: var(--muted);
+  font-size: 0.52rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.sc-n {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.45rem;
+  color: var(--white);
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.sc-n small {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.5rem;
+  color: var(--muted);
+}
+
+/* PLAYOFFS */
+
+.po-banner {
+  margin: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.4rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.po-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red), transparent);
+}
+
+.po-banner-icon {
+  font-size: 2rem;
+  margin-bottom: 5px;
+}
+
+.po-banner-title {
+  font-family: 'Bebas Neue', sans-serif;
+  color: var(--white);
+  font-size: 1.8rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.po-banner-sub {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+
+.po-phase {
+  padding: 1.25rem 1rem 0.6rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.po-phase-title {
+  font-family: 'DM Mono', monospace;
+  color: var(--text);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.po-phase-tag {
+  font-family: 'DM Mono', monospace;
+  color: var(--muted);
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 8px;
+  font-size: 0.48rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.po-qualified {
+  margin: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.po-q-head {
+  padding: 8px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.po-q-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(40,40,46,.75);
+}
+
+.po-q-row:last-child {
+  border-bottom: none;
+}
+
+.po-q-pos {
+  font-family: 'DM Mono', monospace;
+  color: var(--muted);
+  width: 14px;
+  text-align: center;
+  font-size: 0.55rem;
+}
+
+.po-q-name {
+  flex: 1;
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.po-q-name span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+.po-q-pts {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  color: var(--white);
+}
+
+.po-q-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.46rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 20px;
+}
+
+.po-q-tag.direct {
+  background: var(--red-lo);
+  color: var(--red);
+  border: 1px solid rgba(232,25,44,0.2);
+}
+
+.po-q-tag.octavos {
+  background: rgba(61,142,240,0.1);
+  color: var(--blue);
+  border: 1px solid rgba(61,142,240,0.2);
+}
+
+.po-bracket {
+  padding: 0.75rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.po-match {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.po-match.pending {
+  opacity: .62;
+}
+
+.po-match-hd {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.po-match-id,
+.po-st {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.po-st {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 7px;
+}
+
+.po-trow,
+.po-tbd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(40,40,46,.75);
+}
+
+.po-trow:last-child,
+.po-tbd-row:last-child {
+  border-bottom: none;
+}
+
+.po-seed {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.48rem;
+  color: var(--muted);
+  width: 14px;
+  text-align: center;
+}
+
+.po-tshield {
+  width: 18px;
+  height: 18px;
+  font-size: 0.34rem;
+}
+
+.po-tn {
+  flex: 1;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.po-trow.winner .po-tn {
+  color: var(--white);
+  font-weight: 600;
+}
+
+.po-trow.loser .po-tn {
+  color: var(--muted);
+}
+
+.po-ts {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1rem;
+  color: var(--white);
+}
+
+.po-ts.tbd {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+
+.po-tbd-sh {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px dashed var(--border2);
+  background: var(--card2);
+}
+
+.po-tbd-n {
+  flex: 1;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+/* TEAMS */
+
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 8px;
+  padding: 0 1rem 1.25rem;
+}
+
+.team-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+  padding: 14px 8px;
+}
+
+.tc-shield {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 0.54rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin: 0 auto 8px;
+}
+
+.tc-name {
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.tc-pts {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* MOBILE BOTTOM NAV */
+
+.mobile-bottom-nav {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+
+.bn-item {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 9px 0;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.46rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.bn-item.on {
+  color: var(--red);
+}
+
+.bn-icon {
+  font-size: 0.95rem;
+}
+
+/* SHIELD COLORS */
+
+.s-porvenir{background:#2d6a2d}.s-sportsman{background:#1a1a1a}
+.s-campana{background:#c0392b}.s-carcarana{background:#c0392b}
+.s-cosmo{background:#1a3a8a}.s-sanjeronimo{background:#1a5a8a}
+.s-correa{background:#8a1a1a}.s-newells{background:#c0392b}
+.s-barraca{background:#8a3a1a}.s-america{background:#1a3a8a}
+.s-adeo{background:#1a5a3a}.s-sportclub{background:#1a5a30}
+.s-almafuerte{background:#8a1a1a}.s-union{background:#1a3a6a}
+.s-argentino{background:#1a3e88}.s-belgrano{background:#1a3e88}
+.s-montesdeoca{background:#484818}.s-independiente{background:#c0392b}
+.s-atletico{background:#8a3a1a}.s-racing{background:#1a1a8a}
+.s-victoria{background:#2d6a2d}
+
+/* ANIMATION */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tab-content.on > * {
+  animation: fadeIn .25s ease both;
+}
+
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- DESKTOP SIDEBAR -->
+  <aside class="desktop-sidebar">
+    <div>
+      <div class="sb-brand">
+        <div class="logo-gp"><div class="logo-gp-r"></div></div>
+        <div>
+          <div class="sb-title">Tres Palos</div>
+          <span class="sb-tag">Fútbol Regional</span>
+        </div>
+      </div>
+      <p class="sb-desc">Datos claros del fútbol regional. Hecho por hinchas, para hinchas.</p>
+    </div>
+
+    <div class="sb-card">
+      <div class="sb-eye">Líder · Fecha 14</div>
+      <div class="sb-team">Newell's</div>
+      <div class="sb-stats">
+        <div><div class="sb-stat-n">31</div><div class="sb-stat-l">Puntos</div></div>
+        <div><div class="sb-stat-n">14</div><div class="sb-stat-l">Partidos</div></div>
+        <div><div class="sb-stat-n">+22</div><div class="sb-stat-l">DG</div></div>
+      </div>
+    </div>
+
+    <ul class="sb-links">
+      <li><button class="sb-link on" onclick="switchTab('inicio')">Inicio</button></li>
+      <li><button class="sb-link" onclick="switchTab('partidos')">Partidos</button></li>
+      <li><button class="sb-link" onclick="switchTab('tabla')">Tabla</button></li>
+      <li><button class="sb-link" onclick="switchTab('playoffs')">Playoffs</button></li>
+      <li><button class="sb-link" onclick="switchTab('goleadores')">Goleadores</button></li>
+      <li><button class="sb-link" onclick="switchTab('equipos')">Equipos</button></li>
+    </ul>
+  </aside>
+
+  <!-- MAIN COLUMN -->
+  <div class="main-column">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="league-strip">
+        <div class="ls-chip on">Liga Cañadense</div>
+        <div class="ls-chip soon">Liga Esperanza</div>
+        <div class="ls-chip soon">Liga Rafaela</div>
+        <div class="ls-chip soon">Liga San Justo</div>
+      </div>
+
+      <div class="top-bar">
+        <a href="#" class="logo">
+          <div class="logo-gp"><div class="logo-gp-r"></div></div>
+          <span class="logo-name">Tres Palos</span>
+        </a>
+
+        <div class="ctx-pill">
+          <span class="ctx-dot"></span>
+          Primera División
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-img"></div>
+      <div class="hero-grad"></div>
+      <div class="hero-content">
+        <div class="hero-label">Liga Cañadense · Fecha 14 · 2024</div>
+        <h1 class="hero-title">El torneo<br><em>en datos</em></h1>
+      </div>
+    </section>
+
+    <!-- TABS -->
+    <nav class="tab-nav">
+      <div class="tab on" data-tab="inicio">Inicio</div>
+      <div class="tab" data-tab="partidos">Partidos</div>
+      <div class="tab" data-tab="tabla">Tabla</div>
+      <div class="tab" data-tab="playoffs">Playoffs</div>
+      <div class="tab" data-tab="goleadores">Goleadores</div>
+      <div class="tab" data-tab="equipos">Equipos</div>
+    </nav>
+
+    <!-- CONTENT -->
+    <main class="app-main">
+
+      <!-- INICIO -->
+      <section class="tab-content on" id="tab-inicio">
+
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Próximo partido</div>
+          </div>
+        </div>
+
+        <div class="next-card">
+          <div class="nc-top">
+            <div class="nc-badge"><span class="nc-pulse"></span> Próximo</div>
+            <div class="nc-round">Fecha 15</div>
+          </div>
+
+          <div class="nc-match">
+            <div class="nc-team">
+              <div class="nc-shield s-cosmo">CC</div>
+              <div class="nc-name">Cosmo</div>
+              <div class="nc-role">Local</div>
+            </div>
+
+            <div class="nc-center">
+              <span class="nc-vs">VS</span>
+              <span class="nc-time">Dom 16:00</span>
+              <span class="nc-venue">Cancha Cosmo</span>
+            </div>
+
+            <div class="nc-team">
+              <div class="nc-shield s-newells">NO</div>
+              <div class="nc-name">Newell's</div>
+              <div class="nc-role">Visitante · Líder</div>
+            </div>
+          </div>
+
+          <div class="nc-footer">
+            <div class="nc-footer-label">Fecha 15 · Zona 1</div>
+            <a href="#" class="nc-footer-link" onclick="switchTab('partidos')">Ver fixture →</a>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Última fecha</div>
+            <a href="#" class="sec-link" onclick="switchTab('partidos')">Ver todos →</a>
+          </div>
+        </div>
+
+        <div class="results-list">
+          <div class="result">
+            <div class="result-meta">Fecha 14 · Final</div>
+            <div class="rt"><div class="rb s-newells">NO</div>Newell's</div>
+            <div class="rs">5–0</div>
+            <div class="rt r">Barraca<div class="rb s-barraca">BA</div></div>
+          </div>
+          <div class="result">
+            <div class="result-meta">Fecha 14 · Final</div>
+            <div class="rt"><div class="rb s-cosmo">CC</div>Cosmo</div>
+            <div class="rs">2–0</div>
+            <div class="rt r">San Jerónimo<div class="rb s-sanjeronimo">SJ</div></div>
+          </div>
+          <div class="result">
+            <div class="result-meta">Fecha 14 · Final</div>
+            <div class="rt"><div class="rb s-argentino">AR</div>Argentino</div>
+            <div class="rs">2–1</div>
+            <div class="rt r">Belgrano<div class="rb s-belgrano">BE</div></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Líder de goles</div>
+            <a href="#" class="sec-link" onclick="switchTab('goleadores')">Ver tabla →</a>
+          </div>
+        </div>
+
+        <div class="scorers">
+          <div class="scorer">
+            <div class="sc-pos gold">1</div>
+            <div class="sc-info">
+              <div class="sc-name">Marcos Alvarez</div>
+              <div class="sc-club">Cosmo · Zona 1</div>
+            </div>
+            <div class="sc-n">11<small>goles</small></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PARTIDOS -->
+      <section class="tab-content" id="tab-partidos">
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Partidos por fecha</div>
+          </div>
+        </div>
+
+        <div class="date-nav">
+          <button class="dn-btn" id="btnPrev" onclick="changeDate(-1)">←</button>
+          <div class="dn-label-wrap" onclick="toggleDate()">
+            <span class="dn-label" id="dateLabel">Fecha 14</span>
+          </div>
+          <button class="dn-btn" id="btnNext" onclick="changeDate(1)">→</button>
+        </div>
+
+        <div id="matchContent"></div>
+      </section>
+
+      <!-- TABLA -->
+      <section class="tab-content" id="tab-tabla">
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Tabla de posiciones</div>
+          </div>
+        </div>
+
+        <div class="cat-row">
+          <button class="cp on">Primera Div.</button>
+          <button class="cp dim">Segunda Div.</button>
+          <button class="cp dim">Reserva</button>
+          <button class="cp dim">Femenino</button>
+        </div>
+
+        <div class="zona-tab-bar">
+          <button class="zt on" data-zona="1"><span class="zt-pip" style="background:var(--zone1)"></span>Zona 1</button>
+          <button class="zt" data-zona="2"><span class="zt-pip" style="background:var(--zone2)"></span>Zona 2</button>
+          <button class="zt" data-zona="3"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
+        </div>
+
+        <div id="tablaContent"></div>
+      </section>
+
+      <!-- PLAYOFFS -->
+      <section class="tab-content" id="tab-playoffs">
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Playoffs</div>
+            <span class="sec-link">Fecha 14</span>
+          </div>
+        </div>
+
+        <div class="po-banner">
+          <div class="po-banner-icon">🏆</div>
+          <div class="po-banner-title">Playoffs 2024</div>
+          <div class="po-banner-sub">Liga Cañadense · Primera División</div>
+        </div>
+
+        <div class="po-phase">
+          <div class="po-phase-title">Clasificados provisorios</div>
+          <span class="po-phase-tag">Fecha 14</span>
+        </div>
+
+        <div class="po-qualified">
+          <div class="po-q-head">Pase directo a Cuartos</div>
+          <div class="po-q-row">
+            <div class="po-q-pos">1</div>
+            <div class="shield s-newells">NO</div>
+            <div class="po-q-name">Newell's <span>· Zona 2</span></div>
+            <div class="po-q-pts">31</div>
+            <div class="po-q-tag direct">Cuartos</div>
+          </div>
+          <div class="po-q-row">
+            <div class="po-q-pos">2</div>
+            <div class="shield s-cosmo">CC</div>
+            <div class="po-q-name">Cosmo <span>· Zona 1</span></div>
+            <div class="po-q-pts">28</div>
+            <div class="po-q-tag direct">Cuartos</div>
+          </div>
+        </div>
+
+        <div class="po-qualified">
+          <div class="po-q-head">Completan Octavos</div>
+          <div class="po-q-row">
+            <div class="po-q-pos">3</div>
+            <div class="shield s-argentino">AR</div>
+            <div class="po-q-name">Argentino <span>· Zona 3</span></div>
+            <div class="po-q-pts">29</div>
+            <div class="po-q-tag octavos">Octavos</div>
+          </div>
+          <div class="po-q-row">
+            <div class="po-q-pos">4</div>
+            <div class="shield s-sportsman">SP</div>
+            <div class="po-q-name">Sportsman <span>· Zona 1</span></div>
+            <div class="po-q-pts">26</div>
+            <div class="po-q-tag octavos">Octavos</div>
+          </div>
+          <div class="po-q-row">
+            <div class="po-q-pos">5</div>
+            <div class="shield s-adeo">AD</div>
+            <div class="po-q-name">ADEO <span>· Zona 2</span></div>
+            <div class="po-q-pts">26</div>
+            <div class="po-q-tag octavos">Octavos</div>
+          </div>
+        </div>
+
+        <div class="po-phase">
+          <div class="po-phase-title">Cuartos de Final</div>
+          <span class="po-phase-tag">Pendiente</span>
+        </div>
+
+        <div class="po-bracket">
+          <div class="po-match pending">
+            <div class="po-match-hd">
+              <div class="po-match-id">QF · 1</div>
+              <div class="po-st">Pendiente</div>
+            </div>
+            <div class="po-tbd-row">
+              <div class="po-tbd-sh"></div>
+              <div class="po-tbd-n">1° clasificado</div>
+              <div class="po-ts tbd">–</div>
+            </div>
+            <div class="po-tbd-row">
+              <div class="po-tbd-sh"></div>
+              <div class="po-tbd-n">Por definir</div>
+              <div class="po-ts tbd">–</div>
+            </div>
+          </div>
+
+          <div class="po-match pending">
+            <div class="po-match-hd">
+              <div class="po-match-id">QF · 2</div>
+              <div class="po-st">Pendiente</div>
+            </div>
+            <div class="po-tbd-row">
+              <div class="po-tbd-sh"></div>
+              <div class="po-tbd-n">2° clasificado</div>
+              <div class="po-ts tbd">–</div>
+            </div>
+            <div class="po-tbd-row">
+              <div class="po-tbd-sh"></div>
+              <div class="po-tbd-n">Por definir</div>
+              <div class="po-ts tbd">–</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- GOLEADORES -->
+      <section class="tab-content" id="tab-goleadores">
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Tabla de goleadores</div>
+            <span class="sec-link">Fecha 14</span>
+          </div>
+        </div>
+
+        <div class="scorers" id="scorersContent"></div>
+      </section>
+
+      <!-- EQUIPOS -->
+      <section class="tab-content" id="tab-equipos">
+        <div class="sec">
+          <div class="sec-head">
+            <div class="sec-title">Equipos</div>
+            <span class="sec-link">21 clubes</span>
+          </div>
+        </div>
+
+        <div class="teams-grid" id="teamsContent"></div>
+      </section>
+
+    </main>
+
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-bottom-nav">
+      <button class="bn-item on" onclick="switchTab('inicio')"><span class="bn-icon">🏠</span>Inicio</button>
+      <button class="bn-item" onclick="switchTab('partidos')"><span class="bn-icon">⚽</span>Partidos</button>
+      <button class="bn-item" onclick="switchTab('tabla')"><span class="bn-icon">📊</span>Tabla</button>
+      <button class="bn-item" onclick="switchTab('playoffs')"><span class="bn-icon">🏆</span>Playoffs</button>
+      <button class="bn-item" onclick="switchTab('equipos')"><span class="bn-icon">🏟️</span>Equipos</button>
+    </nav>
+
+  </div>
+</div>
+
+<script>
+/* Datos mockeados: estructura pensada para reemplazar por Supabase */
+
+const TOTAL_FECHAS = 14;
+let fechaActual = 14;
+let zonaActual = 1;
+
+const fechaData = {
+  14: {
+    zona1: {
+      matches: [
+        {status:'final',home:'Porvenir',hs:'s-porvenir',ha:'PO',away:'Sportsman',as:'s-sportsman',aa:'SP',score:'0–0'},
+        {status:'final',home:'Campaña',hs:'s-campana',ha:'CA',away:'Carcarañá',as:'s-carcarana',aa:'CR',score:'0–0'},
+        {status:'final',home:'Cosmo',hs:'s-cosmo',ha:'CC',away:'San Jerónimo',as:'s-sanjeronimo',aa:'SJ',score:'2–0',hw:true},
+      ],
+      libre:{team:'Correa',shield:'s-correa',abbr:'CO'}
+    },
+    zona2: {
+      matches: [
+        {status:'final',home:"Newell's",hs:'s-newells',ha:'NO',away:'Barraca',as:'s-barraca',aa:'BA',score:'5–0',hw:true},
+        {status:'final',home:'América',hs:'s-america',ha:'AM',away:'ADEO',as:'s-adeo',aa:'AD',score:'0–3',aw:true},
+        {status:'final',home:'Sport Club',hs:'s-sportclub',ha:'SC',away:'Almafuerte',as:'s-almafuerte',aa:'AF',score:'1–1'},
+      ],
+      libre:{team:'Unión (T)',shield:'s-union',abbr:'UT'}
+    },
+    zona3: {
+      matches: [
+        {status:'final',home:'Argentino',hs:'s-argentino',ha:'AR',away:'Belgrano',as:'s-belgrano',aa:'BE',score:'2–1',hw:true},
+        {status:'final',home:'Montes de Oca',hs:'s-montesdeoca',ha:'MO',away:'Independiente',as:'s-independiente',aa:'IN',score:'0–0'},
+        {status:'final',home:'Atlético',hs:'s-atletico',ha:'AT',away:'Racing',as:'s-racing',aa:'RA',score:'1–2',aw:true},
+      ],
+      libre:{team:'Victoria',shield:'s-victoria',abbr:'VI'}
+    }
+  },
+  15: {
+    zona1: {
+      matches: [
+        {status:'next',home:'Cosmo',hs:'s-cosmo',ha:'CC',away:"Newell's",as:'s-newells',aa:'NO',time:'16:00'},
+        {status:'next',home:'Porvenir',hs:'s-porvenir',ha:'PO',away:'Campaña',as:'s-campana',aa:'CA',time:'15:30'},
+        {status:'next',home:'Sportsman',hs:'s-sportsman',ha:'SP',away:'Carcarañá',as:'s-carcarana',aa:'CR',time:'11:00'},
+      ],
+      libre:{team:'San Jerónimo',shield:'s-sanjeronimo',abbr:'SJ'}
+    },
+    zona2: {
+      matches: [
+        {status:'next',home:'ADEO',hs:'s-adeo',ha:'AD',away:'Sport Club',as:'s-sportclub',aa:'SC',time:'16:00'},
+        {status:'next',home:'Barraca',hs:'s-barraca',ha:'BA',away:'América',as:'s-america',aa:'AM',time:'15:30'},
+        {status:'next',home:'Almafuerte',hs:'s-almafuerte',ha:'AF',away:'Unión (T)',as:'s-union',aa:'UT',time:'11:00'},
+      ],
+      libre:{team:'Correa',shield:'s-correa',abbr:'CO'}
+    },
+    zona3: {
+      matches: [
+        {status:'next',home:'Belgrano',hs:'s-belgrano',ha:'BE',away:'Montes de Oca',as:'s-montesdeoca',aa:'MO',time:'16:00'},
+        {status:'next',home:'Racing',hs:'s-racing',ha:'RA',away:'Atlético',as:'s-atletico',aa:'AT',time:'15:30'},
+        {status:'next',home:'Independiente',hs:'s-independiente',ha:'IN',away:'Victoria',as:'s-victoria',aa:'VI',time:'11:00'},
+      ],
+      libre:{team:'Argentino',shield:'s-argentino',abbr:'AR'}
+    }
+  }
+};
+
+const tablaData = {
+  1:[
+    {pos:1,name:'Cosmo',abbr:'CC',sh:'s-cosmo',pj:14,pg:9,pe:1,pp:4,dg:'+18',form:['w','w','d','w','w'],pts:28},
+    {pos:2,name:'Sportsman',abbr:'SP',sh:'s-sportsman',pj:14,pg:8,pe:2,pp:4,dg:'+10',form:['w','w','l','w','d'],pts:26},
+    {pos:3,name:'Porvenir',abbr:'PO',sh:'s-porvenir',pj:14,pg:7,pe:3,pp:4,dg:'+6',form:['d','w','w','l','w'],pts:24},
+    {pos:4,name:'Campaña',abbr:'CA',sh:'s-campana',pj:14,pg:6,pe:2,pp:6,dg:'+2',form:['l','d','w','w','d'],pts:20},
+    {pos:5,name:'Carcarañá',abbr:'CR',sh:'s-carcarana',pj:14,pg:5,pe:3,pp:6,dg:'-2',form:['w','l','d','l','w'],pts:18},
+    {pos:6,name:'San Jerónimo',abbr:'SJ',sh:'s-sanjeronimo',pj:14,pg:3,pe:2,pp:9,dg:'-14',form:['l','l','w','d','l'],pts:11},
+    {pos:7,name:'Correa',abbr:'CO',sh:'s-correa',pj:14,pg:2,pe:1,pp:11,dg:'-20',form:['l','l','l','w','l'],pts:7},
+  ],
+  2:[
+    {pos:1,name:"Newell's",abbr:'NO',sh:'s-newells',pj:14,pg:10,pe:1,pp:3,dg:'+22',form:['w','w','w','d','w'],pts:31},
+    {pos:2,name:'ADEO',abbr:'AD',sh:'s-adeo',pj:14,pg:8,pe:2,pp:4,dg:'+12',form:['w','w','l','w','w'],pts:26},
+    {pos:3,name:'Sport Club',abbr:'SC',sh:'s-sportclub',pj:14,pg:7,pe:3,pp:4,dg:'+8',form:['d','w','w','d','w'],pts:24},
+    {pos:4,name:'Almafuerte',abbr:'AF',sh:'s-almafuerte',pj:14,pg:5,pe:4,pp:5,dg:'+1',form:['d','w','l','d','w'],pts:19},
+    {pos:5,name:'Barraca',abbr:'BA',sh:'s-barraca',pj:14,pg:4,pe:2,pp:8,dg:'-8',form:['l','d','w','l','l'],pts:14},
+    {pos:6,name:'América',abbr:'AM',sh:'s-america',pj:14,pg:3,pe:3,pp:8,dg:'-14',form:['l','l','d','l','l'],pts:12},
+    {pos:7,name:'Unión (T)',abbr:'UT',sh:'s-union',pj:14,pg:2,pe:1,pp:11,dg:'-21',form:['l','l','l','w','d'],pts:7},
+  ],
+  3:[
+    {pos:1,name:'Argentino',abbr:'AR',sh:'s-argentino',pj:14,pg:9,pe:2,pp:3,dg:'+16',form:['w','w','w','d','w'],pts:29},
+    {pos:2,name:'Belgrano',abbr:'BE',sh:'s-belgrano',pj:14,pg:7,pe:3,pp:4,dg:'+9',form:['w','d','w','l','w'],pts:24},
+    {pos:3,name:'Montes de Oca',abbr:'MO',sh:'s-montesdeoca',pj:14,pg:6,pe:4,pp:4,dg:'+5',form:['d','w','d','w','d'],pts:22},
+    {pos:4,name:'Racing',abbr:'RA',sh:'s-racing',pj:14,pg:5,pe:3,pp:6,dg:'+1',form:['w','l','d','w','w'],pts:18},
+    {pos:5,name:'Independiente',abbr:'IN',sh:'s-independiente',pj:14,pg:4,pe:2,pp:8,dg:'-5',form:['l','d','l','w','l'],pts:14},
+    {pos:6,name:'Atlético',abbr:'AT',sh:'s-atletico',pj:14,pg:3,pe:3,pp:8,dg:'-12',form:['l','l','w','d','l'],pts:12},
+    {pos:7,name:'Victoria',abbr:'VI',sh:'s-victoria',pj:14,pg:2,pe:1,pp:11,dg:'-14',form:['l','l','l','l','w'],pts:7},
+  ]
+};
+
+const goleadores = [
+  {pos:1,name:'Marcos Alvarez',club:'Cosmo · Zona 1',goles:11},
+  {pos:2,name:'Bruno Ferreyra',club:"Newell's · Zona 2",goles:9},
+  {pos:3,name:'Diego Molina',club:'Argentino · Zona 3',goles:8},
+  {pos:4,name:'Lucas Pereyra',club:'Sportsman · Zona 1',goles:7},
+  {pos:5,name:'Facundo Ríos',club:'ADEO · Zona 2',goles:6},
+  {pos:6,name:'Ramiro Sosa',club:'Belgrano · Zona 3',goles:6},
+];
+
+const equipos = [
+  {name:'Cosmo',abbr:'CC',shield:'s-cosmo',pts:28},
+  {name:'Sportsman',abbr:'SP',shield:'s-sportsman',pts:26},
+  {name:'Porvenir',abbr:'PO',shield:'s-porvenir',pts:24},
+  {name:"Newell's",abbr:'NO',shield:'s-newells',pts:31},
+  {name:'ADEO',abbr:'AD',shield:'s-adeo',pts:26},
+  {name:'Sport Club',abbr:'SC',shield:'s-sportclub',pts:24},
+  {name:'Argentino',abbr:'AR',shield:'s-argentino',pts:29},
+  {name:'Belgrano',abbr:'BE',shield:'s-belgrano',pts:24},
+  {name:'Montes de Oca',abbr:'MO',shield:'s-montesdeoca',pts:22},
+];
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.bn-item').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.sb-link').forEach(t => t.classList.remove('on'));
+
+  const target = document.getElementById('tab-' + id);
+  if (target) target.classList.add('on');
+
+  document.querySelectorAll(`[data-tab="${id}"]`).forEach(t => t.classList.add('on'));
+  document.querySelectorAll('.bn-item').forEach(t => {
+    if (t.getAttribute('onclick') && t.getAttribute('onclick').includes(`'${id}'`)) t.classList.add('on');
+  });
+  document.querySelectorAll('.sb-link').forEach(t => {
+    if (t.getAttribute('onclick') && t.getAttribute('onclick').includes(`'${id}'`)) t.classList.add('on');
+  });
+}
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
+});
+
+function renderMatches() {
+  const cont = document.getElementById('matchContent');
+  const data = fechaData[fechaActual];
+
+  if (!data) {
+    cont.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted)">Sin datos para esta fecha</div>';
+    return;
+  }
+
+  const zColors = { zona1:'var(--zone1)', zona2:'var(--zone2)', zona3:'var(--zone3)' };
+  const zNames = { zona1:'Zona 1', zona2:'Zona 2', zona3:'Zona 3' };
+
+  let html = '';
+
+  ['zona1','zona2','zona3'].forEach(z => {
+    const zd = data[z];
+
+    html += `
+      <div class="zona-block">
+        <div class="zona-head">
+          <div class="zona-pip" style="background:${zColors[z]}"></div>
+          <div class="zona-name">${zNames[z]}</div>
+          <div class="zona-count">7 equipos</div>
+        </div>
+    `;
+
+    zd.matches.forEach(m => {
+      const statusLabel = m.status === 'final' ? 'FINAL' : m.status === 'live' ? 'EN VIVO' : 'PRÓXIMO';
+      const statusClass = m.status === 'final' ? 'final' : m.status === 'live' ? 'live' : 'next';
+      const homeClass = m.aw ? 'loser' : '';
+      const awayClass = m.hw ? 'loser' : '';
+
+      const center = m.status === 'next'
+        ? `<div class="mr-time">${m.time}</div>`
+        : `<div class="mr-score">${m.score}</div>`;
+
+      html += `
+        <div class="match-row">
+          <div class="mr-status ${statusClass}">${statusLabel}</div>
+          <div class="mr-team ${homeClass}">
+            <div class="shield ${m.hs}">${m.ha}</div>
+            <span class="name">${m.home}</span>
+          </div>
+          ${center}
+          <div class="mr-team away ${awayClass}">
+            <span class="name">${m.away}</span>
+            <div class="shield ${m.as}">${m.aa}</div>
+          </div>
+          <div class="mr-chev">›</div>
+        </div>
+      `;
+    });
+
+    if (zd.libre) {
+      html += `
+        <div class="match-libre">
+          <div class="libre-tag">Libre</div>
+          <div class="libre-team">
+            <div class="shield ${zd.libre.shield}" style="width:16px;height:16px;font-size:.32rem">${zd.libre.abbr}</div>
+            ${zd.libre.team}
+          </div>
+        </div>
+      `;
+    }
+
+    html += '</div>';
+  });
+
+  cont.innerHTML = html;
+}
+
+function renderTabla(zona) {
+  const cont = document.getElementById('tablaContent');
+  const data = tablaData[zona];
+
+  let html = `
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Equipo</th>
+            <th>PJ</th>
+            <th>PG</th>
+            <th>PE</th>
+            <th>PP</th>
+            <th>DG</th>
+            <th>Forma</th>
+            <th>PTS</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  data.forEach((t, i) => {
+    const dots = t.form.map(f => `<span class="fd f${f}"></span>`).join('');
+    html += `
+      <tr class="${i === 0 ? 't-leader' : ''}">
+        <td class="t-pos">${t.pos}</td>
+        <td>
+          <div class="t-name">
+            <div class="sm-badge ${t.sh}">${t.abbr}</div>
+            ${t.name}
+          </div>
+        </td>
+        <td>${t.pj}</td>
+        <td>${t.pg}</td>
+        <td>${t.pe}</td>
+        <td>${t.pp}</td>
+        <td class="${t.dg.startsWith('+') ? 't-dg' : ''}">${t.dg}</td>
+        <td><div class="form-row">${dots}</div></td>
+        <td class="t-pts">${t.pts}</td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table></div>';
+  cont.innerHTML = html;
+}
+
+function changeDate(dir) {
+  const next = fechaActual + dir;
+  if (next < 1 || next > TOTAL_FECHAS + 1) return;
+
+  fechaActual = next;
+  document.getElementById('dateLabel').textContent = 'Fecha ' + fechaActual;
+  document.getElementById('btnPrev').disabled = fechaActual <= 1;
+  document.getElementById('btnNext').disabled = fechaActual >= TOTAL_FECHAS + 1;
+  renderMatches();
+}
+
+function toggleDate() {
+  const fechas = Object.keys(fechaData).map(Number).sort((a,b) => a-b);
+  const idx = fechas.indexOf(fechaActual);
+  fechaActual = fechas[(idx + 1) % fechas.length];
+
+  document.getElementById('dateLabel').textContent = 'Fecha ' + fechaActual;
+  renderMatches();
+}
+
+document.querySelectorAll('.zt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.zt').forEach(x => x.classList.remove('on'));
+    btn.classList.add('on');
+    zonaActual = parseInt(btn.dataset.zona, 10);
+    renderTabla(zonaActual);
+  });
+});
+
+function renderScorers() {
+  document.getElementById('scorersContent').innerHTML = goleadores.map(g => `
+    <div class="scorer">
+      <div class="sc-pos ${g.pos <= 3 ? 'gold' : ''}">${g.pos}</div>
+      <div class="sc-info">
+        <div class="sc-name">${g.name}</div>
+        <div class="sc-club">${g.club}</div>
+      </div>
+      <div class="sc-n">${g.goles}<small>goles</small></div>
+    </div>
+  `).join('');
+}
+
+function renderTeams() {
+  document.getElementById('teamsContent').innerHTML = equipos.map(e => `
+    <div class="team-card">
+      <div class="tc-shield ${e.shield}">${e.abbr}</div>
+      <div class="tc-name">${e.name}</div>
+      <div class="tc-pts">${e.pts} pts</div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('btnPrev').disabled = fechaActual <= 1;
+document.getElementById('btnNext').disabled = fechaActual >= TOTAL_FECHAS + 1;
+
+renderMatches();
+renderTabla(1);
+renderScorers();
+renderTeams();
+</script>
+</body>
+</html>
