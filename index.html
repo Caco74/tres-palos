@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tres Palos v11</title>
 
-<link rel="stylesheet" href="/styles/main.css">
+<link rel="stylesheet" href="/styles/main.css?v=19">
+<link rel="icon" type="image/png" href="/assets/brand/tres-palos-simbolo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -17,22 +18,22 @@
   <aside class="desktop-sidebar">
     <div>
       <div class="sb-brand">
-        <div class="logo-gp"><div class="logo-gp-r"></div></div>
-        <div>
-          <div class="sb-title">Tres Palos</div>
-          <span class="sb-tag">Fútbol Regional</span>
-        </div>
+        <img
+          class="sb-brand-logo"
+          src="/assets/brand/tres-palos-horizontal.png"
+          alt="Tres Palos"
+        >
       </div>
       <p class="sb-desc">Datos claros del fútbol regional. Hecho por hinchas, para hinchas.</p>
     </div>
 
     <div class="sb-card">
-      <div class="sb-eye">Líder · Fecha 14</div>
-      <div class="sb-team">Newell's</div>
+      <div class="sb-eye" id="sidebarEye">Fase actual</div>
+      <div class="sb-team" id="sidebarTitle">Cargando...</div>
       <div class="sb-stats">
-        <div><div class="sb-stat-n">31</div><div class="sb-stat-l">Puntos</div></div>
-        <div><div class="sb-stat-n">14</div><div class="sb-stat-l">Partidos</div></div>
-        <div><div class="sb-stat-n">+22</div><div class="sb-stat-l">DG</div></div>
+        <div><div class="sb-stat-n" id="sidebarMatches">–</div><div class="sb-stat-l">Partidos</div></div>
+        <div><div class="sb-stat-n" id="sidebarTeams">–</div><div class="sb-stat-l">Equipos</div></div>
+        <div><div class="sb-stat-n" id="sidebarYear">–</div><div class="sb-stat-l">Temporada</div></div>
       </div>
     </div>
 
@@ -60,14 +61,25 @@
 
       <div class="top-bar">
         <a href="#" class="logo">
-          <div class="logo-gp"><div class="logo-gp-r"></div></div>
+          <img
+            class="header-brand-mark"
+            src="/assets/brand/tres-palos-simbolo.png"
+            alt=""
+          >
           <span class="logo-name">Tres Palos</span>
         </a>
 
-        <div class="ctx-pill">
+        <label class="category-select-wrap">
           <span class="ctx-dot"></span>
-          Primera División
-        </div>
+          <select
+            class="category-select"
+            id="categorySelect"
+            aria-label="Seleccionar categoría"
+          >
+            <option value="primera">Primera División</option>
+            <option disabled>Más categorías · Próximamente</option>
+          </select>
+        </label>
       </div>
     </header>
 
@@ -76,8 +88,10 @@
       <div class="hero-img"></div>
       <div class="hero-grad"></div>
       <div class="hero-content">
-        <div class="hero-label">Liga Cañadense · Fecha 14 · 2024</div>
-        <h1 class="hero-title">El torneo<br><em>en datos</em></h1>
+        <div class="hero-copy">
+          <div class="hero-label" id="heroLabel">Liga Cañadense</div>
+          <h1 class="hero-title">El torneo<br><em>en datos</em></h1>
+        </div>
       </div>
     </section>
 
@@ -96,88 +110,15 @@
 
       <!-- INICIO -->
       <section class="tab-content on" id="tab-inicio">
-
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Próximo partido</div>
+            <div class="sec-title">Agenda del torneo</div>
           </div>
         </div>
 
-        <div class="next-card">
-          <div class="nc-top">
-            <div class="nc-badge"><span class="nc-pulse"></span> Próximo</div>
-            <div class="nc-round">Fecha 15</div>
-          </div>
-
-          <div class="nc-match">
-            <div class="nc-team">
-              <div class="nc-shield s-cosmo">CC</div>
-              <div class="nc-name">Cosmo</div>
-              <div class="nc-role">Local</div>
-            </div>
-
-            <div class="nc-center">
-              <span class="nc-vs">VS</span>
-              <span class="nc-time">Dom 16:00</span>
-              <span class="nc-venue">Cancha Cosmo</span>
-            </div>
-
-            <div class="nc-team">
-              <div class="nc-shield s-newells">NO</div>
-              <div class="nc-name">Newell's</div>
-              <div class="nc-role">Visitante · Líder</div>
-            </div>
-          </div>
-
-          <div class="nc-footer">
-            <div class="nc-footer-label">Fecha 15 · Zona 1</div>
-            <a href="#" class="nc-footer-link" onclick="switchTab('partidos')">Ver fixture →</a>
-          </div>
-        </div>
-
-        <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">Última fecha</div>
-            <a href="#" class="sec-link" onclick="switchTab('partidos')">Ver todos →</a>
-          </div>
-        </div>
-
-        <div class="results-list">
-          <div class="result">
-            <div class="result-meta">Fecha 14 · Final</div>
-            <div class="rt"><div class="rb s-newells">NO</div>Newell's</div>
-            <div class="rs">5–0</div>
-            <div class="rt r">Barraca<div class="rb s-barraca">BA</div></div>
-          </div>
-          <div class="result">
-            <div class="result-meta">Fecha 14 · Final</div>
-            <div class="rt"><div class="rb s-cosmo">CC</div>Cosmo</div>
-            <div class="rs">2–0</div>
-            <div class="rt r">San Jerónimo<div class="rb s-sanjeronimo">SJ</div></div>
-          </div>
-          <div class="result">
-            <div class="result-meta">Fecha 14 · Final</div>
-            <div class="rt"><div class="rb s-argentino">AR</div>Argentino</div>
-            <div class="rs">2–1</div>
-            <div class="rt r">Belgrano<div class="rb s-belgrano">BE</div></div>
-          </div>
-        </div>
-
-        <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">Líder de goles</div>
-            <a href="#" class="sec-link" onclick="switchTab('goleadores')">Ver tabla →</a>
-          </div>
-        </div>
-
-        <div class="scorers">
-          <div class="scorer">
-            <div class="sc-pos gold">1</div>
-            <div class="sc-info">
-              <div class="sc-name">Marcos Alvarez</div>
-              <div class="sc-club">Cosmo · Zona 1</div>
-            </div>
-            <div class="sc-n">11<small>goles</small></div>
+        <div id="homeContent">
+          <div style="padding:2rem;text-align:center;color:var(--muted)">
+            Cargando agenda...
           </div>
         </div>
       </section>
@@ -186,16 +127,24 @@
       <section class="tab-content" id="tab-partidos">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Partidos por fecha</div>
+            <div class="sec-title">Partidos por fecha y fase</div>
           </div>
         </div>
 
         <div class="date-nav">
-          <button class="dn-btn" id="btnPrev" onclick="changeDate(-1)">←</button>
-          <div class="dn-label-wrap" onclick="toggleDate()">
-            <span class="dn-label" id="dateLabel">Fecha 14</span>
+          <button class="dn-btn" id="btnPrev" onclick="changeStage(-1)">←</button>
+          <div class="dn-label-wrap">
+            <select
+              class="dn-select"
+              id="stageSelect"
+              aria-label="Seleccionar fecha o fase"
+              onchange="selectStage(this.value)"
+              disabled
+            >
+              <option>Cargando fechas...</option>
+            </select>
           </div>
-          <button class="dn-btn" id="btnNext" onclick="changeDate(1)">→</button>
+          <button class="dn-btn" id="btnNext" onclick="changeStage(1)">→</button>
         </div>
 
         <div id="matchContent"></div>
@@ -230,102 +179,13 @@
         <div class="sec">
           <div class="sec-head">
             <div class="sec-title">Playoffs</div>
-            <span class="sec-link">Fecha 14</span>
+            <span class="sec-link">Fase eliminatoria</span>
           </div>
         </div>
 
-        <div class="po-banner">
-          <div class="po-banner-icon">🏆</div>
-          <div class="po-banner-title">Playoffs 2024</div>
-          <div class="po-banner-sub">Liga Cañadense · Primera División</div>
-        </div>
-
-        <div class="po-phase">
-          <div class="po-phase-title">Clasificados provisorios</div>
-          <span class="po-phase-tag">Fecha 14</span>
-        </div>
-
-        <div class="po-qualified">
-          <div class="po-q-head">Pase directo a Cuartos</div>
-          <div class="po-q-row">
-            <div class="po-q-pos">1</div>
-            <div class="shield s-newells">NO</div>
-            <div class="po-q-name">Newell's <span>· Zona 2</span></div>
-            <div class="po-q-pts">31</div>
-            <div class="po-q-tag direct">Cuartos</div>
-          </div>
-          <div class="po-q-row">
-            <div class="po-q-pos">2</div>
-            <div class="shield s-cosmo">CC</div>
-            <div class="po-q-name">Cosmo <span>· Zona 1</span></div>
-            <div class="po-q-pts">28</div>
-            <div class="po-q-tag direct">Cuartos</div>
-          </div>
-        </div>
-
-        <div class="po-qualified">
-          <div class="po-q-head">Completan Octavos</div>
-          <div class="po-q-row">
-            <div class="po-q-pos">3</div>
-            <div class="shield s-argentino">AR</div>
-            <div class="po-q-name">Argentino <span>· Zona 3</span></div>
-            <div class="po-q-pts">29</div>
-            <div class="po-q-tag octavos">Octavos</div>
-          </div>
-          <div class="po-q-row">
-            <div class="po-q-pos">4</div>
-            <div class="shield s-sportsman">SP</div>
-            <div class="po-q-name">Sportsman <span>· Zona 1</span></div>
-            <div class="po-q-pts">26</div>
-            <div class="po-q-tag octavos">Octavos</div>
-          </div>
-          <div class="po-q-row">
-            <div class="po-q-pos">5</div>
-            <div class="shield s-adeo">AD</div>
-            <div class="po-q-name">ADEO <span>· Zona 2</span></div>
-            <div class="po-q-pts">26</div>
-            <div class="po-q-tag octavos">Octavos</div>
-          </div>
-        </div>
-
-        <div class="po-phase">
-          <div class="po-phase-title">Cuartos de Final</div>
-          <span class="po-phase-tag">Pendiente</span>
-        </div>
-
-        <div class="po-bracket">
-          <div class="po-match pending">
-            <div class="po-match-hd">
-              <div class="po-match-id">QF · 1</div>
-              <div class="po-st">Pendiente</div>
-            </div>
-            <div class="po-tbd-row">
-              <div class="po-tbd-sh"></div>
-              <div class="po-tbd-n">1° clasificado</div>
-              <div class="po-ts tbd">–</div>
-            </div>
-            <div class="po-tbd-row">
-              <div class="po-tbd-sh"></div>
-              <div class="po-tbd-n">Por definir</div>
-              <div class="po-ts tbd">–</div>
-            </div>
-          </div>
-
-          <div class="po-match pending">
-            <div class="po-match-hd">
-              <div class="po-match-id">QF · 2</div>
-              <div class="po-st">Pendiente</div>
-            </div>
-            <div class="po-tbd-row">
-              <div class="po-tbd-sh"></div>
-              <div class="po-tbd-n">2° clasificado</div>
-              <div class="po-ts tbd">–</div>
-            </div>
-            <div class="po-tbd-row">
-              <div class="po-tbd-sh"></div>
-              <div class="po-tbd-n">Por definir</div>
-              <div class="po-ts tbd">–</div>
-            </div>
+        <div id="playoffsContent">
+          <div style="padding:2rem;text-align:center;color:var(--muted)">
+            Cargando playoffs...
           </div>
         </div>
       </section>
@@ -354,6 +214,16 @@
         <div class="teams-grid" id="teamsContent"></div>
       </section>
 
+      <!-- DETALLE DE PARTIDO -->
+      <section class="tab-content detail-view" id="tab-partido">
+        <div id="matchDetail"></div>
+      </section>
+
+      <!-- DETALLE DE EQUIPO -->
+      <section class="tab-content detail-view" id="tab-equipo">
+        <div id="teamDetail"></div>
+      </section>
+
     </main>
 
     <!-- MOBILE BOTTOM NAV -->
@@ -377,6 +247,6 @@
 <script src="js/utils.js"></script>
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=23"></script>
 </body>
 </html>

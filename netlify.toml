@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/tp-admin-7c9f2026.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/js/admin-panel.js"
+  [headers.values]
+    Cache-Control = "no-store"

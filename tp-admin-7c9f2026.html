@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Panel de carga · Tres Palos</title>
+  <link rel="stylesheet" href="styles/admin.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <span class="eyebrow">Tres Palos</span>
+        <h1>Panel de carga</h1>
+      </div>
+      <span class="route-badge">Ruta privada</span>
+    </header>
+
+    <section class="admin-card" id="authCard">
+      <h2>Acceso</h2>
+      <p>Ingresá la contraseña del panel. La escritura se valida en el servidor.</p>
+      <form id="authForm" class="auth-form">
+        <input
+          id="adminPassword"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Contraseña"
+          required
+        >
+        <button type="submit">Entrar</button>
+      </form>
+      <div class="notice">
+        Esta ruta no aparece enlazada en la web publica. La seguridad real depende
+        de la funcion privada y las variables de Netlify.
+      </div>
+    </section>
+
+    <section class="admin-app hidden" id="adminApp">
+      <div class="toolbar">
+        <div>
+          <label for="typeFilter">Tipo</label>
+          <select id="typeFilter">
+            <option value="playoff">Playoffs</option>
+            <option value="regular">Fase regular</option>
+            <option value="all">Todos</option>
+          </select>
+        </div>
+        <div>
+          <label for="searchInput">Buscar</label>
+          <input id="searchInput" type="search" placeholder="Equipo, fase o ID">
+        </div>
+        <button type="button" id="refreshBtn">Actualizar</button>
+        <button type="button" id="logoutBtn" class="ghost">Salir</button>
+      </div>
+
+      <div class="status" id="statusBox">Listo.</div>
+
+      <div class="admin-grid">
+        <section class="admin-card matches-panel">
+          <h2>Partidos</h2>
+          <div id="matchList" class="match-list"></div>
+        </section>
+
+        <section class="admin-card editor-panel">
+          <h2>Editar partido</h2>
+          <div id="emptyEditor" class="empty-editor">
+            Elegí un partido para cargar datos.
+          </div>
+
+          <form id="matchForm" class="match-form hidden">
+            <input type="hidden" id="partidoId">
+
+            <div class="form-row two">
+              <label>
+                Local
+                <input id="localInput" type="text">
+              </label>
+              <label>
+                Visitante
+                <input id="visitanteInput" type="text">
+              </label>
+            </div>
+
+            <div class="form-row three">
+              <label>
+                Fecha
+                <input id="fechaInput" type="date">
+              </label>
+              <label>
+                Hora
+                <input id="horaInput" type="time">
+              </label>
+              <label>
+                Estado
+                <select id="estadoInput">
+                  <option value="programado">Programado</option>
+                  <option value="en_vivo">En vivo</option>
+                  <option value="finalizado">Finalizado</option>
+                  <option value="pendiente_resultado">Pendiente resultado</option>
+                  <option value="suspendido">Suspendido</option>
+                  <option value="postergado">Postergado</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Estadio / sede especial
+              <input id="estadioInput" type="text" placeholder="Opcional; si queda vacio usa la cancha del local">
+            </label>
+
+            <div class="form-row two">
+              <label>
+                Goles local
+                <input id="golesLocalInput" type="number" min="0" inputmode="numeric">
+              </label>
+              <label>
+                Goles visitante
+                <input id="golesVisitanteInput" type="number" min="0" inputmode="numeric">
+              </label>
+            </div>
+
+            <div class="form-row two">
+              <label>
+                Penales local
+                <input id="penalesLocalInput" type="number" min="0" inputmode="numeric">
+              </label>
+              <label>
+                Penales visitante
+                <input id="penalesVisitanteInput" type="number" min="0" inputmode="numeric">
+              </label>
+            </div>
+
+            <div class="source-info" id="sourceInfo"></div>
+
+            <div class="actions">
+              <button type="submit">Guardar cambios</button>
+              <button type="button" class="ghost" id="clearScoreBtn">Limpiar resultado</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/admin-panel.js?v=1"></script>
+</body>
+</html>

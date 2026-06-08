@@ -1,0 +1,237 @@
+const ALLOWED_FIELDS = new Set([
+  "local",
+  "visitante",
+  "fecha_partido",
+  "hora",
+  "estado",
+  "estadio",
+  "goles_local",
+  "goles_visitante",
+  "penales_local",
+  "penales_visitante",
+  "source_local",
+  "source_visitante"
+]);
+
+const NUMBER_FIELDS = new Set([
+  "goles_local",
+  "goles_visitante",
+  "penales_local",
+  "penales_visitante"
+]);
+
+const VALID_STATES = new Set([
+  "programado",
+  "en_vivo",
+  "suspendido",
+  "postergado",
+  "finalizado",
+  "pendiente_resultado"
+]);
+
+exports.handler = async event => {
+  if (event.httpMethod === "OPTIONS") {
+    return json(204, {});
+  }
+
+  const envError = getEnvError();
+  if (envError) return json(500, { error: envError });
+
+  if (!isAuthorized(event)) {
+    return json(401, { error: "No autorizado." });
+  }
+
+  try {
+    if (event.httpMethod === "GET") {
+      return await listMatches();
+    }
+
+    if (event.httpMethod === "PATCH") {
+      return await updateMatch(event);
+    }
+
+    return json(405, { error: "Metodo no permitido." });
+  } catch (error) {
+    return json(500, { error: error.message || "Error interno." });
+  }
+};
+
+function getEnvError() {
+  if (!process.env.SUPABASE_URL) return "Falta SUPABASE_URL en Netlify.";
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return "Falta SUPABASE_SERVICE_ROLE_KEY en Netlify.";
+  }
+  if (!process.env.ADMIN_PASSWORD) return "Falta ADMIN_PASSWORD en Netlify.";
+  return null;
+}
+
+function isAuthorized(event) {
+  const password = event.headers["x-admin-password"] ||
+    event.headers["X-Admin-Password"];
+  return password && password === process.env.ADMIN_PASSWORD;
+}
+
+async function listMatches() {
+  const response = await supabaseFetch(
+    "/rest/v1/partidos?select=*&order=id.asc"
+  );
+  const partidos = await parseSupabaseResponse(response);
+  return json(200, { partidos });
+}
+
+async function updateMatch(event) {
+  const body = JSON.parse(event.body || "{}");
+  const id = Number(body.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return json(400, { error: "ID de partido invalido." });
+  }
+
+  const patch = sanitizePatch(body.patch || {});
+  const { existing, columns } = await getExistingMatch(id);
+  if (!existing) return json(404, { error: "Partido no encontrado." });
+
+  const filtered = {};
+  const ignoredFields = [];
+
+  Object.entries(patch).forEach(([key, value]) => {
+    if (columns.has(key)) filtered[key] = value;
+    else ignoredFields.push(key);
+  });
+
+  if (Object.keys(filtered).length === 0) {
+    return json(400, {
+      error: "No hay campos validos para actualizar.",
+      ignoredFields
+    });
+  }
+
+  if (columns.has("actualizado_en")) {
+    filtered.actualizado_en = new Date().toISOString();
+  }
+
+  const response = await supabaseFetch(
+    `/rest/v1/partidos?id=eq.${id}&select=*`,
+    {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=representation"
+      },
+      body: JSON.stringify(filtered)
+    }
+  );
+  const updated = await parseSupabaseResponse(response);
+
+  return json(200, {
+    partido: Array.isArray(updated) ? updated[0] : updated,
+    ignoredFields
+  });
+}
+
+function sanitizePatch(patch) {
+  const output = {};
+
+  Object.entries(patch).forEach(([key, raw]) => {
+    if (!ALLOWED_FIELDS.has(key)) return;
+
+    if (raw === "" || raw === undefined) {
+      output[key] = null;
+      return;
+    }
+
+    if (raw === null) {
+      output[key] = null;
+      return;
+    }
+
+    if (NUMBER_FIELDS.has(key)) {
+      const number = Number(raw);
+      if (!Number.isInteger(number) || number < 0) {
+        throw new Error(`Valor numerico invalido para ${key}.`);
+      }
+      output[key] = number;
+      return;
+    }
+
+    if (key === "estado") {
+      const estado = String(raw).trim();
+      if (!VALID_STATES.has(estado)) {
+        throw new Error("Estado invalido.");
+      }
+      output[key] = estado;
+      return;
+    }
+
+    if (key === "fecha_partido") {
+      const fecha = String(raw).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+        throw new Error("Fecha invalida.");
+      }
+      output[key] = fecha;
+      return;
+    }
+
+    if (key === "hora") {
+      const hora = String(raw).trim();
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
+        throw new Error("Hora invalida.");
+      }
+      output[key] = hora;
+      return;
+    }
+
+    output[key] = String(raw).trim() || null;
+  });
+
+  return output;
+}
+
+async function getExistingMatch(id) {
+  const response = await supabaseFetch(
+    `/rest/v1/partidos?select=*&id=eq.${id}&limit=1`
+  );
+  const rows = await parseSupabaseResponse(response);
+  const existing = Array.isArray(rows) ? rows[0] : null;
+
+  return {
+    existing,
+    columns: new Set(existing ? Object.keys(existing) : [])
+  };
+}
+
+async function supabaseFetch(path, options = {}) {
+  const url = `${process.env.SUPABASE_URL}${path}`;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  return fetch(url, {
+    ...options,
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+}
+
+async function parseSupabaseResponse(response) {
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || "Error de Supabase.");
+  }
+
+  return data;
+}
+
+function json(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store"
+    },
+    body: statusCode === 204 ? "" : JSON.stringify(body)
+  };
+}
