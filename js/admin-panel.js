@@ -230,21 +230,28 @@ async function guardarPartido(event) {
 
   try {
     const data = await apiRequest("PATCH", { id, patch });
+    const partidoGuardado = data.partido || {};
     const ignorados = data.ignoredFields?.length
       ? ` Campos ignorados porque no existen en DB: ${data.ignoredFields.join(", ")}.`
       : "";
+    const estadoDevuelto = partidoGuardado.estado ?? "sin valor";
+    const advertenciaEstado = estadoDevuelto !== patch.estado
+      ? ` Estado pedido: ${patch.estado}. Estado en DB: ${estadoDevuelto}.`
+      : ` Estado en DB: ${estadoDevuelto}.`;
     const hora = new Date().toLocaleTimeString("es-AR", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit"
     });
-    const tipo = data.ignoredFields?.length ? "warn" : "ok";
+    const tipo = data.ignoredFields?.length || estadoDevuelto !== patch.estado
+      ? "warn"
+      : "ok";
 
-    setStatus(`Partido #${id} guardado.${ignorados}`, tipo);
-    setSaveFeedback(`Guardado a las ${hora}.${ignorados}`, tipo);
+    setStatus(`Partido #${id} guardado.${advertenciaEstado}${ignorados}`, tipo);
+    setSaveFeedback(`Guardado a las ${hora}.${advertenciaEstado}${ignorados}`, tipo);
     await cargarPartidos();
     seleccionarPartido(id);
-    setSaveFeedback(`Guardado a las ${hora}.${ignorados}`, tipo);
+    setSaveFeedback(`Guardado a las ${hora}.${advertenciaEstado}${ignorados}`, tipo);
   } finally {
     setSaving(false);
   }

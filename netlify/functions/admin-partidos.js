@@ -124,7 +124,8 @@ async function updateMatch(event) {
 
   return json(200, {
     partido: Array.isArray(updated) ? updated[0] : updated,
-    ignoredFields
+    ignoredFields,
+    savedFields: Object.keys(filtered)
   });
 }
 
