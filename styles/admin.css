@@ -39,6 +39,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 button.ghost {
   border: 1px solid var(--line);
   background: transparent;
@@ -140,6 +145,7 @@ p {
 .notice,
 .status,
 .source-info,
+.form-feedback,
 .empty-editor,
 .empty-list {
   margin-top: 14px;
@@ -165,17 +171,23 @@ p {
 
 .status {
   margin: 0;
+  position: sticky;
+  top: 8px;
+  z-index: 5;
 }
 
-.status[data-type="ok"] {
+.status[data-type="ok"],
+.form-feedback[data-type="ok"] {
   color: var(--green);
 }
 
-.status[data-type="warn"] {
+.status[data-type="warn"],
+.form-feedback[data-type="warn"] {
   color: var(--yellow);
 }
 
-.status[data-type="error"] {
+.status[data-type="error"],
+.form-feedback[data-type="error"] {
   color: var(--red);
 }
 

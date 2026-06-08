@@ -14,6 +14,8 @@ const searchInput = document.getElementById("searchInput");
 const refreshBtn = document.getElementById("refreshBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const clearScoreBtn = document.getElementById("clearScoreBtn");
+const saveBtn = document.getElementById("saveBtn");
+const saveFeedback = document.getElementById("saveFeedback");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -40,6 +42,16 @@ function getPassword() {
 function setStatus(message, type = "info") {
   statusBox.textContent = message;
   statusBox.dataset.type = type;
+}
+
+function setSaveFeedback(message, type = "info") {
+  saveFeedback.textContent = message;
+  saveFeedback.dataset.type = type;
+}
+
+function setSaving(isSaving) {
+  saveBtn.disabled = isSaving;
+  saveBtn.textContent = isSaving ? "Guardando..." : "Guardar cambios";
 }
 
 function showApp() {
@@ -148,6 +160,7 @@ function seleccionarPartido(id) {
   fields.penalesLocal.value = valorInput(partido.penales_local);
   fields.penalesVisitante.value = valorInput(partido.penales_visitante);
   fields.sourceInfo.textContent = `Origen: ${partido.source_local || "-"} / ${partido.source_visitante || "-"}`;
+  setSaveFeedback("Sin cambios guardados todavía.");
 
   emptyEditor.classList.add("hidden");
   matchForm.classList.remove("hidden");
@@ -211,15 +224,30 @@ async function guardarPartido(event) {
     penales_visitante: valorNumero(fields.penalesVisitante)
   };
 
+  setSaving(true);
   setStatus("Guardando...");
-  const data = await apiRequest("PATCH", { id, patch });
-  const ignorados = data.ignoredFields?.length
-    ? ` Campos ignorados porque no existen en DB: ${data.ignoredFields.join(", ")}.`
-    : "";
+  setSaveFeedback("Guardando cambios...");
 
-  setStatus(`Partido #${id} guardado.${ignorados}`, data.ignoredFields?.length ? "warn" : "ok");
-  await cargarPartidos();
-  seleccionarPartido(id);
+  try {
+    const data = await apiRequest("PATCH", { id, patch });
+    const ignorados = data.ignoredFields?.length
+      ? ` Campos ignorados porque no existen en DB: ${data.ignoredFields.join(", ")}.`
+      : "";
+    const hora = new Date().toLocaleTimeString("es-AR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+    const tipo = data.ignoredFields?.length ? "warn" : "ok";
+
+    setStatus(`Partido #${id} guardado.${ignorados}`, tipo);
+    setSaveFeedback(`Guardado a las ${hora}.${ignorados}`, tipo);
+    await cargarPartidos();
+    seleccionarPartido(id);
+    setSaveFeedback(`Guardado a las ${hora}.${ignorados}`, tipo);
+  } finally {
+    setSaving(false);
+  }
 }
 
 authForm.addEventListener("submit", async event => {
@@ -242,6 +270,8 @@ matchList.addEventListener("click", event => {
 matchForm.addEventListener("submit", event => {
   guardarPartido(event).catch(error => {
     setStatus(error.message, "error");
+    setSaveFeedback(error.message, "error");
+    setSaving(false);
   });
 });
 
