@@ -2,6 +2,7 @@ let etapaActual = null;
 let zonaActual = 1;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
+let cargaPartidosFinalizada = false;
 
 const VISTAS_PRINCIPALES = [
   "inicio",
@@ -151,6 +152,11 @@ function renderMatches() {
   const cont = document.getElementById("matchContent");
   if (!cont) return;
 
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = renderSkeletonPartidos();
+    return;
+  }
+
   const etapa = obtenerEtapasDisponibles().find(
     item => item.clave === etapaActual
   );
@@ -170,6 +176,125 @@ function renderMatches() {
   }
 
   renderPartidosRegulares(etapa);
+}
+
+function renderSkeletonAgenda() {
+  return `
+    <div
+      class="next-card home-agenda skeleton-shell"
+      role="status"
+      aria-busy="true"
+    >
+      <span class="skeleton-status">Cargando agenda</span>
+      <div class="skeleton-card-head" aria-hidden="true">
+        <span class="skeleton skeleton-line skeleton-line-sm"></span>
+        <span class="skeleton skeleton-line skeleton-line-xs"></span>
+      </div>
+      <div class="skeleton-match-list" aria-hidden="true">
+        ${renderSkeletonMatchRows(3)}
+      </div>
+      <div class="skeleton-card-footer" aria-hidden="true">
+        <span class="skeleton skeleton-line skeleton-line-xs"></span>
+        <span class="skeleton skeleton-line skeleton-line-sm"></span>
+      </div>
+    </div>
+  `;
+}
+
+function renderSkeletonPartidos() {
+  return `
+    <div
+      class="zona-block skeleton-shell skeleton-zone"
+      role="status"
+      aria-busy="true"
+    >
+      <span class="skeleton-status">Cargando partidos</span>
+      <div class="skeleton-zone-head" aria-hidden="true">
+        <span class="skeleton skeleton-dot"></span>
+        <span class="skeleton skeleton-line skeleton-line-sm"></span>
+        <span class="skeleton skeleton-line skeleton-line-xs"></span>
+      </div>
+      <div aria-hidden="true">
+        ${renderSkeletonMatchRows(4)}
+      </div>
+    </div>
+  `;
+}
+
+function renderSkeletonMatchRows(cantidad) {
+  return Array.from({ length: cantidad }, (_, indice) => `
+    <div class="skeleton-match-row skeleton-match-row-${indice % 3}">
+      <span class="skeleton skeleton-line skeleton-team-name"></span>
+      <span class="skeleton skeleton-shield"></span>
+      <span class="skeleton skeleton-score"></span>
+      <span class="skeleton skeleton-shield"></span>
+      <span class="skeleton skeleton-line skeleton-team-name"></span>
+    </div>
+  `).join("");
+}
+
+function renderSkeletonTabla() {
+  const filas = Array.from({ length: 7 }, (_, indice) => `
+    <div class="skeleton-table-row skeleton-table-row-${indice % 3}">
+      <span class="skeleton skeleton-table-pos"></span>
+      <span class="skeleton skeleton-shield"></span>
+      <span class="skeleton skeleton-line skeleton-table-team"></span>
+      <span class="skeleton skeleton-table-stat"></span>
+      <span class="skeleton skeleton-table-stat"></span>
+      <span class="skeleton skeleton-table-stat"></span>
+    </div>
+  `).join("");
+
+  return `
+    <div
+      class="skeleton-table-wrap skeleton-shell"
+      role="status"
+      aria-busy="true"
+    >
+      <span class="skeleton-status">Cargando tabla</span>
+      <div class="skeleton-table-head" aria-hidden="true">
+        <span class="skeleton skeleton-line skeleton-line-md"></span>
+        <span class="skeleton skeleton-line skeleton-line-sm"></span>
+      </div>
+      <div aria-hidden="true">${filas}</div>
+    </div>
+  `;
+}
+
+function renderSkeletonPlayoffs() {
+  const cruces = Array.from({ length: 3 }, () => `
+    <div class="skeleton-playoff-card">
+      <div class="skeleton-playoff-head">
+        <span class="skeleton skeleton-line skeleton-line-sm"></span>
+        <span class="skeleton skeleton-line skeleton-line-xs"></span>
+      </div>
+      <div class="skeleton-playoff-team">
+        <span class="skeleton skeleton-shield"></span>
+        <span class="skeleton skeleton-line skeleton-table-team"></span>
+        <span class="skeleton skeleton-table-stat"></span>
+      </div>
+      <div class="skeleton-playoff-team">
+        <span class="skeleton skeleton-shield"></span>
+        <span class="skeleton skeleton-line skeleton-table-team"></span>
+        <span class="skeleton skeleton-table-stat"></span>
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    <div
+      class="skeleton-playoffs skeleton-shell"
+      role="status"
+      aria-busy="true"
+    >
+      <span class="skeleton-status">Cargando playoffs</span>
+      <div class="skeleton-playoffs-title" aria-hidden="true">
+        <span class="skeleton skeleton-line skeleton-line-md"></span>
+        <span class="skeleton skeleton-line skeleton-line-sm"></span>
+      </div>
+      <div class="skeleton-playoff-grid" aria-hidden="true">${cruces}</div>
+    </div>
+  `;
 }
 
 function renderPartidosRegulares(etapa) {
@@ -1182,12 +1307,8 @@ function renderInicio() {
   const cont = document.getElementById("homeContent");
   if (!cont) return;
 
-  if (state.partidos.length === 0) {
-    cont.innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        Cargando agenda...
-      </div>
-    `;
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = renderSkeletonAgenda();
     return;
   }
 
@@ -1307,10 +1428,15 @@ function renderPlayoffs() {
   const cont = document.getElementById("playoffsContent");
   if (!cont) return;
 
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = renderSkeletonPlayoffs();
+    return;
+  }
+
   if (state.partidos.length === 0) {
     cont.innerHTML = `
       <div style="padding:2rem;text-align:center;color:var(--muted)">
-        Cargando playoffs...
+        No hay datos de playoffs disponibles
       </div>
     `;
     return;
@@ -1552,17 +1678,22 @@ function etiquetaFaseOrigen(fase) {
 
 function renderTabla(zona) {
   const cont = document.getElementById('tablaContent');
-  const data = calcularTablaZona(zona);
+
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = renderSkeletonTabla();
+    return;
+  }
 
   if (state.partidos.length === 0) {
     cont.innerHTML = `
       <div style="padding:2rem;text-align:center;color:var(--muted)">
-        Cargando tabla...
+        No hay datos de tabla disponibles
       </div>
     `;
     return;
   }
 
+  const data = calcularTablaZona(zona);
   const clasificados = calcularClasificados();
   let html = `
     <div class="tabla-referencias">
@@ -2330,6 +2461,7 @@ function renderTeams() {
 document.getElementById('btnPrev').disabled = true;
 document.getElementById('btnNext').disabled = true;
 
+renderMatches();
 renderTabla(1);
 renderInicio();
 renderPlayoffs();
@@ -2372,6 +2504,7 @@ async function obtenerPartidos() {
       throw new Error("La respuesta de partidos no tiene el formato esperado");
     }
 
+    cargaPartidosFinalizada = true;
     state.partidos = data;
     state.eventos = resEventos.ok
       ? await resEventos.json()
@@ -2403,6 +2536,7 @@ async function obtenerPartidos() {
       return;
     }
 
+    cargaPartidosFinalizada = true;
     state.partidos = [];
     state.eventos = [];
     etapaActual = null;

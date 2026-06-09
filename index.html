@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tres Palos v11</title>
 
-<link rel="stylesheet" href="/styles/main.css?v=19">
+<link rel="stylesheet" href="/styles/main.css?v=20">
 <link rel="icon" type="image/png" href="/assets/brand/tres-palos-simbolo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -116,11 +116,7 @@
           </div>
         </div>
 
-        <div id="homeContent">
-          <div style="padding:2rem;text-align:center;color:var(--muted)">
-            Cargando agenda...
-          </div>
-        </div>
+        <div id="homeContent" aria-live="polite"></div>
       </section>
 
       <!-- PARTIDOS -->
@@ -147,7 +143,7 @@
           <button class="dn-btn" id="btnNext" onclick="changeStage(1)">→</button>
         </div>
 
-        <div id="matchContent"></div>
+        <div id="matchContent" aria-live="polite"></div>
       </section>
 
       <!-- TABLA -->
@@ -171,7 +167,7 @@
           <button class="zt" data-zona="3"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
         </div>
 
-        <div id="tablaContent"></div>
+        <div id="tablaContent" aria-live="polite"></div>
       </section>
 
       <!-- PLAYOFFS -->
@@ -183,11 +179,7 @@
           </div>
         </div>
 
-        <div id="playoffsContent">
-          <div style="padding:2rem;text-align:center;color:var(--muted)">
-            Cargando playoffs...
-          </div>
-        </div>
+        <div id="playoffsContent" aria-live="polite"></div>
       </section>
 
       <!-- GOLEADORES -->
@@ -227,12 +219,41 @@
     </main>
 
     <!-- MOBILE BOTTOM NAV -->
-    <nav class="mobile-bottom-nav">
-      <button class="bn-item on" onclick="switchTab('inicio')"><span class="bn-icon">🏠</span>Inicio</button>
-      <button class="bn-item" onclick="switchTab('partidos')"><span class="bn-icon">⚽</span>Partidos</button>
-      <button class="bn-item" onclick="switchTab('tabla')"><span class="bn-icon">📊</span>Tabla</button>
-      <button class="bn-item" onclick="switchTab('playoffs')"><span class="bn-icon">🏆</span>Playoffs</button>
-      <button class="bn-item" onclick="switchTab('equipos')"><span class="bn-icon">🏟️</span>Equipos</button>
+    <nav class="mobile-bottom-nav" aria-label="Navegación principal">
+      <button type="button" class="bn-item on" data-tab="inicio" onclick="switchTab('inicio')">
+        <svg class="bn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-5H9v5H4a1 1 0 0 1-1-1V10.5Z"/>
+        </svg>
+        <span>Inicio</span>
+      </button>
+      <button type="button" class="bn-item" data-tab="partidos" onclick="switchTab('partidos')">
+        <svg class="bn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="m9.5 9 2.5-1.8L14.5 9l-1 3h-3Z"/>
+          <path d="M12 7.2V3M10.5 12l-3.3 2.4M13.5 12l3.3 2.4M7.2 14.4l-2.5-.8M16.8 14.4l2.5-.8M9.3 19.6l1.2-2.8h3l1.2 2.8"/>
+        </svg>
+        <span>Partidos</span>
+      </button>
+      <button type="button" class="bn-item" data-tab="tabla" onclick="switchTab('tabla')">
+        <svg class="bn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M3 15h18M9 9v12"/>
+        </svg>
+        <span>Tabla</span>
+      </button>
+      <button type="button" class="bn-item" data-tab="playoffs" onclick="switchTab('playoffs')">
+        <svg class="bn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 21h8M12 17v4M5 3h14v6a7 7 0 0 1-14 0V3Z"/>
+          <path d="M5 6H2a2 2 0 0 0 2 2h1M19 6h3a2 2 0 0 1-2 2h-1"/>
+        </svg>
+        <span>Playoffs</span>
+      </button>
+      <button type="button" class="bn-item" data-tab="equipos" onclick="switchTab('equipos')">
+        <svg class="bn-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-3Z"/>
+        </svg>
+        <span>Equipos</span>
+      </button>
     </nav>
 
   </div>
@@ -247,6 +268,6 @@
 <script src="js/utils.js"></script>
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
-<script src="js/app.js?v=23"></script>
+<script src="js/app.js?v=24"></script>
 </body>
 </html>

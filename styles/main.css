@@ -2543,18 +2543,239 @@ body.detail-mode .tab-nav {
   text-transform: uppercase;
 }
 
+/* LOADING SKELETONS */
+
+@keyframes skeletonShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skeleton-shell {
+  position: relative;
+  pointer-events: none;
+}
+
+.skeleton-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skeleton {
+  display: block;
+  background:
+    linear-gradient(
+      90deg,
+      var(--card2) 25%,
+      var(--border2) 50%,
+      var(--card2) 75%
+    );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s linear infinite;
+}
+
+.skeleton-line {
+  height: 10px;
+  border-radius: 4px;
+}
+
+.skeleton-line-xs { width: 62px; }
+.skeleton-line-sm { width: 96px; }
+.skeleton-line-md { width: 148px; }
+
+.skeleton-card-head,
+.skeleton-card-footer,
+.skeleton-zone-head,
+.skeleton-playoffs-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+}
+
+.skeleton-card-footer {
+  border-top: 1px solid var(--border);
+}
+
+.skeleton-match-list {
+  border-top: 1px solid var(--border);
+}
+
+.skeleton-match-row {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: minmax(46px, 1fr) 30px 64px 30px minmax(46px, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(58,58,66,.7);
+}
+
+.skeleton-match-row:last-child {
+  border-bottom: 0;
+}
+
+.skeleton-shield {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+
+.skeleton-score {
+  width: 64px;
+  height: 30px;
+  border-radius: 6px;
+}
+
+.skeleton-team-name {
+  width: 88%;
+}
+
+.skeleton-match-row-1 .skeleton-team-name:first-child,
+.skeleton-match-row-2 .skeleton-team-name:last-child {
+  width: 68%;
+}
+
+.skeleton-match-row .skeleton-team-name:first-child {
+  justify-self: end;
+}
+
+.skeleton-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.skeleton-zone-head {
+  justify-content: flex-start;
+  min-height: 49px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.skeleton-zone-head .skeleton-line:last-child {
+  margin-left: auto;
+}
+
+.skeleton-table-wrap {
+  margin: 12px 1rem 1.5rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card);
+}
+
+.skeleton-table-head {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.skeleton-table-row {
+  min-height: 53px;
+  display: grid;
+  grid-template-columns: 18px 30px minmax(90px, 1fr) repeat(3, 24px);
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.skeleton-table-row:last-child {
+  border-bottom: 0;
+}
+
+.skeleton-table-pos,
+.skeleton-table-stat {
+  width: 100%;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.skeleton-table-team {
+  width: 82%;
+}
+
+.skeleton-table-row-1 .skeleton-table-team { width: 64%; }
+.skeleton-table-row-2 .skeleton-table-team { width: 72%; }
+
+.skeleton-playoffs {
+  margin: 0 1rem 1.5rem;
+}
+
+.skeleton-playoffs-title {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.skeleton-playoff-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-playoff-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.skeleton-playoff-head,
+.skeleton-playoff-team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.skeleton-playoff-head {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.skeleton-playoff-team + .skeleton-playoff-team {
+  border-top: 1px solid var(--border);
+}
+
+.skeleton-playoff-team .skeleton-table-stat {
+  width: 22px;
+  margin-left: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
 /* MOBILE BOTTOM NAV */
 
 .mobile-bottom-nav {
   position: sticky;
   bottom: 0;
   display: flex;
-  background: var(--bg2);
+  background: rgba(29,29,32,.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
   z-index: 100;
 }
 
 .bn-item {
+  position: relative;
   flex: 1;
   background: none;
   border: none;
@@ -2568,14 +2789,43 @@ body.detail-mode .tab-nav {
   flex-direction: column;
   align-items: center;
   gap: 3px;
+  transition: color .2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .bn-item.on {
   color: var(--red);
 }
 
+.bn-item.on::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 24px;
+  height: 2px;
+  border-radius: 0 0 3px 3px;
+  background: var(--red);
+  transform: translateX(-50%);
+}
+
 .bn-icon {
-  font-size: 0.95rem;
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .2s ease;
+}
+
+.bn-item.on .bn-icon {
+  transform: translateY(-1px);
+}
+
+.bn-item:active .bn-icon {
+  transform: scale(.92);
 }
 
 /* SHIELD COLORS */
@@ -2823,7 +3073,8 @@ body.detail-mode .tab-nav {
 }
 
 .bn-icon {
-  font-size: 1.15rem;
+  width: 22px;
+  height: 22px;
 }
 
 .tab,
