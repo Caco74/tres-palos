@@ -198,6 +198,108 @@ p {
   align-items: start;
 }
 
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-heading h2 {
+  margin-top: 4px;
+}
+
+.analytics-total {
+  padding: 7px 10px;
+  color: var(--blue);
+  background: rgba(85, 167, 255, .08);
+  border: 1px solid rgba(85, 167, 255, .25);
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.analytics-summary,
+.analytics-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.analytics-summary {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 18px;
+}
+
+.analytics-summary > div {
+  padding: 14px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.analytics-summary strong,
+.analytics-summary span {
+  display: block;
+}
+
+.analytics-summary strong {
+  margin-bottom: 3px;
+  font-size: 1.7rem;
+}
+
+.analytics-summary span {
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.analytics-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.analytics-grid h3 {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: .76rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.analytics-list {
+  display: grid;
+  gap: 9px;
+}
+
+.analytics-row > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  font-size: .8rem;
+}
+
+.analytics-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics-row i {
+  height: 4px;
+  display: block;
+  background: linear-gradient(90deg, var(--red), #9d2132);
+  border-radius: 999px;
+}
+
+.analytics-empty {
+  padding: 14px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .035);
+  border-radius: 10px;
+  font-size: .8rem;
+  line-height: 1.4;
+}
+
 .match-list {
   display: grid;
   gap: 8px;
@@ -226,6 +328,10 @@ p {
   font-size: 0.72rem;
 }
 
+.match-item small + small {
+  margin-top: 3px;
+}
+
 .match-item strong {
   display: block;
   margin: 5px 0;
@@ -237,6 +343,17 @@ p {
 .match-form {
   display: grid;
   gap: 14px;
+}
+
+.form-section-title {
+  margin-top: 4px;
+  padding-bottom: 7px;
+  color: var(--red);
+  border-bottom: 1px solid var(--line);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
 }
 
 .form-row {
@@ -262,6 +379,7 @@ p {
   .auth-form,
   .toolbar,
   .admin-grid,
+  .analytics-grid,
   .form-row.two,
   .form-row.three {
     grid-template-columns: 1fr;

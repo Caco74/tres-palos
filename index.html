@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tres Palos v11</title>
 
-<link rel="stylesheet" href="/styles/main.css?v=20">
+<link rel="stylesheet" href="/styles/main.css?v=30">
 <link rel="icon" type="image/png" href="/assets/brand/tres-palos-simbolo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -89,8 +89,14 @@
       <div class="hero-grad"></div>
       <div class="hero-content">
         <div class="hero-copy">
-          <div class="hero-label" id="heroLabel">Liga Cañadense</div>
-          <h1 class="hero-title">El torneo<br><em>en datos</em></h1>
+          <div class="hero-meta">
+            <div class="hero-label" id="heroLabel">Liga Cañadense</div>
+            <div class="hero-state scheduled" id="heroState" aria-live="polite">
+              <span class="hero-state-dot" aria-hidden="true"></span>
+              <span id="heroStateText">Torneo en curso</span>
+            </div>
+          </div>
+          <h1 class="hero-title" id="heroTitle">El torneo<br><em>en datos</em></h1>
         </div>
       </div>
     </section>
@@ -117,6 +123,7 @@
         </div>
 
         <div id="homeContent" aria-live="polite"></div>
+        <div id="homeLiveContent"></div>
       </section>
 
       <!-- PARTIDOS -->
@@ -186,8 +193,8 @@
       <section class="tab-content" id="tab-goleadores">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Tabla de goleadores</div>
-            <span class="sec-link">Fecha 14</span>
+            <div class="sec-title">Goleadores registrados</div>
+            <span class="sec-link">Según incidencias</span>
           </div>
         </div>
 
@@ -217,6 +224,80 @@
       </section>
 
     </main>
+
+    <!-- FOOTER -->
+    <footer class="tp-footer">
+      <div class="tp-footer__divider"></div>
+
+      <div class="tp-footer__content">
+        <div class="tp-footer__grid">
+          <section class="tp-footer__about" aria-labelledby="footer-project-title">
+            <div class="tp-footer__eyebrow" id="footer-project-title">
+              Sobre el proyecto
+            </div>
+            <div class="tp-footer__logo">Tres<span>·</span>Palos</div>
+            <p class="tp-footer__text">
+              Un proyecto para seguir la <strong>Liga Cañadense</strong> en datos.
+              Sin noticias, sin periodismo. Solo resultados, posiciones y el torneo
+              en tiempo real.
+              <br><br>
+              Hecho por hinchas, para hinchas.
+            </p>
+          </section>
+
+          <div class="tp-footer__details">
+            <div class="tp-footer__contact">
+              <div>
+                <div class="tp-footer__contact-label">Contacto</div>
+                <p class="tp-footer__contact-text">
+                  ¿Error en un dato?<br>Escribinos.
+                </p>
+              </div>
+
+              <a
+                class="tp-footer__contact-link"
+                href="mailto:contacto@trespalos.com.ar"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span>Escribir</span>
+              </a>
+            </div>
+
+            <div class="tp-footer__meta">
+              <div class="tp-footer__meta-row">
+                <span class="tp-footer__meta-key">Torneo</span>
+                <span class="tp-footer__meta-value" id="footer-tournament">
+                  Liga Cañadense 2026
+                </span>
+              </div>
+              <div class="tp-footer__meta-divider"></div>
+              <div class="tp-footer__meta-row">
+                <span class="tp-footer__meta-key">Etapa actual</span>
+                <span class="tp-footer__meta-value" id="footer-stage">
+                  Semifinales
+                </span>
+              </div>
+              <div class="tp-footer__meta-divider"></div>
+              <div class="tp-footer__meta-row">
+                <span class="tp-footer__meta-key">Última actualización</span>
+                <span class="tp-footer__meta-value" id="footer-last-update"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tp-footer__signature">
+          <p class="tp-footer__signature-text">
+            Datos no oficiales.<br>
+            Fútbol regional argentino.
+          </p>
+          <div class="tp-footer__signature-mark">Tres<span>·</span>Palos</div>
+        </div>
+      </div>
+    </footer>
 
     <!-- MOBILE BOTTOM NAV -->
     <nav class="mobile-bottom-nav" aria-label="Navegación principal">
@@ -268,6 +349,7 @@
 <script src="js/utils.js"></script>
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
-<script src="js/app.js?v=24"></script>
+<script src="js/analytics.js?v=1"></script>
+<script src="js/app.js?v=35"></script>
 </body>
 </html>

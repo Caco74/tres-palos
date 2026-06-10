@@ -1,4 +1,5 @@
 const API_URL = "/.netlify/functions/admin-partidos";
+const ANALYTICS_API_URL = "/.netlify/functions/admin-analytics";
 const PASSWORD_KEY = "tp_admin_password";
 
 const authCard = document.getElementById("authCard");
@@ -16,6 +17,11 @@ const logoutBtn = document.getElementById("logoutBtn");
 const clearScoreBtn = document.getElementById("clearScoreBtn");
 const saveBtn = document.getElementById("saveBtn");
 const saveFeedback = document.getElementById("saveFeedback");
+const analyticsTotal = document.getElementById("analyticsTotal");
+const tabViewsTotal = document.getElementById("tabViewsTotal");
+const matchViewsTotal = document.getElementById("matchViewsTotal");
+const tabAnalytics = document.getElementById("tabAnalytics");
+const matchAnalytics = document.getElementById("matchAnalytics");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -25,6 +31,7 @@ const fields = {
   hora: document.getElementById("horaInput"),
   estado: document.getElementById("estadoInput"),
   estadio: document.getElementById("estadioInput"),
+  arbitro: document.getElementById("arbitroInput"),
   golesLocal: document.getElementById("golesLocalInput"),
   golesVisitante: document.getElementById("golesVisitanteInput"),
   penalesLocal: document.getElementById("penalesLocalInput"),
@@ -34,6 +41,7 @@ const fields = {
 
 let partidos = [];
 let seleccionadoId = null;
+let partidoOriginal = null;
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -65,8 +73,8 @@ function showAuth() {
   adminPassword.focus();
 }
 
-async function apiRequest(method, body) {
-  const response = await fetch(API_URL, {
+async function apiRequest(method, body, url = API_URL) {
+  const response = await fetch(url, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -88,6 +96,84 @@ async function apiRequest(method, body) {
   }
 
   return data;
+}
+
+async function cargarAnalitica() {
+  const data = await apiRequest(
+    "GET",
+    null,
+    ANALYTICS_API_URL
+  );
+
+  analyticsTotal.textContent =
+    `${data.total_eventos || 0} eventos`;
+  tabViewsTotal.textContent = data.total_pestanas || 0;
+  matchViewsTotal.textContent = data.total_partidos || 0;
+  tabAnalytics.innerHTML = renderConteos(
+    data.pestanas,
+    item => etiquetaPestana(item.objetivo)
+  );
+  matchAnalytics.innerHTML = renderConteos(
+    data.partidos,
+    item => nombrePartidoAnalitica(item.partido_id)
+  );
+}
+
+function renderConteos(items, getLabel) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `<div class="analytics-empty">Todavía no hay consultas.</div>`;
+  }
+
+  const maximo = Math.max(...items.map(item => item.consultas));
+
+  return items.slice(0, 8).map(item => `
+    <div class="analytics-row">
+      <div>
+        <span>${getLabel(item)}</span>
+        <strong>${item.consultas}</strong>
+      </div>
+      <i style="width:${Math.max(6, item.consultas / maximo * 100)}%"></i>
+    </div>
+  `).join("");
+}
+
+function etiquetaPestana(pestana) {
+  return {
+    inicio: "Inicio",
+    partidos: "Partidos",
+    tabla: "Tabla",
+    playoffs: "Playoffs",
+    goleadores: "Goleadores",
+    equipos: "Equipos"
+  }[pestana] || pestana;
+}
+
+function nombrePartidoAnalitica(partidoId) {
+  const partido = partidos.find(
+    item => String(item.id) === String(partidoId)
+  );
+
+  return partido
+    ? `#${partidoId} · ${nombrePartido(partido)}`
+    : `Partido #${partidoId}`;
+}
+
+function mostrarAnaliticaNoDisponible(message) {
+  analyticsTotal.textContent = "No disponible";
+  tabAnalytics.innerHTML =
+    `<div class="analytics-empty">${message}</div>`;
+  matchAnalytics.innerHTML =
+    `<div class="analytics-empty">${message}</div>`;
+}
+
+async function cargarPanel() {
+  await cargarPartidos();
+
+  try {
+    await cargarAnalitica();
+  } catch (error) {
+    mostrarAnaliticaNoDisponible(error.message);
+  }
 }
 
 async function cargarPartidos() {
@@ -128,6 +214,10 @@ function renderLista() {
       ? `${partido.goles_local} - ${partido.goles_visitante}`
       : "Pendiente";
     const estado = partido.estado || "programado";
+    const programacion = [
+      formatearFechaAdmin(partido.fecha_partido),
+      partido.hora
+    ].filter(Boolean).join(" · ") || "Programación pendiente";
 
     return `
       <button
@@ -137,7 +227,8 @@ function renderLista() {
       >
         <span>#${partido.id} · ${titulo}</span>
         <strong>${nombrePartido(partido)}</strong>
-        <small>${resultado} · ${estado}</small>
+        <small>${programacion}</small>
+        <small>${resultado} · ${etiquetaEstadoAdmin(estado)}</small>
       </button>
     `;
   }).join("");
@@ -155,12 +246,19 @@ function seleccionarPartido(id) {
   fields.hora.value = partido.hora || "";
   fields.estado.value = partido.estado || "programado";
   fields.estadio.value = partido.estadio || "";
+  fields.arbitro.value = partido.arbitro || "";
   fields.golesLocal.value = valorInput(partido.goles_local);
   fields.golesVisitante.value = valorInput(partido.goles_visitante);
   fields.penalesLocal.value = valorInput(partido.penales_local);
   fields.penalesVisitante.value = valorInput(partido.penales_visitante);
-  fields.sourceInfo.textContent = `Origen: ${partido.source_local || "-"} / ${partido.source_visitante || "-"}`;
-  setSaveFeedback("Sin cambios guardados todavía.");
+  fields.sourceInfo.textContent = [
+    `Origen: ${partido.source_local || "-"} / ${partido.source_visitante || "-"}`,
+    partido.actualizado_en
+      ? `Última actualización: ${formatearActualizacion(partido.actualizado_en)}`
+      : ""
+  ].filter(Boolean).join(" · ");
+  partidoOriginal = { ...partido };
+  setSaveFeedback("Modificá uno o más campos y guardá los cambios.");
 
   emptyEditor.classList.add("hidden");
   matchForm.classList.remove("hidden");
@@ -189,6 +287,33 @@ function nombrePartido(partido) {
   return `${partido.local || "Por definir"} vs ${partido.visitante || "Por definir"}`;
 }
 
+function formatearFechaAdmin(fecha) {
+  if (!fecha) return "";
+  const [year, month, day] = fecha.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : fecha;
+}
+
+function formatearActualizacion(fecha) {
+  const valor = new Date(fecha);
+  if (Number.isNaN(valor.getTime())) return fecha;
+
+  return valor.toLocaleString("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
+function etiquetaEstadoAdmin(estado) {
+  return {
+    programado: "Programado",
+    en_vivo: "En vivo",
+    finalizado: "Finalizado",
+    pendiente_resultado: "Pendiente resultado",
+    suspendido: "Suspendido",
+    postergado: "Postergado"
+  }[estado] || estado;
+}
+
 function etiquetaFase(fase) {
   return {
     octavos: "Octavos",
@@ -211,18 +336,32 @@ async function guardarPartido(event) {
   const id = fields.id.value;
   if (!id) return;
 
-  const patch = {
+  const valores = {
     local: valorTexto(fields.local),
     visitante: valorTexto(fields.visitante),
     fecha_partido: valorTexto(fields.fecha),
     hora: valorTexto(fields.hora),
     estado: fields.estado.value,
     estadio: valorTexto(fields.estadio),
+    arbitro: valorTexto(fields.arbitro),
     goles_local: valorNumero(fields.golesLocal),
     goles_visitante: valorNumero(fields.golesVisitante),
     penales_local: valorNumero(fields.penalesLocal),
     penales_visitante: valorNumero(fields.penalesVisitante)
   };
+  validarCargaPartido(valores);
+  ajustarEstadoPorResultado(valores);
+
+  const patch = obtenerCambiosPartido(
+    partidoOriginal,
+    valores
+  );
+
+  if (Object.keys(patch).length === 0) {
+    setStatus("No hay cambios para guardar.", "warn");
+    setSaveFeedback("No modificaste ningún dato.", "warn");
+    return;
+  }
 
   setSaving(true);
   setStatus("Guardando...");
@@ -235,9 +374,11 @@ async function guardarPartido(event) {
       ? ` Campos ignorados porque no existen en DB: ${data.ignoredFields.join(", ")}.`
       : "";
     const estadoDevuelto = partidoGuardado.estado ?? "sin valor";
-    const advertenciaEstado = estadoDevuelto !== patch.estado
+    const advertenciaEstado =
+      Object.hasOwn(patch, "estado") &&
+      estadoDevuelto !== patch.estado
       ? ` Estado pedido: ${patch.estado}. Estado en DB: ${estadoDevuelto}.`
-      : ` Estado en DB: ${estadoDevuelto}.`;
+      : "";
     const hora = new Date().toLocaleTimeString("es-AR", {
       hour: "2-digit",
       minute: "2-digit",
@@ -247,14 +388,114 @@ async function guardarPartido(event) {
       ? "warn"
       : "ok";
 
-    setStatus(`Partido #${id} guardado.${advertenciaEstado}${ignorados}`, tipo);
-    setSaveFeedback(`Guardado a las ${hora}.${advertenciaEstado}${ignorados}`, tipo);
+    const camposGuardados = (data.savedFields || [])
+      .filter(campo => campo !== "actualizado_en")
+      .map(etiquetaCampoAdmin)
+      .join(", ");
+    setStatus(
+      `Partido #${id} guardado: ${camposGuardados || "cambios aplicados"}.${advertenciaEstado}${ignorados}`,
+      tipo
+    );
+    setSaveFeedback(
+      `Guardado a las ${hora}: ${camposGuardados || "cambios aplicados"}.${advertenciaEstado}${ignorados}`,
+      tipo
+    );
     await cargarPartidos();
     seleccionarPartido(id);
-    setSaveFeedback(`Guardado a las ${hora}.${advertenciaEstado}${ignorados}`, tipo);
+    setSaveFeedback(
+      `Guardado a las ${hora}: ${camposGuardados || "cambios aplicados"}.${advertenciaEstado}${ignorados}`,
+      tipo
+    );
   } finally {
     setSaving(false);
   }
+}
+
+function validarCargaPartido(valores) {
+  const golesCargados = [
+    valores.goles_local,
+    valores.goles_visitante
+  ].filter(valor => valor !== null).length;
+  const penalesCargados = [
+    valores.penales_local,
+    valores.penales_visitante
+  ].filter(valor => valor !== null).length;
+
+  if (golesCargados === 1) {
+    throw new Error(
+      "Cargá los goles de ambos equipos o dejá ambos vacíos."
+    );
+  }
+  if (penalesCargados === 1) {
+    throw new Error(
+      "Cargá los penales de ambos equipos o dejá ambos vacíos."
+    );
+  }
+  if (
+    penalesCargados === 2 &&
+    (
+      golesCargados !== 2 ||
+      valores.goles_local !== valores.goles_visitante
+    )
+  ) {
+    throw new Error(
+      "Los penales solo corresponden cuando el resultado está empatado."
+    );
+  }
+  if (
+    valores.estado === "finalizado" &&
+    golesCargados !== 2
+  ) {
+    throw new Error(
+      "Para marcar el partido como finalizado cargá el resultado."
+    );
+  }
+}
+
+function ajustarEstadoPorResultado(valores) {
+  const tieneResultado =
+    valores.goles_local !== null &&
+    valores.goles_visitante !== null;
+
+  if (tieneResultado && valores.estado === "programado") {
+    valores.estado = "finalizado";
+    fields.estado.value = "finalizado";
+  }
+  if (!tieneResultado && valores.estado === "finalizado") {
+    valores.estado = "programado";
+    fields.estado.value = "programado";
+  }
+}
+
+function obtenerCambiosPartido(original, valores) {
+  if (!original) return valores;
+
+  return Object.fromEntries(
+    Object.entries(valores).filter(([campo, valor]) =>
+      normalizarComparacion(valor) !==
+      normalizarComparacion(original[campo])
+    )
+  );
+}
+
+function normalizarComparacion(valor) {
+  return valor === undefined || valor === "" ? null : valor;
+}
+
+function etiquetaCampoAdmin(campo) {
+  return {
+    local: "local",
+    visitante: "visitante",
+    fecha_partido: "fecha",
+    hora: "horario",
+    estado: "estado",
+    estadio: "estadio",
+    arbitro: "árbitro",
+    goles_local: "goles local",
+    goles_visitante: "goles visitante",
+    penales_local: "penales local",
+    penales_visitante: "penales visitante"
+  }[campo] || campo;
 }
 
 authForm.addEventListener("submit", async event => {
@@ -263,7 +504,7 @@ authForm.addEventListener("submit", async event => {
   showApp();
 
   try {
-    await cargarPartidos();
+    await cargarPanel();
   } catch (error) {
     setStatus(error.message, "error");
   }
@@ -285,7 +526,7 @@ matchForm.addEventListener("submit", event => {
 typeFilter.addEventListener("change", renderLista);
 searchInput.addEventListener("input", renderLista);
 refreshBtn.addEventListener("click", () => {
-  cargarPartidos().catch(error => setStatus(error.message, "error"));
+  cargarPanel().catch(error => setStatus(error.message, "error"));
 });
 logoutBtn.addEventListener("click", () => {
   sessionStorage.removeItem(PASSWORD_KEY);
@@ -295,7 +536,7 @@ clearScoreBtn.addEventListener("click", limpiarResultado);
 
 if (getPassword()) {
   showApp();
-  cargarPartidos().catch(error => setStatus(error.message, "error"));
+  cargarPanel().catch(error => setStatus(error.message, "error"));
 } else {
   showAuth();
 }

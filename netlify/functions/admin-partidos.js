@@ -5,6 +5,7 @@ const ALLOWED_FIELDS = new Set([
   "hora",
   "estado",
   "estadio",
+  "arbitro",
   "goles_local",
   "goles_visitante",
   "penales_local",

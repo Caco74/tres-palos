@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css">
+  <link rel="stylesheet" href="styles/admin.css?v=2">
 </head>
 <body>
   <main class="admin-shell">
@@ -56,6 +56,42 @@
 
       <div class="status" id="statusBox">Listo.</div>
 
+      <section class="admin-card analytics-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Últimos 30 días</span>
+            <h2>Consultas del sitio</h2>
+          </div>
+          <span class="analytics-total" id="analyticsTotal">0 eventos</span>
+        </div>
+
+        <div class="analytics-summary">
+          <div>
+            <strong id="tabViewsTotal">0</strong>
+            <span>Pestañas vistas</span>
+          </div>
+          <div>
+            <strong id="matchViewsTotal">0</strong>
+            <span>Partidos abiertos</span>
+          </div>
+        </div>
+
+        <div class="analytics-grid">
+          <div>
+            <h3>Pestañas más consultadas</h3>
+            <div class="analytics-list" id="tabAnalytics">
+              Sin medición disponible.
+            </div>
+          </div>
+          <div>
+            <h3>Partidos más consultados</h3>
+            <div class="analytics-list" id="matchAnalytics">
+              Sin medición disponible.
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="admin-grid">
         <section class="admin-card matches-panel">
           <h2>Partidos</h2>
@@ -71,6 +107,7 @@
           <form id="matchForm" class="match-form hidden">
             <input type="hidden" id="partidoId">
 
+            <div class="form-section-title">Equipos</div>
             <div class="form-row two">
               <label>
                 Local
@@ -82,6 +119,7 @@
               </label>
             </div>
 
+            <div class="form-section-title">Programación</div>
             <div class="form-row three">
               <label>
                 Fecha
@@ -104,11 +142,18 @@
               </label>
             </div>
 
-            <label>
-              Estadio / sede especial
-              <input id="estadioInput" type="text" placeholder="Opcional; si queda vacio usa la cancha del local">
-            </label>
+            <div class="form-row two">
+              <label>
+                Estadio / sede
+                <input id="estadioInput" type="text" placeholder="Vacío = A confirmar">
+              </label>
+              <label>
+                Árbitro principal
+                <input id="arbitroInput" type="text" placeholder="Vacío = A confirmar">
+              </label>
+            </div>
 
+            <div class="form-section-title">Resultado</div>
             <div class="form-row two">
               <label>
                 Goles local
@@ -138,7 +183,7 @@
               <button type="button" class="ghost" id="clearScoreBtn">Limpiar resultado</button>
             </div>
             <div class="form-feedback" id="saveFeedback">
-              Sin cambios guardados todavía.
+              Modificá uno o más campos y guardá los cambios.
             </div>
           </form>
         </section>
@@ -146,6 +191,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=3"></script>
+  <script src="js/admin-panel.js?v=5"></script>
 </body>
 </html>
