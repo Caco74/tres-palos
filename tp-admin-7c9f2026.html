@@ -92,6 +92,76 @@
         </div>
       </section>
 
+      <section class="admin-card stage-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Control del torneo</span>
+            <h2>Cierre y respaldos de etapas</h2>
+          </div>
+          <span class="stage-state" id="stageState">Sin seleccionar</span>
+        </div>
+
+        <p class="stage-intro">
+          Al cerrar una fecha o fase se valida que todos sus partidos tengan
+          equipos y resultado, se crea un respaldo inmutable y se bloquean
+          nuevas ediciones.
+        </p>
+
+        <div class="stage-controls">
+          <label>
+            Fecha o fase
+            <select id="stageAdminSelect"></select>
+          </label>
+          <label>
+            Nota del cierre
+            <input
+              id="stageNote"
+              type="text"
+              maxlength="500"
+              placeholder="Opcional: fuente, correccion o detalle"
+            >
+          </label>
+        </div>
+
+        <div class="stage-summary">
+          <div>
+            <strong id="stageMatchesTotal">0</strong>
+            <span>Partidos</span>
+          </div>
+          <div>
+            <strong id="stageMatchesReady">0</strong>
+            <span>Completos</span>
+          </div>
+          <div>
+            <strong id="stageMatchesPending">0</strong>
+            <span>Faltantes</span>
+          </div>
+        </div>
+
+        <div class="stage-validation" id="stageValidation">
+          Cargando estado de las etapas...
+        </div>
+
+        <div class="actions">
+          <button type="button" id="closeStageBtn">Cerrar y respaldar</button>
+          <button type="button" id="reopenStageBtn" class="ghost">
+            Reabrir etapa
+          </button>
+        </div>
+
+        <div class="form-feedback" id="stageFeedback">
+          Elegí una etapa para revisar su estado.
+        </div>
+
+        <div class="backup-heading">
+          <h3>Historial de respaldos</h3>
+          <span id="backupCount">0 copias</span>
+        </div>
+        <div class="backup-list" id="backupList">
+          Todavía no hay respaldos.
+        </div>
+      </section>
+
       <div class="admin-grid">
         <section class="admin-card matches-panel">
           <h2>Partidos</h2>
@@ -191,6 +261,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=5"></script>
+  <script src="js/admin-panel.js?v=6"></script>
 </body>
 </html>

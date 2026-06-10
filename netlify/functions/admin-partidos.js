@@ -92,6 +92,15 @@ async function updateMatch(event) {
   const { existing, columns } = await getExistingMatch(id);
   if (!existing) return json(404, { error: "Partido no encontrado." });
 
+  const closedStage = await getClosedStage(existing);
+  if (closedStage) {
+    return json(409, {
+      error:
+        `${closedStage.etiqueta || "La etapa"} esta cerrada. ` +
+        "Reabrila antes de editar sus partidos."
+    });
+  }
+
   const filtered = {};
   const ignoredFields = [];
 
@@ -201,6 +210,42 @@ async function getExistingMatch(id) {
   };
 }
 
+async function getClosedStage(match) {
+  const stage = getMatchStage(match);
+  if (!stage) return null;
+
+  try {
+    const response = await supabaseFetch(
+      "/rest/v1/etapas_estado" +
+      "?select=estado,etiqueta" +
+      `&tipo=eq.${encodeURIComponent(stage.tipo)}` +
+      `&valor=eq.${encodeURIComponent(stage.valor)}` +
+      "&estado=eq.cerrada&limit=1"
+    );
+    const rows = await parseSupabaseResponse(response);
+    return Array.isArray(rows) ? rows[0] || null : null;
+  } catch (error) {
+    if (["42P01", "PGRST205"].includes(error.code)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+function getMatchStage(match) {
+  if (
+    match.tipo === "regular" &&
+    match.fecha !== null &&
+    match.fecha !== undefined
+  ) {
+    return { tipo: "regular", valor: String(match.fecha) };
+  }
+  if (match.tipo === "playoff" && match.fase) {
+    return { tipo: "playoff", valor: String(match.fase) };
+  }
+  return null;
+}
+
 async function supabaseFetch(path, options = {}) {
   const url = `${process.env.SUPABASE_URL}${path}`;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -221,7 +266,11 @@ async function parseSupabaseResponse(response) {
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || "Error de Supabase.");
+    const error = new Error(
+      data?.message || data?.error || "Error de Supabase."
+    );
+    error.code = data?.code || null;
+    throw error;
   }
 
   return data;

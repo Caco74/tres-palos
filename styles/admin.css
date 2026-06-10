@@ -221,7 +221,8 @@ p {
 }
 
 .analytics-summary,
-.analytics-grid {
+.analytics-grid,
+.stage-summary {
   display: grid;
   gap: 12px;
 }
@@ -236,6 +237,156 @@ p {
   background: var(--card2);
   border: 1px solid var(--line);
   border-radius: 12px;
+}
+
+.stage-intro {
+  margin-bottom: 16px;
+}
+
+.stage-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, .7fr) minmax(240px, 1.3fr);
+  gap: 12px;
+}
+
+.stage-state {
+  padding: 7px 10px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.stage-state[data-state="closed"] {
+  color: var(--green);
+  background: rgba(53, 199, 122, .08);
+  border-color: rgba(53, 199, 122, .28);
+}
+
+.stage-state[data-state="open"] {
+  color: var(--yellow);
+  background: rgba(244, 185, 66, .08);
+  border-color: rgba(244, 185, 66, .28);
+}
+
+.stage-summary {
+  grid-template-columns: repeat(3, 1fr);
+  margin: 14px 0;
+}
+
+.stage-summary > div {
+  padding: 13px 14px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.stage-summary strong,
+.stage-summary span {
+  display: block;
+}
+
+.stage-summary strong {
+  margin-bottom: 3px;
+  font-size: 1.45rem;
+}
+
+.stage-summary span {
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.stage-validation {
+  margin-bottom: 14px;
+  padding: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: .84rem;
+  line-height: 1.45;
+}
+
+.stage-validation[data-type="ok"] {
+  color: var(--green);
+  border-color: rgba(53, 199, 122, .22);
+}
+
+.stage-validation[data-type="warn"] {
+  color: var(--yellow);
+  border-color: rgba(244, 185, 66, .22);
+}
+
+.backup-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.backup-heading h3 {
+  margin: 0;
+  font-size: .84rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.backup-heading span {
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.backup-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.backup-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.backup-item strong,
+.backup-item span,
+.backup-item small {
+  display: block;
+}
+
+.backup-item span {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.backup-item small {
+  margin-top: 5px;
+  color: #73737d;
+}
+
+.backup-item button {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  background: transparent;
+  font-size: .75rem;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 7px;
 }
 
 .analytics-summary strong,
@@ -380,9 +531,23 @@ p {
   .toolbar,
   .admin-grid,
   .analytics-grid,
+  .stage-controls,
   .form-row.two,
   .form-row.three {
     grid-template-columns: 1fr;
+  }
+
+  .stage-summary {
+    gap: 8px;
+  }
+
+  .backup-item {
+    grid-template-columns: 1fr;
+  }
+
+  .backup-actions,
+  .backup-item button {
+    width: 100%;
   }
 
   .match-list {
