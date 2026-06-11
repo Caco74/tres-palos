@@ -389,6 +389,83 @@ p {
   gap: 7px;
 }
 
+.club-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.club-list {
+  max-height: 560px;
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.club-item {
+  width: 100%;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.club-item.on {
+  border-color: rgba(255, 48, 69, .75);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.club-item strong,
+.club-item small {
+  display: block;
+}
+
+.club-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.club-item > span {
+  align-self: center;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.club-item.inactive {
+  opacity: .55;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--text);
+  background: #141419;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-transform: none;
+}
+
+.toggle-label input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--red);
+}
+
+input[readonly] {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 .analytics-summary strong,
 .analytics-summary span {
   display: block;
@@ -532,6 +609,7 @@ p {
   .admin-grid,
   .analytics-grid,
   .stage-controls,
+  .club-admin-grid,
   .form-row.two,
   .form-row.three {
     grid-template-columns: 1fr;
@@ -552,5 +630,9 @@ p {
 
   .match-list {
     max-height: 42vh;
+  }
+
+  .club-list {
+    max-height: 38vh;
   }
 }

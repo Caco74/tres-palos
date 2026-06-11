@@ -3606,6 +3606,7 @@ function formatearFechaCompleta(fecha) {
 function renderDetalleEquipo(equipo) {
   const cont = document.getElementById("teamDetail");
   const zona = obtenerZonaEquipo(equipo);
+  const club = obtenerClub(equipo);
 
   if (!zona) {
     cont.innerHTML = renderDetalleVacio("Equipo no encontrado");
@@ -3655,6 +3656,10 @@ function renderDetalleEquipo(equipo) {
     ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
   const estadoPlayoff = obtenerEstadoPlayoffEquipo(equipo);
+  const identidad = [
+    club?.ciudad,
+    club?.apodo ? `Apodo: ${club.apodo}` : null
+  ].filter(Boolean).join(" · ");
 
   cont.innerHTML = `
     <div class="detail-topbar">
@@ -3671,6 +3676,9 @@ function renderDetalleEquipo(equipo) {
           <span>Zona ${zona} · ${stats.pts} puntos</span>
           <h1>${nombreEquipo}</h1>
           <p>${equipo}</p>
+          ${identidad
+            ? `<div class="team-detail-origin">${escaparHtml(identidad)}</div>`
+            : ""}
           ${estadoPlayoff
             ? `<div class="team-stage-badge ${estadoPlayoff.clase}">
                 ${estadoPlayoff.texto}
@@ -4000,6 +4008,7 @@ function renderTeams() {
   document.getElementById('teamsContent').innerHTML = equiposLiga
     .map(({ equipo, zona, stats }) => {
       const nombreEquipo = nombre(equipo);
+      const club = obtenerClub(equipo);
       const escudoEquipo = escudos[equipo]
         ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
         : nombreEquipo.slice(0, 2).toUpperCase();
@@ -4016,6 +4025,9 @@ function renderTeams() {
         >
           <div class="tc-shield">${escudoEquipo}</div>
           <div class="tc-name">${nombreEquipo}</div>
+          ${club?.ciudad
+            ? `<div class="tc-city">${escaparHtml(club.ciudad)}</div>`
+            : ""}
           <div class="tc-pts">Zona ${zona}${puntos}</div>
         </button>
       `;
@@ -4050,13 +4062,17 @@ async function obtenerPartidos() {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`
     };
-    const [res, resEventos] = await Promise.all([
+    const [res, resEventos, resClubes] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/partidos?select=*&order=id.asc`,
         { headers }
       ),
       fetch(
         `${SUPABASE_URL}/rest/v1/eventos_partido?select=partido_id,tipo,equipo_id,jugador,minuto&order=minuto.asc`,
+        { headers }
+      ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/clubes?select=*&order=zona.asc,nombre_corto.asc`,
         { headers }
       )
     ]);
@@ -4076,10 +4092,19 @@ async function obtenerPartidos() {
     state.eventos = resEventos.ok
       ? await resEventos.json()
       : state.eventos;
+    if (resClubes.ok) {
+      aplicarClubes(await resClubes.json());
+    }
 
     if (!resEventos.ok) {
       console.warn(
         `No se pudieron cargar las incidencias: ${resEventos.status}`
+      );
+    }
+    if (!resClubes.ok) {
+      console.warn(
+        `No se pudieron cargar los clubes: ${resClubes.status}. ` +
+        "Se usan los datos locales."
       );
     }
 

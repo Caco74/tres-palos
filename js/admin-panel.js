@@ -1,6 +1,7 @@
 const API_URL = "/.netlify/functions/admin-partidos";
 const ANALYTICS_API_URL = "/.netlify/functions/admin-analytics";
 const STAGES_API_URL = "/.netlify/functions/admin-etapas";
+const CLUBS_API_URL = "/.netlify/functions/admin-clubes";
 const PASSWORD_KEY = "tp_admin_password";
 const PLAYOFF_STAGES = [
   { value: "octavos", label: "Octavos de Final" },
@@ -41,6 +42,12 @@ const closeStageBtn = document.getElementById("closeStageBtn");
 const reopenStageBtn = document.getElementById("reopenStageBtn");
 const backupCount = document.getElementById("backupCount");
 const backupList = document.getElementById("backupList");
+const clubsTotal = document.getElementById("clubsTotal");
+const clubList = document.getElementById("clubList");
+const clubForm = document.getElementById("clubForm");
+const emptyClubEditor = document.getElementById("emptyClubEditor");
+const saveClubBtn = document.getElementById("saveClubBtn");
+const clubFeedback = document.getElementById("clubFeedback");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -58,9 +65,27 @@ const fields = {
   sourceInfo: document.getElementById("sourceInfo")
 };
 
+const clubFields = {
+  id: document.getElementById("clubId"),
+  officialName: document.getElementById("clubOfficialName"),
+  shortName: document.getElementById("clubShortName"),
+  nickname: document.getElementById("clubNickname"),
+  city: document.getElementById("clubCity"),
+  province: document.getElementById("clubProvince"),
+  zone: document.getElementById("clubZone"),
+  shield: document.getElementById("clubShield"),
+  primaryColor: document.getElementById("clubPrimaryColor"),
+  secondaryColor: document.getElementById("clubSecondaryColor"),
+  aliases: document.getElementById("clubAliases"),
+  active: document.getElementById("clubActive")
+};
+
 let partidos = [];
+let clubes = [];
 let seleccionadoId = null;
 let partidoOriginal = null;
+let clubSeleccionadoId = null;
+let clubOriginal = null;
 let etapasEstado = [];
 let respaldosEtapa = [];
 let etapasDisponibles = [];
@@ -84,6 +109,18 @@ function setSaveFeedback(message, type = "info") {
 function setSaving(isSaving) {
   saveBtn.disabled = isSaving || partidoSeleccionadoCerrado();
   saveBtn.textContent = isSaving ? "Guardando..." : "Guardar cambios";
+}
+
+function setClubSaving(isSaving) {
+  saveClubBtn.disabled = isSaving;
+  saveClubBtn.textContent = isSaving
+    ? "Guardando..."
+    : "Guardar club";
+}
+
+function setClubFeedback(message, type = "info") {
+  clubFeedback.textContent = message;
+  clubFeedback.dataset.type = type;
 }
 
 function showApp() {
@@ -687,6 +724,172 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+async function cargarClubesAdmin() {
+  const data = await apiRequest("GET", null, CLUBS_API_URL);
+  clubes = Array.isArray(data.clubes) ? data.clubes : [];
+  renderClubesAdmin();
+}
+
+function mostrarClubesNoDisponibles(message) {
+  clubes = [];
+  clubsTotal.textContent = "No disponible";
+  clubList.innerHTML = `
+    <div class="analytics-empty">
+      Ejecutá supabase/clubes.sql en Supabase para habilitar las fichas.
+      <br><br>${escapeHtml(message)}
+    </div>
+  `;
+  clubForm.classList.add("hidden");
+  emptyClubEditor.classList.remove("hidden");
+}
+
+function renderClubesAdmin() {
+  clubsTotal.textContent =
+    `${clubes.length} ${clubes.length === 1 ? "club" : "clubes"}`;
+
+  if (clubes.length === 0) {
+    clubList.innerHTML =
+      `<div class="analytics-empty">No hay clubes cargados.</div>`;
+    return;
+  }
+
+  clubList.innerHTML = clubes.map(club => `
+    <button
+      type="button"
+      class="club-item ${club.activo ? "" : "inactive"} ${
+        String(club.id) === String(clubSeleccionadoId) ? "on" : ""
+      }"
+      data-club-id="${club.id}"
+    >
+      <span>
+        <strong>${escapeHtml(club.nombre_corto)}</strong>
+        <small>
+          ${escapeHtml(club.ciudad)} · Zona ${club.zona}
+          ${club.apodo ? ` · ${escapeHtml(club.apodo)}` : ""}
+        </small>
+      </span>
+      <span>#${club.id}</span>
+    </button>
+  `).join("");
+}
+
+function seleccionarClub(id) {
+  const club = clubes.find(item => String(item.id) === String(id));
+  if (!club) return;
+
+  clubSeleccionadoId = club.id;
+  clubFields.id.value = club.id;
+  clubFields.officialName.value = club.nombre_oficial || "";
+  clubFields.shortName.value = club.nombre_corto || "";
+  clubFields.nickname.value = club.apodo || "";
+  clubFields.city.value = club.ciudad || "";
+  clubFields.province.value = club.provincia || "Santa Fe";
+  clubFields.zone.value = String(club.zona || 1);
+  clubFields.shield.value = club.escudo_url || "";
+  clubFields.primaryColor.value = club.color_primario || "";
+  clubFields.secondaryColor.value = club.color_secundario || "";
+  clubFields.aliases.value = Array.isArray(club.aliases)
+    ? club.aliases.join(", ")
+    : "";
+  clubFields.active.checked = club.activo !== false;
+  clubOriginal = { ...club };
+
+  emptyClubEditor.classList.add("hidden");
+  clubForm.classList.remove("hidden");
+  setClubFeedback("Modificá la ficha y guardá los cambios.");
+  renderClubesAdmin();
+}
+
+function valoresFormularioClub() {
+  return {
+    nombre_corto: valorTexto(clubFields.shortName),
+    apodo: valorTexto(clubFields.nickname),
+    ciudad: valorTexto(clubFields.city),
+    provincia: valorTexto(clubFields.province),
+    zona: Number(clubFields.zone.value),
+    escudo_url: valorTexto(clubFields.shield),
+    color_primario: valorTexto(clubFields.primaryColor),
+    color_secundario: valorTexto(clubFields.secondaryColor),
+    aliases: clubFields.aliases.value
+      .split(",")
+      .map(alias => alias.trim())
+      .filter(Boolean),
+    activo: clubFields.active.checked
+  };
+}
+
+function validarClub(valores) {
+  if (!valores.nombre_corto || !valores.ciudad || !valores.provincia) {
+    throw new Error(
+      "Nombre corto, ciudad y provincia son obligatorios."
+    );
+  }
+
+  ["color_primario", "color_secundario"].forEach(campo => {
+    if (valores[campo] && !/^#[0-9a-f]{6}$/i.test(valores[campo])) {
+      throw new Error("Los colores deben usar formato #RRGGBB.");
+    }
+  });
+
+  if (
+    valores.escudo_url &&
+    !valores.escudo_url.startsWith("/assets/")
+  ) {
+    throw new Error(
+      "La ruta del escudo debe comenzar con /assets/."
+    );
+  }
+}
+
+function obtenerCambiosClub(original, valores) {
+  if (!original) return valores;
+
+  return Object.fromEntries(
+    Object.entries(valores).filter(([campo, valor]) =>
+      JSON.stringify(valor) !== JSON.stringify(original[campo])
+    )
+  );
+}
+
+async function guardarClub(event) {
+  event.preventDefault();
+
+  const id = Number(clubFields.id.value);
+  if (!id) return;
+
+  const valores = valoresFormularioClub();
+  validarClub(valores);
+  const patch = obtenerCambiosClub(clubOriginal, valores);
+
+  if (Object.keys(patch).length === 0) {
+    setClubFeedback("No modificaste ningún dato.", "warn");
+    return;
+  }
+
+  setClubSaving(true);
+  setClubFeedback("Guardando ficha...");
+
+  try {
+    const data = await apiRequest(
+      "PATCH",
+      { id, patch },
+      CLUBS_API_URL
+    );
+    const actualizado = data.club;
+    clubes = clubes.map(club =>
+      String(club.id) === String(id) ? actualizado : club
+    );
+    seleccionarClub(id);
+    setClubFeedback(
+      "Ficha guardada. La web pública tomará estos datos al recargarse.",
+      "ok"
+    );
+    setStatus(`Club #${id} actualizado.`, "ok");
+  } finally {
+    setClubSaving(false);
+  }
+}
+
 async function cargarPanel() {
   await cargarPartidos();
 
@@ -696,6 +899,9 @@ async function cargarPanel() {
     ),
     cargarEtapasAdmin().catch(error =>
       mostrarEtapasNoDisponibles(error.message)
+    ),
+    cargarClubesAdmin().catch(error =>
+      mostrarClubesNoDisponibles(error.message)
     )
   ]);
 }
@@ -1100,6 +1306,17 @@ backupList.addEventListener("click", event => {
     stageFeedback.dataset.type = "error";
     setStatus(error.message, "error");
     setEtapaProcesando(false);
+  });
+});
+clubList.addEventListener("click", event => {
+  const item = event.target.closest("[data-club-id]");
+  if (item) seleccionarClub(item.dataset.clubId);
+});
+clubForm.addEventListener("submit", event => {
+  guardarClub(event).catch(error => {
+    setClubFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setClubSaving(false);
   });
 });
 

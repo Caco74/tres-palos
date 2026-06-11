@@ -1,7 +1,8 @@
 const state = {
   partidos: [],
   playoffs: [],
-  eventos: []
+  eventos: [],
+  clubes: []
 }; 
 
 // 🔹 MAPAS
@@ -87,6 +88,48 @@ const equiposPorZona = {
   "Sportivo A. Club"
 ]
 };
+
+const clubesPorNombre = new Map();
+
+function aplicarClubes(clubes) {
+  if (!Array.isArray(clubes) || clubes.length === 0) return;
+
+  state.clubes = clubes;
+  clubesPorNombre.clear();
+
+  Object.keys(equiposPorZona).forEach(zona => {
+    equiposPorZona[zona].splice(0);
+  });
+
+  clubes
+    .filter(club => club.activo !== false)
+    .sort((a, b) =>
+      Number(a.zona) - Number(b.zona) ||
+      String(a.nombre_corto).localeCompare(
+        String(b.nombre_corto),
+        "es",
+        { sensitivity: "base" }
+      )
+    )
+    .forEach(club => {
+      clubesPorNombre.set(club.nombre_oficial, club);
+      nombresCortos[club.nombre_oficial] =
+        club.nombre_corto || club.nombre_oficial;
+
+      if (club.escudo_url) {
+        escudos[club.nombre_oficial] = club.escudo_url;
+      }
+
+      const zona = Number(club.zona);
+      if (equiposPorZona[zona]) {
+        equiposPorZona[zona].push(club.nombre_oficial);
+      }
+    });
+}
+
+function obtenerClub(equipo) {
+  return clubesPorNombre.get(equipo) || null;
+}
   
 function nombre(equipo) {
   return nombresCortos[equipo] || equipo;

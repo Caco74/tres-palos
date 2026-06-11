@@ -162,6 +162,127 @@
         </div>
       </section>
 
+      <section class="admin-card clubs-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Base institucional</span>
+            <h2>Clubes</h2>
+          </div>
+          <span class="analytics-total" id="clubsTotal">0 clubes</span>
+        </div>
+
+        <p class="stage-intro">
+          Una ficha única por institución. El nombre oficial y el ID permanecen
+          fijos para no romper partidos históricos.
+        </p>
+
+        <div class="club-admin-grid">
+          <div class="club-list" id="clubList">
+            Cargando clubes...
+          </div>
+
+          <div>
+            <div class="empty-editor" id="emptyClubEditor">
+              Elegí un club para editar su ficha.
+            </div>
+
+            <form id="clubForm" class="match-form hidden">
+              <input type="hidden" id="clubId">
+
+              <div class="form-section-title">Identidad</div>
+              <label>
+                Nombre oficial
+                <input id="clubOfficialName" type="text" readonly>
+              </label>
+
+              <div class="form-row two">
+                <label>
+                  Nombre corto
+                  <input id="clubShortName" type="text" required>
+                </label>
+                <label>
+                  Apodo
+                  <input id="clubNickname" type="text" placeholder="Opcional">
+                </label>
+              </div>
+
+              <div class="form-row three">
+                <label>
+                  Ciudad
+                  <input id="clubCity" type="text" required>
+                </label>
+                <label>
+                  Provincia
+                  <input id="clubProvince" type="text" required>
+                </label>
+                <label>
+                  Zona
+                  <select id="clubZone">
+                    <option value="1">Zona 1</option>
+                    <option value="2">Zona 2</option>
+                    <option value="3">Zona 3</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-section-title">Visual y búsqueda</div>
+              <label>
+                Ruta del escudo
+                <input
+                  id="clubShield"
+                  type="text"
+                  placeholder="/assets/img/club.png"
+                >
+              </label>
+
+              <div class="form-row two">
+                <label>
+                  Color primario
+                  <input
+                    id="clubPrimaryColor"
+                    type="text"
+                    placeholder="#RRGGBB"
+                    pattern="#[0-9A-Fa-f]{6}"
+                  >
+                </label>
+                <label>
+                  Color secundario
+                  <input
+                    id="clubSecondaryColor"
+                    type="text"
+                    placeholder="#RRGGBB"
+                    pattern="#[0-9A-Fa-f]{6}"
+                  >
+                </label>
+              </div>
+
+              <label>
+                Aliases
+                <input
+                  id="clubAliases"
+                  type="text"
+                  placeholder="Separados por coma"
+                >
+              </label>
+
+              <label class="toggle-label">
+                <input id="clubActive" type="checkbox">
+                <span>Club activo en la competencia actual</span>
+              </label>
+
+              <div class="actions">
+                <button type="submit" id="saveClubBtn">
+                  Guardar club
+                </button>
+              </div>
+              <div class="form-feedback" id="clubFeedback">
+                Modificá la ficha y guardá los cambios.
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <div class="admin-grid">
         <section class="admin-card matches-panel">
           <h2>Partidos</h2>
@@ -261,6 +382,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=6"></script>
+  <script src="js/admin-panel.js?v=7"></script>
 </body>
 </html>
