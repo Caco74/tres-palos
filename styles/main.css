@@ -602,6 +602,8 @@ button {
 
 .app-main {
   flex: 1;
+  min-height: calc(100vh - 310px);
+  min-height: calc(100svh - 310px);
   overflow-y: auto;
   padding-bottom: 72px;
 }
@@ -2096,6 +2098,11 @@ button {
 body.detail-mode .hero,
 body.detail-mode .tab-nav {
   display: none;
+}
+
+body.detail-mode .app-main {
+  min-height: calc(100vh - 94px);
+  min-height: calc(100svh - 94px);
 }
 
 .detail-topbar {

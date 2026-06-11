@@ -3226,13 +3226,13 @@ function renderTabla(zona) {
           <tr>
             <th>#</th>
             <th>Equipo</th>
+            <th>PTS</th>
             <th>PJ</th>
             <th>PG</th>
             <th>PE</th>
             <th>PP</th>
             <th>DG</th>
             <th>Forma</th>
-            <th>PTS</th>
           </tr>
         </thead>
         <tbody>
@@ -3261,13 +3261,13 @@ function renderTabla(zona) {
             ${nombreEquipo}
           </div>
         </td>
+        <td class="t-pts">${t.pts}</td>
         <td>${t.pj}</td>
         <td>${t.pg}</td>
         <td>${t.pe}</td>
         <td>${t.pp}</td>
         <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
         <td><div class="form-row">${dots}</div></td>
-        <td class="t-pts">${t.pts}</td>
       </tr>
     `;
   });
