@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tres Palos v11</title>
 
-<link rel="stylesheet" href="/styles/main.css?v=32">
+<link rel="stylesheet" href="/styles/main.css?v=33">
 <link rel="icon" type="image/png" href="/assets/brand/tres-palos-simbolo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -42,7 +42,6 @@
       <li><button class="sb-link" onclick="switchTab('partidos')">Partidos</button></li>
       <li><button class="sb-link" onclick="switchTab('tabla')">Tabla</button></li>
       <li><button class="sb-link" onclick="switchTab('playoffs')">Playoffs</button></li>
-      <li><button class="sb-link" onclick="switchTab('goleadores')">Goleadores</button></li>
       <li><button class="sb-link" onclick="switchTab('equipos')">Equipos</button></li>
     </ul>
   </aside>
@@ -86,13 +85,7 @@
       <div class="hero-grad"></div>
       <div class="hero-content">
         <div class="hero-copy">
-          <div class="hero-meta">
-            <div class="hero-label" id="heroLabel">Liga Cañadense</div>
-            <div class="hero-state scheduled" id="heroState" aria-live="polite">
-              <span class="hero-state-dot" aria-hidden="true"></span>
-              <span id="heroStateText">Torneo en curso</span>
-            </div>
-          </div>
+          <div class="hero-label" id="heroLabel">Liga Cañadense</div>
           <h1 class="hero-title" id="heroTitle">El torneo<br><em>en datos</em></h1>
         </div>
       </div>
@@ -104,7 +97,6 @@
       <div class="tab" data-tab="partidos">Partidos</div>
       <div class="tab" data-tab="tabla">Tabla</div>
       <div class="tab" data-tab="playoffs">Playoffs</div>
-      <div class="tab" data-tab="goleadores">Goleadores</div>
       <div class="tab" data-tab="equipos">Equipos</div>
     </nav>
 
@@ -184,18 +176,6 @@
         </div>
 
         <div id="playoffsContent" aria-live="polite"></div>
-      </section>
-
-      <!-- GOLEADORES -->
-      <section class="tab-content" id="tab-goleadores">
-        <div class="sec">
-          <div class="sec-head">
-            <div class="sec-title">Goleadores registrados</div>
-            <span class="sec-link">Según incidencias</span>
-          </div>
-        </div>
-
-        <div class="scorers" id="scorersContent"></div>
       </section>
 
       <!-- EQUIPOS -->
@@ -347,6 +327,6 @@
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
 <script src="js/analytics.js?v=1"></script>
-<script src="js/app.js?v=38"></script>
+<script src="js/app.js?v=39"></script>
 </body>
 </html>

@@ -9,7 +9,6 @@ const VISTAS_PRINCIPALES = [
   "partidos",
   "tabla",
   "playoffs",
-  "goleadores",
   "equipos"
 ];
 
@@ -66,6 +65,10 @@ function mostrarVista(id) {
 }
 
 function switchTab(id) {
+  if (!VISTAS_PRINCIPALES.includes(id)) {
+    id = "inicio";
+  }
+
   vistaActual = { id, navId: id };
   mostrarVista(id);
   guardarVistaEnHistorial();
@@ -126,6 +129,13 @@ function guardarVistaEnHistorial(reemplazar = false) {
 
 function restaurarVistaDesdeHistorial(vista) {
   if (!vista?.id) return;
+
+  if (
+    !VISTAS_PRINCIPALES.includes(vista.id) &&
+    !["partido", "equipo"].includes(vista.id)
+  ) {
+    vista = { id: "inicio", navId: "inicio" };
+  }
 
   vistaActual = vista;
 
@@ -1590,14 +1600,6 @@ function actualizarResumenTorneo(agenda) {
   if (heroTitle) {
     heroTitle.innerHTML = obtenerTituloHeroInicio(agenda.fase?.valor);
   }
-  const heroState = document.getElementById("heroState");
-  const heroStateText = document.getElementById("heroStateText");
-  if (heroState) {
-    heroState.className = `hero-state ${estadoTorneo.clase}`;
-  }
-  if (heroStateText) {
-    heroStateText.textContent = estadoTorneo.etiqueta;
-  }
   document.getElementById("sidebarEye").textContent =
     estadoTorneo.etiqueta;
   document.getElementById("sidebarTitle").textContent =
@@ -1678,46 +1680,11 @@ function renderPartidoInicio(partido) {
         </div>
       </div>
       <div class="home-match-insights">
-        <span class="home-match-form">
-          <b>Forma</b>
-          ${renderFormaCompactaInicio(partido.local)}
-          <i>·</i>
-          ${renderFormaCompactaInicio(partido.visitante)}
-        </span>
         <span class="home-match-history">
-          ${resumirAntecedenteInicio(partido)}
+          Antecedentes: ${resumirAntecedenteInicio(partido)}
         </span>
       </div>
     </button>
-  `;
-}
-
-function renderFormaCompactaInicio(equipo) {
-  const forma = obtenerFormaReciente(equipo, 5);
-
-  if (forma.length === 0) {
-    return `<span class="home-form-empty">${ESTADOS_DATO.sinDatos}</span>`;
-  }
-
-  const etiquetas = {
-    G: "Victoria",
-    E: "Empate",
-    P: "Derrota"
-  };
-
-  return `
-    <span
-      class="home-form-dots"
-      aria-label="${nombre(equipo)}: ${forma.map(item => etiquetas[item.resultado]).join(", ")}"
-    >
-      ${forma.map(item => `
-        <i
-          class="form-${item.resultado.toLowerCase()}"
-          title="${etiquetas[item.resultado]}"
-          aria-hidden="true"
-        ></i>
-      `).join("")}
-    </span>
   `;
 }
 
@@ -1825,7 +1792,6 @@ function renderPulsoInicio() {
         `
       )}
 
-      ${renderSeccionGoleadoresPulso()}
     </div>
   `;
 }
@@ -2786,63 +2752,6 @@ function normalizarClaveGoleador(valor) {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, " ");
-}
-
-function renderSeccionGoleadoresPulso() {
-  const goleadores = obtenerGoleadoresReales().slice(0, 5);
-  const listado = goleadores.length > 0
-    ? renderGoleadoresPulso(goleadores)
-    : renderFaltantePulso(
-        "Sin datos de goleadores",
-        "No hay eventos de gol con jugador identificado."
-      );
-
-  return renderSeccionPulso(
-    "Goleadores registrados",
-    "Top 5",
-    `
-      ${listado}
-      <button
-        type="button"
-        class="home-live__section-link"
-        onclick="switchTab('goleadores')"
-      >
-        Ver tabla completa →
-      </button>
-    `
-  );
-}
-
-function renderGoleadoresPulso(goleadores) {
-  return `
-    <div class="home-live__scorers">
-      ${goleadores.map(goleador => `
-        <div class="home-live__scorer">
-          <span class="${goleador.posicion <= 2 ? "top" : ""}">
-            ${goleador.posicion}
-          </span>
-          <div>
-            <strong>${escaparHtml(goleador.jugador)}</strong>
-            <small class="${obtenerEstadoDato(goleador.club) ? "data-incomplete" : ""}">
-              ${escaparHtml(goleador.club)}
-            </small>
-          </div>
-          <b class="${goleador.posicion === 1 ? "leader" : ""}">
-            ${goleador.goles}<small>gol</small>
-          </b>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderFaltantePulso(titulo, detalle) {
-  return `
-    <div class="home-live__missing" role="status">
-      <strong>${titulo}</strong>
-      <span>${detalle}</span>
-    </div>
-  `;
 }
 
 function escaparHtml(valor) {
@@ -3945,45 +3854,6 @@ function renderDetalleVacio(mensaje) {
   `;
 }
 
-function renderScorers() {
-  const cont = document.getElementById("scorersContent");
-  if (!cont) return;
-
-  if (!cargaPartidosFinalizada) {
-    cont.innerHTML = `
-      <div class="home-empty">Cargando goleadores...</div>
-    `;
-    return;
-  }
-
-  const goleadores = obtenerGoleadoresReales();
-
-  if (goleadores.length === 0) {
-    cont.innerHTML = `
-      <div class="home-empty">
-        Sin datos de goleadores: no hay eventos de gol con jugador identificado.
-      </div>
-    `;
-    return;
-  }
-
-  cont.innerHTML = goleadores.map(goleador => `
-    <div class="scorer">
-      <div class="sc-pos ${goleador.posicion <= 3 ? "gold" : ""}">
-        ${goleador.posicion}
-      </div>
-      <div class="sc-info">
-        <div class="sc-name">${escaparHtml(goleador.jugador)}</div>
-        <div class="sc-club">${escaparHtml(goleador.club)}</div>
-      </div>
-      <div class="sc-n">
-        ${goleador.goles}
-        <small>${goleador.goles === 1 ? "gol" : "goles"}</small>
-      </div>
-    </div>
-  `).join("");
-}
-
 function renderTeams() {
   const equiposLiga = Object.entries(equiposPorZona)
     .flatMap(([zona, equiposZona]) => {
@@ -4044,7 +3914,6 @@ renderMatches();
 renderTabla(1);
 renderInicio();
 renderPlayoffs();
-renderScorers();
 renderTeams();
 
 if (window.history.state?.tresPalos) {
@@ -4114,7 +3983,6 @@ async function obtenerPartidos() {
     renderTabla(zonaActual);
     renderInicio();
     renderPlayoffs();
-    renderScorers();
     renderTeams();
 
     if (vistaActual.id === "partido") {
