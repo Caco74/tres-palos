@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=2">
+  <link rel="stylesheet" href="styles/admin.css?v=3">
 </head>
 <body>
   <main class="admin-shell">
@@ -292,6 +292,143 @@
         </div>
       </section>
 
+      <section class="admin-card roster-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Jugadores por competencia</span>
+            <h2>Planteles</h2>
+          </div>
+          <span class="analytics-total" id="rosterTotal">0 jugadores</span>
+        </div>
+
+        <p class="stage-intro">
+          Cada inscripcion vincula una persona con un club y un torneo.
+          Reutiliza al jugador existente si cambia de club o competencia.
+        </p>
+
+        <div class="roster-filters">
+          <label>
+            Torneo
+            <select id="rosterTournament"></select>
+          </label>
+          <label>
+            Club
+            <select id="rosterClub"></select>
+          </label>
+          <button type="button" id="newRosterBtn">
+            Agregar jugador
+          </button>
+        </div>
+
+        <div class="roster-admin-grid">
+          <div class="roster-list" id="rosterList">
+            Cargando plantel...
+          </div>
+
+          <div>
+            <div class="empty-editor" id="emptyRosterEditor">
+              Elegí una inscripción o agregá un jugador.
+            </div>
+
+            <form id="rosterForm" class="match-form hidden">
+              <input type="hidden" id="rosterEnrollmentId">
+
+              <div class="form-section-title">Identidad</div>
+              <label>
+                Persona existente
+                <select id="rosterPlayerId">
+                  <option value="">Crear jugador nuevo</option>
+                </select>
+              </label>
+
+              <label>
+                Nombre completo
+                <input id="rosterPlayerName" type="text" required>
+              </label>
+
+              <label>
+                Nombres alternativos
+                <input
+                  id="rosterAliases"
+                  type="text"
+                  placeholder="Apodo o variantes, separados por coma"
+                >
+              </label>
+
+              <div class="form-section-title">Inscripción</div>
+              <div class="form-row three">
+                <label>
+                  Posición
+                  <select id="rosterPosition">
+                    <option value="sin_definir">Sin definir</option>
+                    <option value="arquero">Arquero</option>
+                    <option value="defensor">Defensor</option>
+                    <option value="mediocampista">Mediocampista</option>
+                    <option value="delantero">Delantero</option>
+                  </select>
+                </label>
+                <label>
+                  Dorsal
+                  <input
+                    id="rosterShirt"
+                    type="number"
+                    min="1"
+                    max="99"
+                    inputmode="numeric"
+                  >
+                </label>
+                <label>
+                  Estado
+                  <select id="rosterStatus">
+                    <option value="por_verificar">Por verificar</option>
+                    <option value="confirmado">Confirmado</option>
+                    <option value="inactivo">Inactivo</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-row two">
+                <label>
+                  Desde
+                  <input id="rosterFrom" type="date">
+                </label>
+                <label>
+                  Hasta
+                  <input id="rosterTo" type="date">
+                </label>
+              </div>
+
+              <label>
+                Fuente
+                <input
+                  id="rosterSource"
+                  type="text"
+                  placeholder="Planilla, club, transmisión o medio"
+                >
+              </label>
+
+              <label>
+                Observaciones
+                <textarea
+                  id="rosterNotes"
+                  rows="3"
+                  placeholder="Dato pendiente, transferencia o aclaración"
+                ></textarea>
+              </label>
+
+              <div class="actions">
+                <button type="submit" id="saveRosterBtn">
+                  Guardar inscripción
+                </button>
+              </div>
+              <div class="form-feedback" id="rosterFeedback">
+                Completá los datos disponibles.
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <div class="admin-grid">
         <section class="admin-card matches-panel">
           <h2>Partidos</h2>
@@ -391,6 +528,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=8"></script>
+  <script src="js/admin-panel.js?v=9"></script>
 </body>
 </html>

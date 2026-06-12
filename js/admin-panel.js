@@ -2,6 +2,7 @@ const API_URL = "/.netlify/functions/admin-partidos";
 const ANALYTICS_API_URL = "/.netlify/functions/admin-analytics";
 const STAGES_API_URL = "/.netlify/functions/admin-etapas";
 const CLUBS_API_URL = "/.netlify/functions/admin-clubes";
+const ROSTERS_API_URL = "/.netlify/functions/admin-planteles";
 const PASSWORD_KEY = "tp_admin_password";
 const PLAYOFF_STAGES = [
   { value: "octavos", label: "Octavos de Final" },
@@ -48,6 +49,15 @@ const clubForm = document.getElementById("clubForm");
 const emptyClubEditor = document.getElementById("emptyClubEditor");
 const saveClubBtn = document.getElementById("saveClubBtn");
 const clubFeedback = document.getElementById("clubFeedback");
+const rosterTotal = document.getElementById("rosterTotal");
+const rosterTournament = document.getElementById("rosterTournament");
+const rosterClub = document.getElementById("rosterClub");
+const newRosterBtn = document.getElementById("newRosterBtn");
+const rosterList = document.getElementById("rosterList");
+const rosterForm = document.getElementById("rosterForm");
+const emptyRosterEditor = document.getElementById("emptyRosterEditor");
+const saveRosterBtn = document.getElementById("saveRosterBtn");
+const rosterFeedback = document.getElementById("rosterFeedback");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -81,12 +91,30 @@ const clubFields = {
   active: document.getElementById("clubActive")
 };
 
+const rosterFields = {
+  enrollmentId: document.getElementById("rosterEnrollmentId"),
+  playerId: document.getElementById("rosterPlayerId"),
+  playerName: document.getElementById("rosterPlayerName"),
+  aliases: document.getElementById("rosterAliases"),
+  position: document.getElementById("rosterPosition"),
+  shirt: document.getElementById("rosterShirt"),
+  status: document.getElementById("rosterStatus"),
+  from: document.getElementById("rosterFrom"),
+  to: document.getElementById("rosterTo"),
+  source: document.getElementById("rosterSource"),
+  notes: document.getElementById("rosterNotes")
+};
+
 let partidos = [];
 let clubes = [];
+let torneos = [];
+let jugadores = [];
+let inscripcionesJugadores = [];
 let seleccionadoId = null;
 let partidoOriginal = null;
 let clubSeleccionadoId = null;
 let clubOriginal = null;
+let inscripcionSeleccionadaId = null;
 let etapasEstado = [];
 let respaldosEtapa = [];
 let etapasDisponibles = [];
@@ -122,6 +150,18 @@ function setClubSaving(isSaving) {
 function setClubFeedback(message, type = "info") {
   clubFeedback.textContent = message;
   clubFeedback.dataset.type = type;
+}
+
+function setRosterSaving(isSaving) {
+  saveRosterBtn.disabled = isSaving;
+  saveRosterBtn.textContent = isSaving
+    ? "Guardando..."
+    : "Guardar inscripción";
+}
+
+function setRosterFeedback(message, type = "info") {
+  rosterFeedback.textContent = message;
+  rosterFeedback.dataset.type = type;
 }
 
 function showApp() {
@@ -893,6 +933,354 @@ async function guardarClub(event) {
   }
 }
 
+async function cargarPlantelesAdmin() {
+  const torneoSeleccionado = rosterTournament.value;
+  const clubSeleccionado = rosterClub.value;
+  const data = await apiRequest("GET", null, ROSTERS_API_URL);
+
+  torneos = Array.isArray(data.torneos) ? data.torneos : [];
+  jugadores = Array.isArray(data.jugadores) ? data.jugadores : [];
+  inscripcionesJugadores = Array.isArray(data.inscripciones)
+    ? data.inscripciones
+    : [];
+
+  renderFiltrosPlantel(torneoSeleccionado, clubSeleccionado);
+  renderOpcionesJugadores();
+  renderPlantel();
+}
+
+function mostrarPlantelesNoDisponibles(message) {
+  torneos = [];
+  jugadores = [];
+  inscripcionesJugadores = [];
+  rosterTotal.textContent = "No disponible";
+  rosterTournament.innerHTML = "";
+  rosterClub.innerHTML = "";
+  rosterList.innerHTML = `
+    <div class="analytics-empty">
+      Ejecutá supabase/planteles.sql en Supabase para habilitar planteles.
+      <br><br>${escapeHtml(message)}
+    </div>
+  `;
+  newRosterBtn.disabled = true;
+  rosterForm.classList.add("hidden");
+  emptyRosterEditor.classList.remove("hidden");
+}
+
+function renderFiltrosPlantel(torneoPrevio = "", clubPrevio = "") {
+  rosterTournament.innerHTML = torneos.map(torneo => `
+    <option value="${torneo.id}">
+      ${escapeHtml(torneo.nombre)}
+    </option>
+  `).join("");
+
+  const clubesActivos = clubes
+    .filter(club => club.activo !== false)
+    .sort((a, b) =>
+      Number(a.zona) - Number(b.zona) ||
+      String(a.nombre_corto).localeCompare(
+        String(b.nombre_corto),
+        "es",
+        { sensitivity: "base" }
+      )
+    );
+
+  rosterClub.innerHTML = clubesActivos.map(club => `
+    <option value="${club.id}">
+      ${escapeHtml(club.nombre_corto)} · Zona ${club.zona}
+    </option>
+  `).join("");
+
+  const torneoDefault =
+    torneos.find(torneo => String(torneo.id) === String(torneoPrevio)) ||
+    torneos.find(torneo => torneo.activo) ||
+    torneos[0];
+  const clubDefault =
+    clubesActivos.find(club => String(club.id) === String(clubPrevio)) ||
+    clubesActivos[0];
+
+  rosterTournament.value = torneoDefault
+    ? String(torneoDefault.id)
+    : "";
+  rosterClub.value = clubDefault ? String(clubDefault.id) : "";
+  newRosterBtn.disabled = !torneoDefault || !clubDefault;
+}
+
+function renderOpcionesJugadores() {
+  const valorActual = rosterFields.playerId.value;
+  rosterFields.playerId.innerHTML = `
+    <option value="">Crear jugador nuevo</option>
+    ${jugadores.map(jugador => `
+      <option value="${jugador.id}">
+        ${escapeHtml(jugador.nombre_completo)}
+      </option>
+    `).join("")}
+  `;
+
+  if (
+    valorActual &&
+    jugadores.some(jugador => String(jugador.id) === String(valorActual))
+  ) {
+    rosterFields.playerId.value = valorActual;
+  }
+}
+
+function inscripcionesVisibles() {
+  return inscripcionesJugadores
+    .filter(inscripcion =>
+      String(inscripcion.torneo_id) === rosterTournament.value &&
+      String(inscripcion.club_id) === rosterClub.value
+    )
+    .sort((a, b) => {
+      const jugadorA = obtenerJugadorPlantel(a.jugador_id);
+      const jugadorB = obtenerJugadorPlantel(b.jugador_id);
+      return String(jugadorA?.nombre_completo || "").localeCompare(
+        String(jugadorB?.nombre_completo || ""),
+        "es",
+        { sensitivity: "base" }
+      );
+    });
+}
+
+function renderPlantel() {
+  const visibles = inscripcionesVisibles();
+  rosterTotal.textContent =
+    `${visibles.length} ${visibles.length === 1 ? "jugador" : "jugadores"}`;
+
+  if (!rosterTournament.value || !rosterClub.value) {
+    rosterList.innerHTML = `
+      <div class="analytics-empty">
+        No hay torneo o club disponible.
+      </div>
+    `;
+    return;
+  }
+
+  if (visibles.length === 0) {
+    rosterList.innerHTML = `
+      <div class="analytics-empty">
+        Todavía no hay jugadores cargados para este club y torneo.
+      </div>
+    `;
+    return;
+  }
+
+  rosterList.innerHTML = visibles.map(inscripcion => {
+    const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+    const estadoClase = {
+      confirmado: "confirmed",
+      por_verificar: "pending",
+      inactivo: ""
+    }[inscripcion.estado] || "";
+    const datos = [
+      etiquetaPosicion(inscripcion.posicion),
+      inscripcion.dorsal ? `#${inscripcion.dorsal}` : null
+    ].filter(Boolean).join(" · ");
+
+    return `
+      <button
+        type="button"
+        class="roster-item ${
+          inscripcion.estado === "inactivo" ? "inactive" : ""
+        } ${
+          String(inscripcion.id) === String(inscripcionSeleccionadaId)
+            ? "on"
+            : ""
+        }"
+        data-enrollment-id="${inscripcion.id}"
+      >
+        <span>
+          <strong>
+            ${escapeHtml(jugador?.nombre_completo || "Jugador sin nombre")}
+          </strong>
+          <small>${escapeHtml(datos || "Posición sin definir")}</small>
+        </span>
+        <span class="roster-state ${estadoClase}">
+          ${escapeHtml(etiquetaEstadoPlantel(inscripcion.estado))}
+        </span>
+      </button>
+    `;
+  }).join("");
+}
+
+function obtenerJugadorPlantel(jugadorId) {
+  return jugadores.find(
+    jugador => String(jugador.id) === String(jugadorId)
+  ) || null;
+}
+
+function etiquetaPosicion(posicion) {
+  return {
+    arquero: "Arquero",
+    defensor: "Defensor",
+    mediocampista: "Mediocampista",
+    delantero: "Delantero",
+    sin_definir: "Sin definir"
+  }[posicion] || "Sin definir";
+}
+
+function etiquetaEstadoPlantel(estado) {
+  return {
+    confirmado: "Confirmado",
+    por_verificar: "Por verificar",
+    inactivo: "Inactivo"
+  }[estado] || estado;
+}
+
+function iniciarNuevaInscripcion() {
+  if (!rosterTournament.value || !rosterClub.value) return;
+
+  inscripcionSeleccionadaId = null;
+  rosterForm.reset();
+  rosterFields.enrollmentId.value = "";
+  rosterFields.playerId.disabled = false;
+  rosterFields.playerId.value = "";
+  rosterFields.playerName.readOnly = false;
+  rosterFields.position.value = "sin_definir";
+  rosterFields.status.value = "por_verificar";
+
+  emptyRosterEditor.classList.add("hidden");
+  rosterForm.classList.remove("hidden");
+  setRosterFeedback(
+    "Creá una persona nueva o elegí una existente para otra inscripción."
+  );
+  renderPlantel();
+}
+
+function seleccionarInscripcion(id) {
+  const inscripcion = inscripcionesJugadores.find(
+    item => String(item.id) === String(id)
+  );
+  if (!inscripcion) return;
+
+  const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+  inscripcionSeleccionadaId = inscripcion.id;
+  rosterFields.enrollmentId.value = inscripcion.id;
+  rosterFields.playerId.value = String(inscripcion.jugador_id);
+  rosterFields.playerId.disabled = true;
+  rosterFields.playerName.readOnly = false;
+  rosterFields.playerName.value = jugador?.nombre_completo || "";
+  rosterFields.aliases.value = Array.isArray(jugador?.aliases)
+    ? jugador.aliases.join(", ")
+    : "";
+  rosterFields.position.value = inscripcion.posicion || "sin_definir";
+  rosterFields.shirt.value = valorInput(inscripcion.dorsal);
+  rosterFields.status.value = inscripcion.estado || "por_verificar";
+  rosterFields.from.value = inscripcion.fecha_desde || "";
+  rosterFields.to.value = inscripcion.fecha_hasta || "";
+  rosterFields.source.value = inscripcion.fuente || "";
+  rosterFields.notes.value = inscripcion.observaciones || "";
+
+  emptyRosterEditor.classList.add("hidden");
+  rosterForm.classList.remove("hidden");
+  setRosterFeedback(
+    "Los cambios de nombre afectan la identidad del jugador en todos los torneos."
+  );
+  renderPlantel();
+}
+
+function seleccionarJugadorExistente() {
+  const jugador = obtenerJugadorPlantel(rosterFields.playerId.value);
+
+  if (!jugador) {
+    rosterFields.playerName.readOnly = false;
+    rosterFields.playerName.value = "";
+    rosterFields.aliases.value = "";
+    rosterFields.playerName.focus();
+    return;
+  }
+
+  rosterFields.playerName.value = jugador.nombre_completo || "";
+  rosterFields.aliases.value = Array.isArray(jugador.aliases)
+    ? jugador.aliases.join(", ")
+    : "";
+  rosterFields.playerName.readOnly = true;
+}
+
+function valoresFormularioPlantel() {
+  return {
+    inscripcion_id: rosterFields.enrollmentId.value || null,
+    jugador_id: rosterFields.playerId.value || null,
+    nombre_completo: valorTexto(rosterFields.playerName),
+    aliases: rosterFields.aliases.value
+      .split(",")
+      .map(alias => alias.trim())
+      .filter(Boolean),
+    club_id: Number(rosterClub.value),
+    torneo_id: Number(rosterTournament.value),
+    posicion: rosterFields.position.value,
+    dorsal: valorNumero(rosterFields.shirt),
+    estado: rosterFields.status.value,
+    fecha_desde: valorTexto(rosterFields.from),
+    fecha_hasta: valorTexto(rosterFields.to),
+    fuente: valorTexto(rosterFields.source),
+    observaciones: valorTexto(rosterFields.notes)
+  };
+}
+
+function validarInscripcionJugador(valores) {
+  if (!valores.nombre_completo) {
+    throw new Error("El nombre del jugador es obligatorio.");
+  }
+  if (!valores.club_id || !valores.torneo_id) {
+    throw new Error("Club y torneo son obligatorios.");
+  }
+  if (valores.estado === "confirmado" && !valores.fuente) {
+    throw new Error(
+      "Un jugador confirmado debe tener una fuente."
+    );
+  }
+  if (
+    valores.dorsal !== null &&
+    (
+      !Number.isInteger(valores.dorsal) ||
+      valores.dorsal < 1 ||
+      valores.dorsal > 99
+    )
+  ) {
+    throw new Error("El dorsal debe estar entre 1 y 99.");
+  }
+  if (
+    valores.fecha_desde &&
+    valores.fecha_hasta &&
+    valores.fecha_hasta < valores.fecha_desde
+  ) {
+    throw new Error(
+      "La fecha hasta no puede ser anterior a la fecha desde."
+    );
+  }
+}
+
+async function guardarInscripcionJugador(event) {
+  event.preventDefault();
+  const valores = valoresFormularioPlantel();
+  validarInscripcionJugador(valores);
+
+  setRosterSaving(true);
+  setRosterFeedback("Guardando inscripción...");
+
+  try {
+    const method = valores.inscripcion_id ? "PATCH" : "POST";
+    const data = await apiRequest(
+      method,
+      valores,
+      ROSTERS_API_URL
+    );
+    const inscripcionId = data.resultado?.inscripcion?.id;
+
+    await cargarPlantelesAdmin();
+    if (inscripcionId) seleccionarInscripcion(inscripcionId);
+
+    setRosterFeedback(
+      "Inscripción guardada. Ya queda disponible para futuras incidencias.",
+      "ok"
+    );
+    setStatus("Plantel actualizado.", "ok");
+  } finally {
+    setRosterSaving(false);
+  }
+}
+
 async function cargarPanel() {
   await cargarPartidos();
 
@@ -907,6 +1295,10 @@ async function cargarPanel() {
       mostrarClubesNoDisponibles(error.message)
     )
   ]);
+
+  await cargarPlantelesAdmin().catch(error =>
+    mostrarPlantelesNoDisponibles(error.message)
+  );
 }
 
 async function cargarPartidos() {
@@ -1335,6 +1727,34 @@ clubForm.addEventListener("submit", event => {
     setClubFeedback(error.message, "error");
     setStatus(error.message, "error");
     setClubSaving(false);
+  });
+});
+rosterTournament.addEventListener("change", () => {
+  inscripcionSeleccionadaId = null;
+  rosterForm.classList.add("hidden");
+  emptyRosterEditor.classList.remove("hidden");
+  renderPlantel();
+});
+rosterClub.addEventListener("change", () => {
+  inscripcionSeleccionadaId = null;
+  rosterForm.classList.add("hidden");
+  emptyRosterEditor.classList.remove("hidden");
+  renderPlantel();
+});
+newRosterBtn.addEventListener("click", iniciarNuevaInscripcion);
+rosterList.addEventListener("click", event => {
+  const item = event.target.closest("[data-enrollment-id]");
+  if (item) seleccionarInscripcion(item.dataset.enrollmentId);
+});
+rosterFields.playerId.addEventListener(
+  "change",
+  seleccionarJugadorExistente
+);
+rosterForm.addEventListener("submit", event => {
+  guardarInscripcionJugador(event).catch(error => {
+    setRosterFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setRosterSaving(false);
   });
 });
 

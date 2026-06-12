@@ -25,7 +25,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -51,7 +52,8 @@ button.ghost {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -59,6 +61,10 @@ select {
   padding: 10px 12px;
   background: #141419;
   color: var(--text);
+}
+
+textarea {
+  resize: vertical;
 }
 
 label {
@@ -442,6 +448,77 @@ p {
   opacity: .55;
 }
 
+.roster-filters {
+  display: grid;
+  grid-template-columns: minmax(170px, .7fr) minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.roster-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.roster-list {
+  max-height: 620px;
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.roster-item {
+  width: 100%;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.roster-item.on {
+  border-color: rgba(255, 48, 69, .75);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.roster-item strong,
+.roster-item small {
+  display: block;
+}
+
+.roster-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.roster-state {
+  align-self: center;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.roster-state.confirmed {
+  color: var(--green);
+}
+
+.roster-state.pending {
+  color: var(--yellow);
+}
+
+.roster-item.inactive {
+  opacity: .55;
+}
+
 .toggle-label {
   display: flex;
   align-items: center;
@@ -610,6 +687,8 @@ input[readonly] {
   .analytics-grid,
   .stage-controls,
   .club-admin-grid,
+  .roster-filters,
+  .roster-admin-grid,
   .form-row.two,
   .form-row.three {
     grid-template-columns: 1fr;
@@ -634,5 +713,9 @@ input[readonly] {
 
   .club-list {
     max-height: 38vh;
+  }
+
+  .roster-list {
+    max-height: 42vh;
   }
 }
