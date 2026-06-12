@@ -90,12 +90,14 @@ const equiposPorZona = {
 };
 
 const clubesPorNombre = new Map();
+const clubesPorClave = new Map();
 
 function aplicarClubes(clubes) {
   if (!Array.isArray(clubes) || clubes.length === 0) return;
 
   state.clubes = clubes;
   clubesPorNombre.clear();
+  clubesPorClave.clear();
 
   Object.keys(equiposPorZona).forEach(zona => {
     equiposPorZona[zona].splice(0);
@@ -113,6 +115,14 @@ function aplicarClubes(clubes) {
     )
     .forEach(club => {
       clubesPorNombre.set(club.nombre_oficial, club);
+      [
+        club.nombre_oficial,
+        club.nombre_corto,
+        ...(Array.isArray(club.aliases) ? club.aliases : [])
+      ].forEach(nombreClub => {
+        const clave = normalizarNombreClub(nombreClub);
+        if (clave) clubesPorClave.set(clave, club);
+      });
       nombresCortos[club.nombre_oficial] =
         club.nombre_corto || club.nombre_oficial;
 
@@ -125,10 +135,45 @@ function aplicarClubes(clubes) {
         equiposPorZona[zona].push(club.nombre_oficial);
       }
     });
+
+  vincularClubesPartidos();
 }
 
 function obtenerClub(equipo) {
-  return clubesPorNombre.get(equipo) || null;
+  return clubesPorNombre.get(equipo) ||
+    clubesPorClave.get(normalizarNombreClub(equipo)) ||
+    null;
+}
+
+function normalizarNombreClub(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function vincularClubesPartidos() {
+  state.partidos = state.partidos.map(partido => {
+    const clubLocal = partido.local_id
+      ? state.clubes.find(club =>
+          String(club.id) === String(partido.local_id)
+        )
+      : obtenerClub(partido.local);
+    const clubVisitante = partido.visitante_id
+      ? state.clubes.find(club =>
+          String(club.id) === String(partido.visitante_id)
+        )
+      : obtenerClub(partido.visitante);
+
+    return {
+      ...partido,
+      local_id: clubLocal?.id || partido.local_id || null,
+      visitante_id:
+        clubVisitante?.id || partido.visitante_id || null
+    };
+  });
 }
   
 function nombre(equipo) {

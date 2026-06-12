@@ -252,11 +252,56 @@ async function getEvent(id) {
 async function getMatch(id) {
   const response = await supabaseFetch(
     "/rest/v1/partidos" +
-    "?select=id,tipo,fecha,fase,local_id,visitante_id,torneo_id" +
+    "?select=id,tipo,fecha,fase,local,visitante," +
+    "local_id,visitante_id,torneo_id" +
     `&id=eq.${id}&limit=1`
   );
   const rows = await parseSupabaseResponse(response);
-  return Array.isArray(rows) ? rows[0] || null : null;
+  const match = Array.isArray(rows) ? rows[0] || null : null;
+  return match ? await resolveMatchClubIds(match) : null;
+}
+
+async function resolveMatchClubIds(match) {
+  if (match.local_id && match.visitante_id) return match;
+
+  const response = await supabaseFetch(
+    "/rest/v1/clubes" +
+    "?select=id,nombre_oficial,nombre_corto,aliases" +
+    "&activo=eq.true"
+  );
+  const clubs = await parseSupabaseResponse(response);
+
+  return {
+    ...match,
+    local_id:
+      match.local_id || findClubId(clubs, match.local),
+    visitante_id:
+      match.visitante_id || findClubId(clubs, match.visitante)
+  };
+}
+
+function findClubId(clubs, teamName) {
+  const key = normalizeClubName(teamName);
+  if (!key || !Array.isArray(clubs)) return null;
+
+  const club = clubs.find(item =>
+    [
+      item.nombre_oficial,
+      item.nombre_corto,
+      ...(Array.isArray(item.aliases) ? item.aliases : [])
+    ].some(name => normalizeClubName(name) === key)
+  );
+
+  return club?.id || null;
+}
+
+function normalizeClubName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 async function getEnrollment(id, match, teamId) {

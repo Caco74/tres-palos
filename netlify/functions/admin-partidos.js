@@ -53,7 +53,11 @@ exports.handler = async event => {
 
     return json(405, { error: "Metodo no permitido." });
   } catch (error) {
-    return json(500, { error: error.message || "Error interno." });
+    const statusCode = error.code === "VALIDATION" ? 400 : 500;
+    return json(statusCode, {
+      error: error.message || "Error interno.",
+      code: error.code || null
+    });
   }
 };
 
@@ -109,6 +113,11 @@ async function updateMatch(event) {
     else ignoredFields.push(key);
   });
 
+  Object.assign(
+    filtered,
+    await resolveClubIdentityPatch(existing, filtered, columns)
+  );
+
   if (Object.keys(filtered).length === 0) {
     return json(400, {
       error: "No hay campos validos para actualizar.",
@@ -137,6 +146,82 @@ async function updateMatch(event) {
     ignoredFields,
     savedFields: Object.keys(filtered)
   });
+}
+
+async function resolveClubIdentityPatch(existing, patch, columns) {
+  const needsLocal =
+    columns.has("local_id") &&
+    (
+      Object.hasOwn(patch, "local") ||
+      (!existing.local_id && existing.local)
+    );
+  const needsVisitor =
+    columns.has("visitante_id") &&
+    (
+      Object.hasOwn(patch, "visitante") ||
+      (!existing.visitante_id && existing.visitante)
+    );
+
+  if (!needsLocal && !needsVisitor) return {};
+
+  const response = await supabaseFetch(
+    "/rest/v1/clubes" +
+    "?select=id,nombre_oficial,nombre_corto,aliases"
+  );
+  const clubs = await parseSupabaseResponse(response);
+  const identityPatch = {};
+
+  if (needsLocal) {
+    const name = Object.hasOwn(patch, "local")
+      ? patch.local
+      : existing.local;
+    identityPatch.local_id = resolveClubId(clubs, name, "local");
+  }
+
+  if (needsVisitor) {
+    const name = Object.hasOwn(patch, "visitante")
+      ? patch.visitante
+      : existing.visitante;
+    identityPatch.visitante_id = resolveClubId(
+      clubs,
+      name,
+      "visitante"
+    );
+  }
+
+  return identityPatch;
+}
+
+function resolveClubId(clubs, teamName, side) {
+  if (!teamName) return null;
+
+  const key = normalizeClubName(teamName);
+  const club = clubs.find(item =>
+    [
+      item.nombre_oficial,
+      item.nombre_corto,
+      ...(Array.isArray(item.aliases) ? item.aliases : [])
+    ].some(name => normalizeClubName(name) === key)
+  );
+
+  if (!club) {
+    const error = new Error(
+      `No se encontro el club ${side}: ${teamName}.`
+    );
+    error.code = "VALIDATION";
+    throw error;
+  }
+
+  return club.id;
+}
+
+function normalizeClubName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function sanitizePatch(patch) {

@@ -810,6 +810,7 @@ function escapeHtml(value) {
 async function cargarClubesAdmin() {
   const data = await apiRequest("GET", null, CLUBS_API_URL);
   clubes = Array.isArray(data.clubes) ? data.clubes : [];
+  vincularClubesPartidosAdmin();
   renderClubesAdmin();
 }
 
@@ -1493,8 +1494,8 @@ function renderEquiposIncidencia(equipoPreferido = "") {
   }
 
   const opciones = [
-    { id: partido.local_id, nombre: partido.local },
-    { id: partido.visitante_id, nombre: partido.visitante }
+    resolverEquipoPartidoAdmin(partido, "local"),
+    resolverEquipoPartidoAdmin(partido, "visitante")
   ].filter(item => item.id && item.nombre);
 
   eventFields.team.innerHTML = opciones.map(item => `
@@ -1578,8 +1579,11 @@ function actualizarCamposTipoIncidencia() {
 }
 
 function inferirEquipoIncidencia(evento, partido) {
+  const local = resolverEquipoPartidoAdmin(partido, "local");
+  const visitante = resolverEquipoPartidoAdmin(partido, "visitante");
+
   if (
-    [partido.local_id, partido.visitante_id].some(id =>
+    [local.id, visitante.id].some(id =>
       String(id) === String(evento.equipo_id)
     )
   ) {
@@ -1591,7 +1595,7 @@ function inferirEquipoIncidencia(evento, partido) {
     partido.goles_local === 0 &&
     Number(partido.goles_visitante) > 0
   ) {
-    return partido.visitante_id;
+    return visitante.id;
   }
 
   if (
@@ -1599,10 +1603,10 @@ function inferirEquipoIncidencia(evento, partido) {
     partido.goles_visitante === 0 &&
     Number(partido.goles_local) > 0
   ) {
-    return partido.local_id;
+    return local.id;
   }
 
-  return partido.local_id || partido.visitante_id || "";
+  return local.id || visitante.id || "";
 }
 
 function iniciarNuevaIncidencia() {
@@ -1614,7 +1618,9 @@ function iniciarNuevaIncidencia() {
   eventFields.id.value = "";
   eventFields.type.value = "gol";
   eventFields.dataStatus.value = "por_verificar";
-  renderEquiposIncidencia(partido.local_id);
+  renderEquiposIncidencia(
+    resolverEquipoPartidoAdmin(partido, "local").id
+  );
   renderJugadoresIncidencia();
   actualizarCamposTipoIncidencia();
   eventFields.legacyBlock.classList.add("hidden");
@@ -1934,11 +1940,61 @@ function seleccionarPartido(id) {
 }
 
 function obtenerEstadioClubLocal(partido) {
-  const club = clubes.find(item =>
-    String(item.id) === String(partido.local_id) ||
-    item.nombre_oficial === partido.local
-  );
+  const club = resolverClubAdmin(partido.local, partido.local_id);
   return club?.estadio || "";
+}
+
+function normalizarNombreClubAdmin(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function resolverClubAdmin(nombreClub, clubId = null) {
+  const porId = clubes.find(
+    club => clubId && String(club.id) === String(clubId)
+  );
+  if (porId) return porId;
+
+  const clave = normalizarNombreClubAdmin(nombreClub);
+  if (!clave) return null;
+
+  return clubes.find(club =>
+    [
+      club.nombre_oficial,
+      club.nombre_corto,
+      ...(Array.isArray(club.aliases) ? club.aliases : [])
+    ].some(nombre =>
+      normalizarNombreClubAdmin(nombre) === clave
+    )
+  ) || null;
+}
+
+function resolverEquipoPartidoAdmin(partido, lado) {
+  const nombreEquipo = partido?.[lado] || "";
+  const campoId = lado === "local" ? "local_id" : "visitante_id";
+  const club = resolverClubAdmin(nombreEquipo, partido?.[campoId]);
+
+  return {
+    id: club?.id || partido?.[campoId] || null,
+    nombre: nombreEquipo || club?.nombre_oficial || ""
+  };
+}
+
+function vincularClubesPartidosAdmin() {
+  partidos = partidos.map(partido => {
+    const local = resolverEquipoPartidoAdmin(partido, "local");
+    const visitante = resolverEquipoPartidoAdmin(partido, "visitante");
+
+    return {
+      ...partido,
+      local_id: local.id,
+      visitante_id: visitante.id
+    };
+  });
 }
 
 function valorInput(valor) {
@@ -2170,7 +2226,9 @@ function etiquetaCampoAdmin(campo) {
     goles_local: "goles local",
     goles_visitante: "goles visitante",
     penales_local: "penales local",
-    penales_visitante: "penales visitante"
+    penales_visitante: "penales visitante",
+    local_id: "vínculo del local",
+    visitante_id: "vínculo del visitante"
   }[campo] || campo;
 }
 
