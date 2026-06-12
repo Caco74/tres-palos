@@ -3,6 +3,7 @@ const ANALYTICS_API_URL = "/.netlify/functions/admin-analytics";
 const STAGES_API_URL = "/.netlify/functions/admin-etapas";
 const CLUBS_API_URL = "/.netlify/functions/admin-clubes";
 const ROSTERS_API_URL = "/.netlify/functions/admin-planteles";
+const EVENTS_API_URL = "/.netlify/functions/admin-incidencias";
 const PASSWORD_KEY = "tp_admin_password";
 const PLAYOFF_STAGES = [
   { value: "octavos", label: "Octavos de Final" },
@@ -58,6 +59,15 @@ const rosterForm = document.getElementById("rosterForm");
 const emptyRosterEditor = document.getElementById("emptyRosterEditor");
 const saveRosterBtn = document.getElementById("saveRosterBtn");
 const rosterFeedback = document.getElementById("rosterFeedback");
+const eventsTotal = document.getElementById("eventsTotal");
+const eventMatch = document.getElementById("eventMatch");
+const newEventBtn = document.getElementById("newEventBtn");
+const eventList = document.getElementById("eventList");
+const eventForm = document.getElementById("eventForm");
+const emptyEventEditor = document.getElementById("emptyEventEditor");
+const saveEventBtn = document.getElementById("saveEventBtn");
+const deleteEventBtn = document.getElementById("deleteEventBtn");
+const eventFeedback = document.getElementById("eventFeedback");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -105,16 +115,35 @@ const rosterFields = {
   notes: document.getElementById("rosterNotes")
 };
 
+const eventFields = {
+  id: document.getElementById("eventId"),
+  type: document.getElementById("eventType"),
+  team: document.getElementById("eventTeam"),
+  minute: document.getElementById("eventMinute"),
+  player: document.getElementById("eventPlayer"),
+  playerLabel: document.getElementById("eventPlayerLabel"),
+  relatedWrap: document.getElementById("eventRelatedWrap"),
+  relatedPlayer: document.getElementById("eventRelatedPlayer"),
+  legacyBlock: document.getElementById("eventLegacyBlock"),
+  legacyName: document.getElementById("eventLegacyName"),
+  createLegacy: document.getElementById("eventCreateLegacy"),
+  dataStatus: document.getElementById("eventDataStatus"),
+  source: document.getElementById("eventSource"),
+  notes: document.getElementById("eventNotes")
+};
+
 let partidos = [];
 let clubes = [];
 let torneos = [];
 let jugadores = [];
 let inscripcionesJugadores = [];
+let incidencias = [];
 let seleccionadoId = null;
 let partidoOriginal = null;
 let clubSeleccionadoId = null;
 let clubOriginal = null;
 let inscripcionSeleccionadaId = null;
+let incidenciaSeleccionadaId = null;
 let etapasEstado = [];
 let respaldosEtapa = [];
 let etapasDisponibles = [];
@@ -162,6 +191,19 @@ function setRosterSaving(isSaving) {
 function setRosterFeedback(message, type = "info") {
   rosterFeedback.textContent = message;
   rosterFeedback.dataset.type = type;
+}
+
+function setEventSaving(isSaving) {
+  saveEventBtn.disabled = isSaving;
+  deleteEventBtn.disabled = isSaving;
+  saveEventBtn.textContent = isSaving
+    ? "Guardando..."
+    : "Guardar incidencia";
+}
+
+function setEventFeedback(message, type = "info") {
+  eventFeedback.textContent = message;
+  eventFeedback.dataset.type = type;
 }
 
 function showApp() {
@@ -1281,6 +1323,479 @@ async function guardarInscripcionJugador(event) {
   }
 }
 
+async function cargarIncidenciasAdmin() {
+  const partidoPrevio = eventMatch.value;
+  const data = await apiRequest("GET", null, EVENTS_API_URL);
+  incidencias = Array.isArray(data.incidencias)
+    ? data.incidencias
+    : [];
+
+  renderOpcionesPartidosIncidencias(partidoPrevio);
+  renderIncidenciasAdmin();
+}
+
+function mostrarIncidenciasNoDisponibles(message) {
+  incidencias = [];
+  eventsTotal.textContent = "No disponible";
+  eventMatch.innerHTML = "";
+  eventList.innerHTML = `
+    <div class="analytics-empty">
+      Ejecutá supabase/incidencias.sql en Supabase para habilitar el editor.
+      <br><br>${escapeHtml(message)}
+    </div>
+  `;
+  newEventBtn.disabled = true;
+  eventForm.classList.add("hidden");
+  emptyEventEditor.classList.remove("hidden");
+}
+
+function renderOpcionesPartidosIncidencias(partidoPrevio = "") {
+  const ordenados = [...partidos].sort(
+    (a, b) =>
+      String(b.fecha_partido || "").localeCompare(
+        String(a.fecha_partido || "")
+      ) ||
+      Number(b.id) - Number(a.id)
+  );
+
+  eventMatch.innerHTML = ordenados.map(partido => `
+    <option value="${partido.id}">
+      #${partido.id} · ${escapeHtml(nombrePartido(partido))}
+      ${partido.fecha_partido
+        ? ` · ${formatearFechaAdmin(partido.fecha_partido)}`
+        : ""}
+    </option>
+  `).join("");
+
+  const sugerido =
+    ordenados.find(item =>
+      String(item.id) === String(partidoPrevio)
+    ) ||
+    ordenados.find(item =>
+      String(item.id) === String(seleccionadoId)
+    ) ||
+    ordenados.find(item =>
+      incidencias.some(evento =>
+        String(evento.partido_id) === String(item.id)
+      )
+    ) ||
+    ordenados[0];
+
+  eventMatch.value = sugerido ? String(sugerido.id) : "";
+  newEventBtn.disabled = !sugerido;
+}
+
+function partidoIncidenciasSeleccionado() {
+  return partidos.find(
+    partido => String(partido.id) === eventMatch.value
+  ) || null;
+}
+
+function incidenciasVisibles() {
+  return incidencias
+    .filter(evento =>
+      String(evento.partido_id) === eventMatch.value
+    )
+    .sort(
+      (a, b) =>
+        Number(a.minuto ?? 999) - Number(b.minuto ?? 999) ||
+        Number(a.id) - Number(b.id)
+    );
+}
+
+function renderIncidenciasAdmin() {
+  const visibles = incidenciasVisibles();
+  eventsTotal.textContent =
+    `${visibles.length} ${
+      visibles.length === 1 ? "incidencia" : "incidencias"
+    }`;
+
+  if (!eventMatch.value) {
+    eventList.innerHTML = `
+      <div class="analytics-empty">No hay partidos disponibles.</div>
+    `;
+    return;
+  }
+
+  if (visibles.length === 0) {
+    eventList.innerHTML = `
+      <div class="analytics-empty">
+        Este partido todavía no tiene incidencias.
+      </div>
+    `;
+    return;
+  }
+
+  eventList.innerHTML = visibles.map(evento => {
+    const sinVincular =
+      Boolean(evento.jugador) &&
+      !evento.inscripcion_jugador_id;
+    const estadoClase = sinVincular
+      ? "unlinked"
+      : evento.estado_dato === "confirmado"
+        ? "confirmed"
+        : "";
+    const estado = sinVincular
+      ? "Sin vincular"
+      : evento.estado_dato === "confirmado"
+        ? "Confirmado"
+        : "Por verificar";
+    const participante = evento.tipo === "cambio"
+      ? [
+          evento.jugador || "Sale sin informar",
+          evento.jugador_relacionado || "Entra sin informar"
+        ].join(" → ")
+      : evento.jugador || "Jugador no informado";
+
+    return `
+      <button
+        type="button"
+        class="event-admin-item ${
+          String(evento.id) === String(incidenciaSeleccionadaId)
+            ? "on"
+            : ""
+        }"
+        data-event-id="${evento.id}"
+      >
+        <span class="event-admin-minute">
+          ${evento.minuto ?? "–"}'
+        </span>
+        <span>
+          <strong>${escapeHtml(participante)}</strong>
+          <small>
+            ${escapeHtml(etiquetaTipoIncidencia(evento.tipo))}
+          </small>
+        </span>
+        <span class="event-admin-state ${estadoClase}">
+          ${estado}
+        </span>
+      </button>
+    `;
+  }).join("");
+}
+
+function etiquetaTipoIncidencia(tipo) {
+  return {
+    gol: "Gol",
+    gol_en_contra: "Gol en contra",
+    amarilla: "Tarjeta amarilla",
+    doble_amarilla: "Doble amarilla",
+    roja: "Tarjeta roja",
+    cambio: "Cambio"
+  }[tipo] || tipo || "Incidencia";
+}
+
+function renderEquiposIncidencia(equipoPreferido = "") {
+  const partido = partidoIncidenciasSeleccionado();
+  if (!partido) {
+    eventFields.team.innerHTML = "";
+    return;
+  }
+
+  const opciones = [
+    { id: partido.local_id, nombre: partido.local },
+    { id: partido.visitante_id, nombre: partido.visitante }
+  ].filter(item => item.id && item.nombre);
+
+  eventFields.team.innerHTML = opciones.map(item => `
+    <option value="${item.id}">
+      ${escapeHtml(item.nombre)}
+    </option>
+  `).join("");
+
+  if (opciones.some(item =>
+    String(item.id) === String(equipoPreferido)
+  )) {
+    eventFields.team.value = String(equipoPreferido);
+  }
+}
+
+function inscripcionesParaIncidencia() {
+  const partido = partidoIncidenciasSeleccionado();
+  if (!partido) return [];
+
+  return inscripcionesJugadores
+    .filter(inscripcion =>
+      String(inscripcion.club_id) === eventFields.team.value &&
+      String(inscripcion.torneo_id) === String(partido.torneo_id)
+    )
+    .sort((a, b) => {
+      const jugadorA = obtenerJugadorPlantel(a.jugador_id);
+      const jugadorB = obtenerJugadorPlantel(b.jugador_id);
+      return String(jugadorA?.nombre_completo || "").localeCompare(
+        String(jugadorB?.nombre_completo || ""),
+        "es",
+        { sensitivity: "base" }
+      );
+    });
+}
+
+function renderJugadoresIncidencia(
+  jugadorPreferido = "",
+  relacionadoPreferido = ""
+) {
+  const disponibles = inscripcionesParaIncidencia();
+  const opciones = `
+    <option value="">Jugador no informado</option>
+    ${disponibles.map(inscripcion => {
+      const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+      const estado = inscripcion.estado === "confirmado"
+        ? ""
+        : " · por verificar";
+      return `
+        <option value="${inscripcion.id}">
+          ${escapeHtml(jugador?.nombre_completo || "Sin nombre")}${estado}
+        </option>
+      `;
+    }).join("")}
+  `;
+
+  eventFields.player.innerHTML = opciones;
+  eventFields.relatedPlayer.innerHTML = opciones;
+
+  if (disponibles.some(item =>
+    String(item.id) === String(jugadorPreferido)
+  )) {
+    eventFields.player.value = String(jugadorPreferido);
+  }
+  if (disponibles.some(item =>
+    String(item.id) === String(relacionadoPreferido)
+  )) {
+    eventFields.relatedPlayer.value = String(relacionadoPreferido);
+  }
+}
+
+function actualizarCamposTipoIncidencia() {
+  const esCambio = eventFields.type.value === "cambio";
+  eventFields.relatedWrap.classList.toggle("hidden", !esCambio);
+  eventFields.playerLabel.textContent = esCambio
+    ? "Jugador que sale"
+    : "Jugador";
+
+  if (!esCambio) {
+    eventFields.relatedPlayer.value = "";
+  }
+}
+
+function inferirEquipoIncidencia(evento, partido) {
+  if (
+    [partido.local_id, partido.visitante_id].some(id =>
+      String(id) === String(evento.equipo_id)
+    )
+  ) {
+    return evento.equipo_id;
+  }
+
+  if (
+    String(evento.tipo || "").includes("gol") &&
+    partido.goles_local === 0 &&
+    Number(partido.goles_visitante) > 0
+  ) {
+    return partido.visitante_id;
+  }
+
+  if (
+    String(evento.tipo || "").includes("gol") &&
+    partido.goles_visitante === 0 &&
+    Number(partido.goles_local) > 0
+  ) {
+    return partido.local_id;
+  }
+
+  return partido.local_id || partido.visitante_id || "";
+}
+
+function iniciarNuevaIncidencia() {
+  const partido = partidoIncidenciasSeleccionado();
+  if (!partido) return;
+
+  incidenciaSeleccionadaId = null;
+  eventForm.reset();
+  eventFields.id.value = "";
+  eventFields.type.value = "gol";
+  eventFields.dataStatus.value = "por_verificar";
+  renderEquiposIncidencia(partido.local_id);
+  renderJugadoresIncidencia();
+  actualizarCamposTipoIncidencia();
+  eventFields.legacyBlock.classList.add("hidden");
+  deleteEventBtn.classList.add("hidden");
+
+  emptyEventEditor.classList.add("hidden");
+  eventForm.classList.remove("hidden");
+  setEventFeedback(
+    "Elegí un jugador del plantel o dejalo como no informado."
+  );
+  renderIncidenciasAdmin();
+}
+
+function seleccionarIncidencia(id) {
+  const incidencia = incidencias.find(
+    item => String(item.id) === String(id)
+  );
+  if (!incidencia) return;
+
+  const partido = partidos.find(
+    item => String(item.id) === String(incidencia.partido_id)
+  );
+  if (!partido) return;
+
+  incidenciaSeleccionadaId = incidencia.id;
+  eventMatch.value = String(incidencia.partido_id);
+  eventFields.id.value = incidencia.id;
+  eventFields.type.value = incidencia.tipo || "gol";
+  eventFields.minute.value = valorInput(incidencia.minuto);
+  eventFields.dataStatus.value =
+    incidencia.estado_dato || "por_verificar";
+  eventFields.source.value = incidencia.fuente || "";
+  eventFields.notes.value = incidencia.observaciones || "";
+
+  const equipoId = inferirEquipoIncidencia(incidencia, partido);
+  renderEquiposIncidencia(equipoId);
+  renderJugadoresIncidencia(
+    incidencia.inscripcion_jugador_id,
+    incidencia.inscripcion_relacionada_id
+  );
+  actualizarCamposTipoIncidencia();
+
+  const esHistorica =
+    Boolean(incidencia.jugador) &&
+    !incidencia.inscripcion_jugador_id;
+  eventFields.legacyBlock.classList.toggle("hidden", !esHistorica);
+  eventFields.legacyName.textContent = incidencia.jugador || "";
+  eventFields.createLegacy.checked = false;
+  deleteEventBtn.classList.remove("hidden");
+
+  emptyEventEditor.classList.add("hidden");
+  eventForm.classList.remove("hidden");
+  setEventFeedback(
+    esHistorica
+      ? "Elegí el equipo y conciliá el nombre histórico."
+      : "Modificá los datos disponibles y guardá."
+  );
+  renderIncidenciasAdmin();
+}
+
+function valoresFormularioIncidencia() {
+  return {
+    id: eventFields.id.value || null,
+    partido_id: Number(eventMatch.value),
+    tipo: eventFields.type.value,
+    equipo_id: Number(eventFields.team.value),
+    minuto: valorNumero(eventFields.minute),
+    inscripcion_jugador_id: eventFields.player.value || null,
+    inscripcion_relacionada_id:
+      eventFields.type.value === "cambio"
+        ? eventFields.relatedPlayer.value || null
+        : null,
+    estado_dato: eventFields.dataStatus.value,
+    fuente: valorTexto(eventFields.source),
+    observaciones: valorTexto(eventFields.notes),
+    crear_desde_texto: eventFields.createLegacy.checked
+  };
+}
+
+function validarIncidencia(valores) {
+  if (!valores.partido_id || !valores.equipo_id) {
+    throw new Error("Partido y equipo son obligatorios.");
+  }
+  if (
+    valores.minuto !== null &&
+    (
+      !Number.isInteger(valores.minuto) ||
+      valores.minuto < 0 ||
+      valores.minuto > 130
+    )
+  ) {
+    throw new Error("El minuto debe estar entre 0 y 130.");
+  }
+  if (
+    valores.estado_dato === "confirmado" &&
+    !valores.fuente
+  ) {
+    throw new Error(
+      "Una incidencia confirmada debe tener una fuente."
+    );
+  }
+  if (
+    valores.tipo === "cambio" &&
+    (
+      !valores.inscripcion_jugador_id ||
+      !valores.inscripcion_relacionada_id
+    )
+  ) {
+    throw new Error(
+      "Seleccioná al jugador que sale y al que entra."
+    );
+  }
+  if (
+    valores.inscripcion_jugador_id &&
+    valores.inscripcion_jugador_id ===
+      valores.inscripcion_relacionada_id
+  ) {
+    throw new Error(
+      "Los jugadores del cambio deben ser diferentes."
+    );
+  }
+}
+
+async function guardarIncidencia(event) {
+  event.preventDefault();
+  const valores = valoresFormularioIncidencia();
+  validarIncidencia(valores);
+
+  setEventSaving(true);
+  setEventFeedback("Guardando incidencia...");
+
+  try {
+    const method = valores.id ? "PATCH" : "POST";
+    const data = await apiRequest(
+      method,
+      valores,
+      EVENTS_API_URL
+    );
+    const incidenciaId = data.incidencia?.id;
+
+    if (valores.crear_desde_texto) {
+      await cargarPlantelesAdmin();
+    }
+    await cargarIncidenciasAdmin();
+    if (incidenciaId) seleccionarIncidencia(incidenciaId);
+
+    setEventFeedback("Incidencia guardada.", "ok");
+    setStatus("Incidencias actualizadas.", "ok");
+  } finally {
+    setEventSaving(false);
+  }
+}
+
+async function eliminarIncidencia() {
+  const id = Number(eventFields.id.value);
+  if (!id) return;
+
+  const confirmar = window.confirm(
+    "¿Eliminar esta incidencia? Esta acción no modifica el resultado."
+  );
+  if (!confirmar) return;
+
+  setEventSaving(true);
+  setEventFeedback("Eliminando incidencia...");
+
+  try {
+    await apiRequest(
+      "DELETE",
+      { id },
+      EVENTS_API_URL
+    );
+    incidenciaSeleccionadaId = null;
+    eventForm.classList.add("hidden");
+    emptyEventEditor.classList.remove("hidden");
+    await cargarIncidenciasAdmin();
+    setStatus("Incidencia eliminada.", "ok");
+  } finally {
+    setEventSaving(false);
+  }
+}
+
 async function cargarPanel() {
   await cargarPartidos();
 
@@ -1298,6 +1813,10 @@ async function cargarPanel() {
 
   await cargarPlantelesAdmin().catch(error =>
     mostrarPlantelesNoDisponibles(error.message)
+  );
+
+  await cargarIncidenciasAdmin().catch(error =>
+    mostrarIncidenciasNoDisponibles(error.message)
   );
 }
 
@@ -1402,6 +1921,16 @@ function seleccionarPartido(id) {
   matchForm.classList.remove("hidden");
   actualizarBloqueoEditor(partido);
   renderLista();
+
+  if ([...eventMatch.options].some(option =>
+    String(option.value) === String(partido.id)
+  )) {
+    eventMatch.value = String(partido.id);
+    incidenciaSeleccionadaId = null;
+    eventForm.classList.add("hidden");
+    emptyEventEditor.classList.remove("hidden");
+    renderIncidenciasAdmin();
+  }
 }
 
 function obtenerEstadioClubLocal(partido) {
@@ -1755,6 +2284,38 @@ rosterForm.addEventListener("submit", event => {
     setRosterFeedback(error.message, "error");
     setStatus(error.message, "error");
     setRosterSaving(false);
+  });
+});
+eventMatch.addEventListener("change", () => {
+  incidenciaSeleccionadaId = null;
+  eventForm.classList.add("hidden");
+  emptyEventEditor.classList.remove("hidden");
+  renderIncidenciasAdmin();
+});
+newEventBtn.addEventListener("click", iniciarNuevaIncidencia);
+eventList.addEventListener("click", event => {
+  const item = event.target.closest("[data-event-id]");
+  if (item) seleccionarIncidencia(item.dataset.eventId);
+});
+eventFields.team.addEventListener("change", () => {
+  renderJugadoresIncidencia();
+});
+eventFields.type.addEventListener(
+  "change",
+  actualizarCamposTipoIncidencia
+);
+eventForm.addEventListener("submit", event => {
+  guardarIncidencia(event).catch(error => {
+    setEventFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setEventSaving(false);
+  });
+});
+deleteEventBtn.addEventListener("click", () => {
+  eliminarIncidencia().catch(error => {
+    setEventFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setEventSaving(false);
   });
 });
 

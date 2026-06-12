@@ -53,7 +53,7 @@ existan homónimos.
 
 ## Faltantes importantes
 
-1. No existe todavía carga administrativa de incidencias.
+1. El editor de incidencias requiere ejecutar `supabase/incidencias.sql`.
 2. La columna `arbitro` no está activa en la base, aunque el panel la muestra.
 3. El respaldo por etapa no incluye clubes, torneos, jugadores ni planteles.
 4. No existe todavía un cierre integral del Apertura.
@@ -72,8 +72,8 @@ existan homónimos.
 ## Orden recomendado
 
 1. Activar la columna de árbitro y completar estadios de semifinales.
-2. Crear el editor de incidencias con selección por plantel.
-3. Conciliar las cinco incidencias históricas.
+2. Ejecutar `supabase/incidencias.sql`.
+3. Conciliar las cinco incidencias históricas desde el editor.
 4. Ampliar los respaldos a clubes, torneos, jugadores e inscripciones.
 5. Implementar cierre integral del Apertura.
 6. Preparar el Clausura copiando inscripciones como borrador.

@@ -2300,7 +2300,18 @@ body.detail-mode .app-main {
   background: var(--win);
 }
 
+.event-gol-contra {
+  border: 2px solid var(--loss);
+  background: transparent;
+}
+
 .event-amarilla {
+  border-radius: 2px;
+  background: var(--draw);
+}
+
+.event-doble-amarilla {
+  border: 1px solid var(--loss);
   border-radius: 2px;
   background: var(--draw);
 }

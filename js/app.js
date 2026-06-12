@@ -3449,12 +3449,24 @@ function renderEventoPartido(evento, partido) {
   const esLocal =
     String(evento.equipo_id) === String(partido.local_id);
   const tipo = normalizarTipoEvento(evento.tipo);
-  const jugadorIdentificado = Boolean(evento.jugador);
-  const jugador = evento.jugador ||
-    `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
+  const jugadorIdentificado = Boolean(
+    limpiarNombreJugador(evento.jugador)
+  );
+  const jugadorPrincipal = jugadorIdentificado
+    ? evento.jugador
+    : `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
+  const jugador = tipo === "cambio"
+    ? `${jugadorPrincipal} → ${
+        evento.jugador_relacionado ||
+        `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`
+      }`
+    : jugadorPrincipal;
   const minuto = evento.minuto !== null && evento.minuto !== undefined
     ? `${evento.minuto}'`
     : "–";
+  const verificacion = evento.estado_dato !== "confirmado"
+    ? " · Por verificar"
+    : "";
 
   return `
     <div class="event-row ${esLocal ? "event-local" : "event-away"}">
@@ -3464,7 +3476,7 @@ function renderEventoPartido(evento, partido) {
         <strong class="${jugadorIdentificado ? "" : "data-incomplete"}">
           ${jugador}
         </strong>
-        <small>${etiquetaEvento(tipo)}</small>
+        <small>${etiquetaEvento(tipo)}${verificacion}</small>
       </div>
     </div>
   `;
@@ -3476,7 +3488,13 @@ function normalizarTipoEvento(tipo) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
+  if (valor.includes("gol") && valor.includes("contra")) {
+    return "gol-contra";
+  }
   if (valor.includes("gol")) return "gol";
+  if (valor.includes("doble") && valor.includes("amarilla")) {
+    return "doble-amarilla";
+  }
   if (valor.includes("amarilla")) return "amarilla";
   if (valor.includes("roja")) return "roja";
   if (valor.includes("cambio")) return "cambio";
@@ -3486,7 +3504,9 @@ function normalizarTipoEvento(tipo) {
 function etiquetaEvento(tipo) {
   return {
     gol: "Gol",
+    "gol-contra": "Gol en contra",
     amarilla: "Tarjeta amarilla",
+    "doble-amarilla": "Doble amarilla",
     roja: "Tarjeta roja",
     cambio: "Cambio",
     otro: "Incidencia"
@@ -3938,7 +3958,7 @@ async function obtenerPartidos() {
         { headers }
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/eventos_partido?select=partido_id,tipo,equipo_id,jugador,minuto&order=minuto.asc`,
+        `${SUPABASE_URL}/rest/v1/eventos_partido?select=*&order=minuto.asc`,
         { headers }
       ),
       fetch(

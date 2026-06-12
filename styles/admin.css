@@ -51,6 +51,11 @@ button.ghost {
   color: var(--text);
 }
 
+button.danger {
+  color: var(--red);
+  border-color: rgba(255, 48, 69, .35);
+}
+
 input,
 select,
 textarea {
@@ -519,6 +524,97 @@ p {
   opacity: .55;
 }
 
+.event-filters {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.event-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 390px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.event-admin-list {
+  max-height: 620px;
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.event-admin-item {
+  width: 100%;
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.event-admin-item.on {
+  border-color: rgba(255, 48, 69, .75);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.event-admin-minute {
+  min-width: 30px;
+  color: var(--red);
+  font-weight: 800;
+}
+
+.event-admin-item strong,
+.event-admin-item small {
+  display: block;
+}
+
+.event-admin-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.event-admin-state {
+  color: var(--muted);
+  font-size: .66rem;
+  font-weight: 800;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.event-admin-state.confirmed {
+  color: var(--green);
+}
+
+.event-admin-state.unlinked {
+  color: var(--yellow);
+}
+
+.legacy-event {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  background: rgba(244, 185, 66, .06);
+  border: 1px solid rgba(244, 185, 66, .25);
+  border-radius: 12px;
+}
+
+.legacy-event > span {
+  color: var(--yellow);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
 .toggle-label {
   display: flex;
   align-items: center;
@@ -689,6 +785,8 @@ input[readonly] {
   .club-admin-grid,
   .roster-filters,
   .roster-admin-grid,
+  .event-filters,
+  .event-admin-grid,
   .form-row.two,
   .form-row.three {
     grid-template-columns: 1fr;
@@ -716,6 +814,10 @@ input[readonly] {
   }
 
   .roster-list {
+    max-height: 42vh;
+  }
+
+  .event-admin-list {
     max-height: 42vh;
   }
 }

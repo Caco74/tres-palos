@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=3">
+  <link rel="stylesheet" href="styles/admin.css?v=4">
 </head>
 <body>
   <main class="admin-shell">
@@ -429,6 +429,141 @@
         </div>
       </section>
 
+      <section class="admin-card events-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Minuto a minuto</span>
+            <h2>Incidencias</h2>
+          </div>
+          <span class="analytics-total" id="eventsTotal">0 incidencias</span>
+        </div>
+
+        <p class="stage-intro">
+          Las incidencias nuevas usan el plantel del club y torneo del partido.
+          Los nombres históricos pueden conciliarse como datos por verificar.
+          En un gol en contra, elegí el club al que pertenece el jugador.
+        </p>
+
+        <div class="event-filters">
+          <label>
+            Partido
+            <select id="eventMatch"></select>
+          </label>
+          <button type="button" id="newEventBtn">
+            Agregar incidencia
+          </button>
+        </div>
+
+        <div class="event-admin-grid">
+          <div class="event-admin-list" id="eventList">
+            Cargando incidencias...
+          </div>
+
+          <div>
+            <div class="empty-editor" id="emptyEventEditor">
+              Elegí una incidencia o agregá una nueva.
+            </div>
+
+            <form id="eventForm" class="match-form hidden">
+              <input type="hidden" id="eventId">
+
+              <div class="form-row three">
+                <label>
+                  Tipo
+                  <select id="eventType">
+                    <option value="gol">Gol</option>
+                    <option value="gol_en_contra">Gol en contra</option>
+                    <option value="amarilla">Amarilla</option>
+                    <option value="doble_amarilla">Doble amarilla</option>
+                    <option value="roja">Roja</option>
+                    <option value="cambio">Cambio</option>
+                  </select>
+                </label>
+                <label>
+                  Equipo
+                  <select id="eventTeam"></select>
+                </label>
+                <label>
+                  Minuto
+                  <input
+                    id="eventMinute"
+                    type="number"
+                    min="0"
+                    max="130"
+                    inputmode="numeric"
+                    placeholder="Opcional"
+                  >
+                </label>
+              </div>
+
+              <label>
+                <span id="eventPlayerLabel">Jugador</span>
+                <select id="eventPlayer"></select>
+              </label>
+
+              <label class="hidden" id="eventRelatedWrap">
+                Jugador que entra
+                <select id="eventRelatedPlayer"></select>
+              </label>
+
+              <div class="legacy-event hidden" id="eventLegacyBlock">
+                <span>Nombre histórico sin vincular</span>
+                <strong id="eventLegacyName"></strong>
+                <label class="toggle-label">
+                  <input id="eventCreateLegacy" type="checkbox">
+                  <span>
+                    Crear inscripción por verificar y vincular este nombre
+                  </span>
+                </label>
+              </div>
+
+              <div class="form-row two">
+                <label>
+                  Verificación
+                  <select id="eventDataStatus">
+                    <option value="por_verificar">Por verificar</option>
+                    <option value="confirmado">Confirmado</option>
+                  </select>
+                </label>
+                <label>
+                  Fuente
+                  <input
+                    id="eventSource"
+                    type="text"
+                    placeholder="Obligatoria si está confirmado"
+                  >
+                </label>
+              </div>
+
+              <label>
+                Observaciones
+                <textarea
+                  id="eventNotes"
+                  rows="3"
+                  placeholder="Aclaración opcional"
+                ></textarea>
+              </label>
+
+              <div class="actions">
+                <button type="submit" id="saveEventBtn">
+                  Guardar incidencia
+                </button>
+                <button
+                  type="button"
+                  class="ghost danger"
+                  id="deleteEventBtn"
+                >
+                  Eliminar
+                </button>
+              </div>
+              <div class="form-feedback" id="eventFeedback">
+                Completá los datos disponibles.
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <div class="admin-grid">
         <section class="admin-card matches-panel">
           <h2>Partidos</h2>
@@ -528,6 +663,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=9"></script>
+  <script src="js/admin-panel.js?v=10"></script>
 </body>
 </html>
