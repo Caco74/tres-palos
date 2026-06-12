@@ -72,6 +72,7 @@ const clubFields = {
   nickname: document.getElementById("clubNickname"),
   city: document.getElementById("clubCity"),
   province: document.getElementById("clubProvince"),
+  stadium: document.getElementById("clubStadium"),
   zone: document.getElementById("clubZone"),
   shield: document.getElementById("clubShield"),
   primaryColor: document.getElementById("clubPrimaryColor"),
@@ -784,6 +785,7 @@ function seleccionarClub(id) {
   clubFields.nickname.value = club.apodo || "";
   clubFields.city.value = club.ciudad || "";
   clubFields.province.value = club.provincia || "Santa Fe";
+  clubFields.stadium.value = club.estadio || "";
   clubFields.zone.value = String(club.zona || 1);
   clubFields.shield.value = club.escudo_url || "";
   clubFields.primaryColor.value = club.color_primario || "";
@@ -806,6 +808,7 @@ function valoresFormularioClub() {
     apodo: valorTexto(clubFields.nickname),
     ciudad: valorTexto(clubFields.city),
     provincia: valorTexto(clubFields.province),
+    estadio: valorTexto(clubFields.stadium),
     zona: Number(clubFields.zone.value),
     escudo_url: valorTexto(clubFields.shield),
     color_primario: valorTexto(clubFields.primaryColor),
@@ -974,6 +977,9 @@ function seleccionarPartido(id) {
   const partido = partidos.find(item => String(item.id) === String(id));
   if (!partido) return;
 
+  const estadioClubLocal = obtenerEstadioClubLocal(partido);
+  const estadioSugerido = !partido.estadio && estadioClubLocal;
+
   seleccionadoId = partido.id;
   fields.id.value = partido.id;
   fields.local.value = partido.local || "";
@@ -981,7 +987,7 @@ function seleccionarPartido(id) {
   fields.fecha.value = partido.fecha_partido || "";
   fields.hora.value = partido.hora || "";
   fields.estado.value = partido.estado || "programado";
-  fields.estadio.value = partido.estadio || "";
+  fields.estadio.value = partido.estadio || estadioClubLocal || "";
   fields.arbitro.value = partido.arbitro || "";
   fields.golesLocal.value = valorInput(partido.goles_local);
   fields.golesVisitante.value = valorInput(partido.goles_visitante);
@@ -994,12 +1000,24 @@ function seleccionarPartido(id) {
       : ""
   ].filter(Boolean).join(" · ");
   partidoOriginal = { ...partido };
-  setSaveFeedback("Modificá uno o más campos y guardá los cambios.");
+  setSaveFeedback(
+    estadioSugerido
+      ? "Se sugirió el estadio del club local. Guardá para confirmarlo."
+      : "Modificá uno o más campos y guardá los cambios."
+  );
 
   emptyEditor.classList.add("hidden");
   matchForm.classList.remove("hidden");
   actualizarBloqueoEditor(partido);
   renderLista();
+}
+
+function obtenerEstadioClubLocal(partido) {
+  const club = clubes.find(item =>
+    String(item.id) === String(partido.local_id) ||
+    item.nombre_oficial === partido.local
+  );
+  return club?.estadio || "";
 }
 
 function valorInput(valor) {

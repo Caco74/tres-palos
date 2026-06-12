@@ -3658,7 +3658,8 @@ function renderDetalleEquipo(equipo) {
   const estadoPlayoff = obtenerEstadoPlayoffEquipo(equipo);
   const identidad = [
     club?.ciudad,
-    club?.apodo ? `Apodo: ${club.apodo}` : null
+    club?.apodo ? `Apodo: ${club.apodo}` : null,
+    club?.estadio ? `Estadio: ${club.estadio}` : null
   ].filter(Boolean).join(" · ");
 
   cont.innerHTML = `

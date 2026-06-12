@@ -5,6 +5,7 @@ create table if not exists public.clubes (
   apodo text null,
   ciudad text not null,
   provincia text not null default 'Santa Fe',
+  estadio text null,
   zona integer not null check (zona between 1 and 3),
   escudo_url text null,
   color_primario text null check (
@@ -17,6 +18,9 @@ create table if not exists public.clubes (
   activo boolean not null default true,
   actualizado_en timestamptz not null default now()
 );
+
+alter table public.clubes
+  add column if not exists estadio text null;
 
 alter table public.clubes enable row level security;
 

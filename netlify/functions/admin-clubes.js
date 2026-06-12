@@ -3,6 +3,7 @@ const ALLOWED_FIELDS = new Set([
   "apodo",
   "ciudad",
   "provincia",
+  "estadio",
   "zona",
   "escudo_url",
   "color_primario",
