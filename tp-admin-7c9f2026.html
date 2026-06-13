@@ -432,7 +432,7 @@
       <section class="admin-card events-panel">
         <div class="panel-heading">
           <div>
-            <span class="eyebrow">Minuto a minuto</span>
+            <span class="eyebrow">Secuencia del partido</span>
             <h2>Incidencias</h2>
           </div>
           <span class="analytics-total" id="eventsTotal">0 incidencias</span>
@@ -440,6 +440,7 @@
 
         <p class="stage-intro">
           Las incidencias nuevas usan el plantel del club y torneo del partido.
+          Cargalas de la primera a la última.
           Los nombres históricos pueden conciliarse como datos por verificar.
           En un gol en contra, elegí el club al que pertenece el jugador.
         </p>
@@ -467,7 +468,7 @@
             <form id="eventForm" class="match-form hidden">
               <input type="hidden" id="eventId">
 
-              <div class="form-row three">
+              <div class="form-row two">
                 <label>
                   Tipo
                   <select id="eventType">
@@ -482,17 +483,6 @@
                 <label>
                   Equipo
                   <select id="eventTeam"></select>
-                </label>
-                <label>
-                  Minuto
-                  <input
-                    id="eventMinute"
-                    type="number"
-                    min="0"
-                    max="130"
-                    inputmode="numeric"
-                    placeholder="Opcional"
-                  >
                 </label>
               </div>
 
@@ -663,6 +653,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=11"></script>
+  <script src="js/admin-panel.js?v=12"></script>
 </body>
 </html>

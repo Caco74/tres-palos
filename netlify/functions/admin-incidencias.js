@@ -73,10 +73,10 @@ function isAuthorized(event) {
 async function listEvents() {
   const response = await supabaseFetch(
     "/rest/v1/eventos_partido" +
-    "?select=id,partido_id,tipo,equipo_id,jugador,minuto," +
+    "?select=id,partido_id,tipo,equipo_id,jugador,minuto,orden," +
     "inscripcion_jugador_id,inscripcion_relacionada_id," +
     "jugador_relacionado,estado_dato,fuente,observaciones,actualizado_en" +
-    "&order=partido_id.desc,minuto.asc,id.asc"
+    "&order=partido_id.desc,orden.asc,id.asc"
   );
   const incidencias = await parseSupabaseResponse(response);
   return json(200, { incidencias });
@@ -136,6 +136,8 @@ async function saveEvent(event) {
   input.jugador_relacionado = relatedEnrollment
     ? relatedEnrollment.jugador.nombre_completo
     : null;
+  input.orden = Number(existing?.orden) ||
+    await getNextEventOrder(match.id);
   input.actualizado_en = new Date().toISOString();
 
   if (!eventId) {
@@ -186,7 +188,6 @@ function sanitizeInput(body, match) {
   const estadoDato = String(
     body.estado_dato || "por_verificar"
   ).trim();
-  const minuto = optionalMinute(body.minuto);
   const fuente = cleanText(body.fuente);
   const inscriptionId = optionalId(body.inscripcion_jugador_id);
   const relatedId = optionalId(body.inscripcion_relacionada_id);
@@ -234,11 +235,23 @@ function sanitizeInput(body, match) {
     equipo_id: equipoId,
     inscripcion_jugador_id: inscriptionId,
     inscripcion_relacionada_id: relatedId,
-    minuto,
     estado_dato: estadoDato,
     fuente,
     observaciones: cleanText(body.observaciones)
   };
+}
+
+async function getNextEventOrder(matchId) {
+  const response = await supabaseFetch(
+    "/rest/v1/eventos_partido" +
+    "?select=orden" +
+    `&partido_id=eq.${matchId}` +
+    "&order=orden.desc.nullslast,id.desc" +
+    "&limit=1"
+  );
+  const rows = await parseSupabaseResponse(response);
+  const current = Array.isArray(rows) ? rows[0]?.orden : null;
+  return Number(current || 0) + 1;
 }
 
 async function getEvent(id) {
@@ -453,15 +466,6 @@ function requiredId(value, message) {
   const id = optionalId(value);
   if (!id) throw validationError(message);
   return id;
-}
-
-function optionalMinute(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const minute = Number(value);
-  if (!Number.isInteger(minute) || minute < 0 || minute > 130) {
-    throw validationError("El minuto debe estar entre 0 y 130.");
-  }
-  return minute;
 }
 
 function cleanText(value) {

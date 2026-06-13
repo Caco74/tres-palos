@@ -119,7 +119,6 @@ const eventFields = {
   id: document.getElementById("eventId"),
   type: document.getElementById("eventType"),
   team: document.getElementById("eventTeam"),
-  minute: document.getElementById("eventMinute"),
   player: document.getElementById("eventPlayer"),
   playerLabel: document.getElementById("eventPlayerLabel"),
   relatedWrap: document.getElementById("eventRelatedWrap"),
@@ -1399,7 +1398,7 @@ function incidenciasVisibles() {
     )
     .sort(
       (a, b) =>
-        Number(a.minuto ?? 999) - Number(b.minuto ?? 999) ||
+        Number(a.orden ?? a.id) - Number(b.orden ?? b.id) ||
         Number(a.id) - Number(b.id)
     );
 }
@@ -1427,7 +1426,7 @@ function renderIncidenciasAdmin() {
     return;
   }
 
-  eventList.innerHTML = visibles.map(evento => {
+  eventList.innerHTML = visibles.map((evento, indice) => {
     const sinVincular =
       Boolean(evento.jugador) &&
       !evento.inscripcion_jugador_id;
@@ -1458,12 +1457,13 @@ function renderIncidenciasAdmin() {
         }"
         data-event-id="${evento.id}"
       >
-        <span class="event-admin-minute">
-          ${evento.minuto ?? "–"}'
+        <span class="event-admin-order">
+          ${indice + 1}
         </span>
         <span>
           <strong>${escapeHtml(participante)}</strong>
           <small>
+            ${escapeHtml(nombreEquipoIncidenciaAdmin(evento))} ·
             ${escapeHtml(etiquetaTipoIncidencia(evento.tipo))}
           </small>
         </span>
@@ -1473,6 +1473,13 @@ function renderIncidenciasAdmin() {
       </button>
     `;
   }).join("");
+}
+
+function nombreEquipoIncidenciaAdmin(evento) {
+  const club = clubes.find(item =>
+    String(item.id) === String(evento.equipo_id)
+  );
+  return club?.nombre_corto || "Equipo sin identificar";
 }
 
 function etiquetaTipoIncidencia(tipo) {
@@ -1629,7 +1636,7 @@ function iniciarNuevaIncidencia() {
   emptyEventEditor.classList.add("hidden");
   eventForm.classList.remove("hidden");
   setEventFeedback(
-    "Elegí un jugador del plantel o dejalo como no informado."
+    "Se agregará al final de la secuencia del partido."
   );
   renderIncidenciasAdmin();
 }
@@ -1649,7 +1656,6 @@ function seleccionarIncidencia(id) {
   eventMatch.value = String(incidencia.partido_id);
   eventFields.id.value = incidencia.id;
   eventFields.type.value = incidencia.tipo || "gol";
-  eventFields.minute.value = valorInput(incidencia.minuto);
   eventFields.dataStatus.value =
     incidencia.estado_dato || "por_verificar";
   eventFields.source.value = incidencia.fuente || "";
@@ -1687,7 +1693,6 @@ function valoresFormularioIncidencia() {
     partido_id: Number(eventMatch.value),
     tipo: eventFields.type.value,
     equipo_id: Number(eventFields.team.value),
-    minuto: valorNumero(eventFields.minute),
     inscripcion_jugador_id: eventFields.player.value || null,
     inscripcion_relacionada_id:
       eventFields.type.value === "cambio"
@@ -1703,16 +1708,6 @@ function valoresFormularioIncidencia() {
 function validarIncidencia(valores) {
   if (!valores.partido_id || !valores.equipo_id) {
     throw new Error("Partido y equipo son obligatorios.");
-  }
-  if (
-    valores.minuto !== null &&
-    (
-      !Number.isInteger(valores.minuto) ||
-      valores.minuto < 0 ||
-      valores.minuto > 130
-    )
-  ) {
-    throw new Error("El minuto debe estar entre 0 y 130.");
   }
   if (
     valores.estado_dato === "confirmado" &&

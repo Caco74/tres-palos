@@ -1224,10 +1224,15 @@ function obtenerPartidoOrigenPorLlave(partido, lado) {
 function resolverPartidoPlayoff(partido) {
   if (!partido || partido.tipo !== "playoff") return partido;
 
+  const local = resolverEquipoPlayoff(partido, "local");
+  const visitante = resolverEquipoPlayoff(partido, "visitante");
   const partidoResuelto = {
     ...partido,
-    local: resolverEquipoPlayoff(partido, "local"),
-    visitante: resolverEquipoPlayoff(partido, "visitante")
+    local,
+    visitante,
+    local_id: partido.local_id || obtenerClub(local)?.id || null,
+    visitante_id:
+      partido.visitante_id || obtenerClub(visitante)?.id || null
   };
 
   return ordenarLocaliaPlayoff(partidoResuelto);
@@ -1267,6 +1272,10 @@ function ordenarLocaliaPlayoff(partido) {
     ...partido,
     local: partido.visitante,
     visitante: partido.local,
+    local_id: partido.visitante_id,
+    visitante_id: partido.local_id,
+    source_local: partido.source_visitante,
+    source_visitante: partido.source_local,
     localia_pendiente: false
   };
 }
@@ -3327,12 +3336,12 @@ function renderDetallePartido(id) {
   const tienePenales =
     partido.penales_local !== null &&
     partido.penales_visitante !== null;
-  const eventos = state.eventos
-    .filter(evento => String(evento.partido_id) === String(partido.id))
-    .sort(
-      (a, b) =>
-        Number(a.minuto || 0) - Number(b.minuto || 0)
-    );
+  const eventos = prepararSecuenciaEventos(
+    state.eventos.filter(
+      evento => String(evento.partido_id) === String(partido.id)
+    ),
+    partido
+  );
   const contexto = partido.tipo === "playoff"
     ? `${etiquetaFase(partido.fase)} · Llave ${partido.numero_playoff || 1}`
     : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
@@ -3399,13 +3408,20 @@ function renderDetallePartido(id) {
         <span>${eventos.length || "Sin"} registros</span>
       </div>
       ${eventos.length > 0
-        ? `<div class="event-list">${eventos.map(evento =>
+        ? `
+          <div class="event-team-head">
+            <strong>${escaparHtml(nombre(partido.local))}</strong>
+            <span>Secuencia</span>
+            <strong>${escaparHtml(nombre(partido.visitante))}</strong>
+          </div>
+          <div class="event-list">${eventos.map(evento =>
             renderEventoPartido(evento, partido)
-          ).join("")}</div>`
+          ).join("")}</div>
+        `
         : `
           <div class="detail-empty">
             ${estado.tipo === "en-juego"
-              ? "Sin datos de minuto a minuto. El estado en juego se estima por el horario."
+              ? "Sin incidencias cargadas por el momento."
               : "Sin incidencias cargadas para este partido."}
           </div>
         `}
@@ -3445,9 +3461,50 @@ function renderEquipoDetallePartido(equipo) {
   `;
 }
 
+function prepararSecuenciaEventos(eventos, partido) {
+  let golesLocal = 0;
+  let golesVisitante = 0;
+
+  return [...eventos]
+    .sort(
+      (a, b) =>
+        Number(a.orden ?? a.id) - Number(b.orden ?? b.id) ||
+        Number(a.id) - Number(b.id)
+    )
+    .map((evento, indice) => {
+      const tipo = normalizarTipoEvento(evento.tipo);
+      const lado = resolverLadoEvento(evento, partido);
+      const esLocal = lado === "local";
+      const esVisitante = lado === "visitante";
+      let marcador = null;
+
+      if (tipo === "gol") {
+        if (esLocal) golesLocal += 1;
+        if (esVisitante) golesVisitante += 1;
+        if (esLocal || esVisitante) {
+          marcador = `${golesLocal}–${golesVisitante}`;
+        }
+      }
+
+      if (tipo === "gol-contra") {
+        if (esLocal) golesVisitante += 1;
+        if (esVisitante) golesLocal += 1;
+        if (esLocal || esVisitante) {
+          marcador = `${golesLocal}–${golesVisitante}`;
+        }
+      }
+
+      return {
+        ...evento,
+        secuencia: indice + 1,
+        marcador
+      };
+    });
+}
+
 function renderEventoPartido(evento, partido) {
-  const esLocal =
-    String(evento.equipo_id) === String(partido.local_id);
+  const lado = resolverLadoEvento(evento, partido);
+  const esLocal = lado === "local";
   const tipo = normalizarTipoEvento(evento.tipo);
   const jugadorIdentificado = Boolean(
     limpiarNombreJugador(evento.jugador)
@@ -3461,25 +3518,81 @@ function renderEventoPartido(evento, partido) {
         `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`
       }`
     : jugadorPrincipal;
-  const minuto = evento.minuto !== null && evento.minuto !== undefined
-    ? `${evento.minuto}'`
-    : "–";
+  const equipo = resolverEquipoEvento(evento, partido);
+  const nombreEquipo = equipo
+    ? nombre(equipo)
+    : "Equipo sin identificar";
   const verificacion = evento.estado_dato !== "confirmado"
     ? " · Por verificar"
     : "";
+  const contenido = `
+    <strong class="${jugadorIdentificado ? "" : "data-incomplete"}">
+      ${escaparHtml(jugador)}
+    </strong>
+    <small>
+      <b>${escaparHtml(nombreEquipo)}</b>
+      <span>${etiquetaEvento(tipo)}${verificacion}</span>
+    </small>
+  `;
 
   return `
     <div class="event-row ${esLocal ? "event-local" : "event-away"}">
-      <span class="event-minute">${minuto}</span>
-      <span class="event-mark event-${tipo}"></span>
-      <div>
-        <strong class="${jugadorIdentificado ? "" : "data-incomplete"}">
-          ${jugador}
-        </strong>
-        <small>${etiquetaEvento(tipo)}${verificacion}</small>
+      <div class="event-side event-side-local">
+        ${esLocal ? contenido : ""}
+      </div>
+      <div class="event-axis">
+        <span class="event-step">${evento.secuencia}</span>
+        <span class="event-mark event-${tipo}"></span>
+        ${evento.marcador
+          ? `<strong class="event-score">${evento.marcador}</strong>`
+          : ""}
+      </div>
+      <div class="event-side event-side-away">
+        ${esLocal ? "" : contenido}
       </div>
     </div>
   `;
+}
+
+function resolverEquipoEvento(evento, partido) {
+  const lado = resolverLadoEvento(evento, partido);
+  if (lado === "local") {
+    return partido.local;
+  }
+  if (lado === "visitante") {
+    return partido.visitante;
+  }
+
+  return state.clubes.find(
+    club => String(club.id) === String(evento.equipo_id)
+  )?.nombre_oficial || null;
+}
+
+function resolverLadoEvento(evento, partido) {
+  if (String(evento.equipo_id) === String(partido.local_id)) {
+    return "local";
+  }
+  if (String(evento.equipo_id) === String(partido.visitante_id)) {
+    return "visitante";
+  }
+
+  const tipo = normalizarTipoEvento(evento.tipo);
+  if (
+    ["gol", "gol-contra"].includes(tipo) &&
+    Number(partido.goles_local) === 0 &&
+    Number(partido.goles_visitante) > 0
+  ) {
+    return "visitante";
+  }
+  if (
+    ["gol", "gol-contra"].includes(tipo) &&
+    Number(partido.goles_visitante) === 0 &&
+    Number(partido.goles_local) > 0
+  ) {
+    return "local";
+  }
+
+  return null;
 }
 
 function normalizarTipoEvento(tipo) {
@@ -3958,7 +4071,7 @@ async function obtenerPartidos() {
         { headers }
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/eventos_partido?select=*&order=minuto.asc`,
+        `${SUPABASE_URL}/rest/v1/eventos_partido?select=*&order=id.asc`,
         { headers }
       ),
       fetch(

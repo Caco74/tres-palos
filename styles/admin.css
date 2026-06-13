@@ -565,10 +565,11 @@ p {
   box-shadow: inset 3px 0 0 var(--red);
 }
 
-.event-admin-minute {
+.event-admin-order {
   min-width: 30px;
   color: var(--red);
   font-weight: 800;
+  text-align: center;
 }
 
 .event-admin-item strong,

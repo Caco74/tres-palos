@@ -1,6 +1,7 @@
 alter table public.eventos_partido
   add column if not exists inscripcion_relacionada_id bigint null,
   add column if not exists jugador_relacionado text null,
+  add column if not exists orden integer null,
   add column if not exists estado_dato text default 'por_verificar',
   add column if not exists fuente text null,
   add column if not exists observaciones text null,
@@ -9,6 +10,21 @@ alter table public.eventos_partido
 update public.eventos_partido
 set estado_dato = 'por_verificar'
 where estado_dato is null;
+
+with secuencia as (
+  select
+    id,
+    row_number() over (
+      partition by partido_id
+      order by id
+    ) as orden_calculado
+  from public.eventos_partido
+)
+update public.eventos_partido evento
+set orden = secuencia.orden_calculado
+from secuencia
+where evento.id = secuencia.id
+  and evento.orden is null;
 
 do $$
 begin
@@ -51,6 +67,19 @@ begin
       check (minuto is null or minuto between 0 and 130)
       not valid;
   end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where
+      conname = 'eventos_partido_orden_check'
+      and conrelid = 'public.eventos_partido'::regclass
+  ) then
+    alter table public.eventos_partido
+      add constraint eventos_partido_orden_check
+      check (orden is null or orden > 0)
+      not valid;
+  end if;
 end;
 $$;
 
@@ -63,8 +92,11 @@ alter table public.eventos_partido
 alter table public.eventos_partido
   validate constraint eventos_partido_minuto_check;
 
-create index if not exists eventos_partido_partido_minuto_idx
-  on public.eventos_partido (partido_id, minuto, id);
+alter table public.eventos_partido
+  validate constraint eventos_partido_orden_check;
+
+create index if not exists eventos_partido_partido_orden_idx
+  on public.eventos_partido (partido_id, orden, id);
 
 create index if not exists eventos_partido_inscripcion_relacionada_idx
   on public.eventos_partido (inscripcion_relacionada_id);
@@ -96,6 +128,9 @@ comment on column public.eventos_partido.inscripcion_jugador_id is
 
 comment on column public.eventos_partido.inscripcion_relacionada_id is
   'Segunda inscripcion relacionada, utilizada principalmente en cambios.';
+
+comment on column public.eventos_partido.orden is
+  'Secuencia narrativa de la incidencia dentro del partido.';
 
 comment on column public.eventos_partido.estado_dato is
   'Nivel de verificacion de la incidencia y su fuente.';
