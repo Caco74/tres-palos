@@ -2268,7 +2268,7 @@ body.detail-mode .app-main {
 .event-team-head {
   padding: 10px 14px 8px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid rgba(58,58,66,.65);
@@ -2305,7 +2305,7 @@ body.detail-mode .app-main {
 .event-row {
   min-height: 70px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid rgba(58,58,66,.65);
@@ -2330,45 +2330,38 @@ body.detail-mode .app-main {
 .event-axis {
   align-self: stretch;
   position: relative;
-  display: grid;
-  grid-template-columns: 16px 10px minmax(28px, 1fr);
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-}
-
-.event-axis::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 25px;
-  width: 1px;
-  background: rgba(85,85,94,.45);
-}
-
-.event-step {
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-  font-size: 0.62rem;
-  text-align: right;
+  border-left: 1px solid rgba(255,48,69,.65);
+  border-right: 1px solid rgba(85,167,255,.65);
+  background: rgba(255,255,255,.015);
 }
 
 .event-mark {
-  position: relative;
-  z-index: 1;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--muted);
-  box-shadow: 0 0 0 4px var(--card);
 }
 
 .event-score {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 12px 1fr;
+  align-items: center;
   color: var(--white);
   font-family: 'DM Mono', monospace;
-  font-size: 0.68rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-align: center;
   white-space: nowrap;
+}
+
+.event-score i {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .event-gol {

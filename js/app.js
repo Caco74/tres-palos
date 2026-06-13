@@ -896,9 +896,14 @@ function obtenerPartidosRegularesVigentes() {
 }
 
 function obtenerEstadioPartido(partido) {
+  const clubLocal = state.clubes.find(
+    club => String(club.id) === String(partido.local_id)
+  ) || obtenerClub(partido.local);
+
   return partido.estadio ||
     partido.cancha ||
     partido.sede ||
+    clubLocal?.estadio ||
     ESTADOS_DATO.confirmar;
 }
 
@@ -3411,7 +3416,7 @@ function renderDetallePartido(id) {
         ? `
           <div class="event-team-head">
             <strong>${escaparHtml(nombre(partido.local))}</strong>
-            <span>Secuencia</span>
+            <span>Marcador</span>
             <strong>${escaparHtml(nombre(partido.visitante))}</strong>
           </div>
           <div class="event-list">${eventos.map(evento =>
@@ -3471,7 +3476,7 @@ function prepararSecuenciaEventos(eventos, partido) {
         Number(a.orden ?? a.id) - Number(b.orden ?? b.id) ||
         Number(a.id) - Number(b.id)
     )
-    .map((evento, indice) => {
+    .map(evento => {
       const tipo = normalizarTipoEvento(evento.tipo);
       const lado = resolverLadoEvento(evento, partido);
       const esLocal = lado === "local";
@@ -3496,7 +3501,6 @@ function prepararSecuenciaEventos(eventos, partido) {
 
       return {
         ...evento,
-        secuencia: indice + 1,
         marcador
       };
     });
@@ -3541,16 +3545,26 @@ function renderEventoPartido(evento, partido) {
         ${esLocal ? contenido : ""}
       </div>
       <div class="event-axis">
-        <span class="event-step">${evento.secuencia}</span>
-        <span class="event-mark event-${tipo}"></span>
         ${evento.marcador
-          ? `<strong class="event-score">${evento.marcador}</strong>`
-          : ""}
+          ? renderMarcadorIncidencia(evento.marcador)
+          : `<span class="event-mark event-${tipo}"></span>`}
       </div>
       <div class="event-side event-side-away">
         ${esLocal ? "" : contenido}
       </div>
     </div>
+  `;
+}
+
+function renderMarcadorIncidencia(marcador) {
+  const [local = "0", visitante = "0"] = String(marcador).split("–");
+
+  return `
+    <strong class="event-score">
+      <span>${local}</span>
+      <i>-</i>
+      <span>${visitante}</span>
+    </strong>
   `;
 }
 
