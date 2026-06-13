@@ -68,6 +68,24 @@ const emptyEventEditor = document.getElementById("emptyEventEditor");
 const saveEventBtn = document.getElementById("saveEventBtn");
 const deleteEventBtn = document.getElementById("deleteEventBtn");
 const eventFeedback = document.getElementById("eventFeedback");
+const liveModeState = document.getElementById("liveModeState");
+const liveMatch = document.getElementById("liveMatch");
+const liveLocalName = document.getElementById("liveLocalName");
+const liveScore = document.getElementById("liveScore");
+const liveAwayName = document.getElementById("liveAwayName");
+const liveLocalActions = document.getElementById("liveLocalActions");
+const liveAwayActions = document.getElementById("liveAwayActions");
+const liveEventCount = document.getElementById("liveEventCount");
+const liveTimeline = document.getElementById("liveTimeline");
+const liveUndoBtn = document.getElementById("liveUndoBtn");
+const liveStartBtn = document.getElementById("liveStartBtn");
+const liveFinishBtn = document.getElementById("liveFinishBtn");
+const liveFeedback = document.getElementById("liveFeedback");
+const livePicker = document.getElementById("livePicker");
+const livePickerEyebrow = document.getElementById("livePickerEyebrow");
+const livePickerTitle = document.getElementById("livePickerTitle");
+const livePickerHelp = document.getElementById("livePickerHelp");
+const livePlayerGrid = document.getElementById("livePlayerGrid");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -148,6 +166,9 @@ let respaldosEtapa = [];
 let etapasDisponibles = [];
 let etapasHabilitadas = false;
 let etapaProcesando = false;
+let liveAction = null;
+let liveChangeOutId = null;
+let liveBusy = false;
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -203,6 +224,16 @@ function setEventSaving(isSaving) {
 function setEventFeedback(message, type = "info") {
   eventFeedback.textContent = message;
   eventFeedback.dataset.type = type;
+}
+
+function setLiveFeedback(message, type = "info") {
+  liveFeedback.textContent = message;
+  liveFeedback.dataset.type = type;
+}
+
+function setLiveBusy(isBusy) {
+  liveBusy = isBusy;
+  renderModoPartido();
 }
 
 function showApp() {
@@ -795,6 +826,7 @@ async function descargarRespaldo(respaldoId) {
 async function recargarDespuesDeEtapa() {
   await cargarPartidos();
   await cargarEtapasAdmin();
+  renderModoPartido();
 }
 
 function escapeHtml(value) {
@@ -989,6 +1021,7 @@ async function cargarPlantelesAdmin() {
   renderFiltrosPlantel(torneoSeleccionado, clubSeleccionado);
   renderOpcionesJugadores();
   renderPlantel();
+  renderModoPartido();
 }
 
 function mostrarPlantelesNoDisponibles(message) {
@@ -1007,6 +1040,7 @@ function mostrarPlantelesNoDisponibles(message) {
   newRosterBtn.disabled = true;
   rosterForm.classList.add("hidden");
   emptyRosterEditor.classList.remove("hidden");
+  renderModoPartido();
 }
 
 function renderFiltrosPlantel(torneoPrevio = "", clubPrevio = "") {
@@ -1325,13 +1359,18 @@ async function guardarInscripcionJugador(event) {
 
 async function cargarIncidenciasAdmin() {
   const partidoPrevio = eventMatch.value;
+  const partidoRapidoPrevio = liveMatch.value;
   const data = await apiRequest("GET", null, EVENTS_API_URL);
   incidencias = Array.isArray(data.incidencias)
     ? data.incidencias
     : [];
 
-  renderOpcionesPartidosIncidencias(partidoPrevio);
+  renderOpcionesPartidosIncidencias(
+    partidoPrevio,
+    partidoRapidoPrevio
+  );
   renderIncidenciasAdmin();
+  renderModoPartido();
 }
 
 function mostrarIncidenciasNoDisponibles(message) {
@@ -1347,9 +1386,14 @@ function mostrarIncidenciasNoDisponibles(message) {
   newEventBtn.disabled = true;
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
+  liveMatch.innerHTML = "";
+  renderModoPartido();
 }
 
-function renderOpcionesPartidosIncidencias(partidoPrevio = "") {
+function renderOpcionesPartidosIncidencias(
+  partidoPrevio = "",
+  partidoRapidoPrevio = ""
+) {
   const ordenados = [...partidos].sort(
     (a, b) =>
       String(b.fecha_partido || "").localeCompare(
@@ -1383,6 +1427,22 @@ function renderOpcionesPartidosIncidencias(partidoPrevio = "") {
 
   eventMatch.value = sugerido ? String(sugerido.id) : "";
   newEventBtn.disabled = !sugerido;
+
+  liveMatch.innerHTML = eventMatch.innerHTML;
+  const sugeridoRapido =
+    ordenados.find(item =>
+      String(item.id) === String(partidoRapidoPrevio)
+    ) ||
+    ordenados.find(item =>
+      item.tipo === "playoff" &&
+      item.estado !== "finalizado" &&
+      resolverEquipoPartidoAdmin(item, "local").id &&
+      resolverEquipoPartidoAdmin(item, "visitante").id
+    ) ||
+    sugerido;
+  liveMatch.value = sugeridoRapido
+    ? String(sugeridoRapido.id)
+    : "";
 }
 
 function partidoIncidenciasSeleccionado() {
@@ -1491,6 +1551,499 @@ function etiquetaTipoIncidencia(tipo) {
     roja: "Tarjeta roja",
     cambio: "Cambio"
   }[tipo] || tipo || "Incidencia";
+}
+
+function partidoModoSeleccionado() {
+  return partidos.find(
+    partido => String(partido.id) === liveMatch.value
+  ) || null;
+}
+
+function incidenciasModoPartido() {
+  return incidencias
+    .filter(evento =>
+      String(evento.partido_id) === liveMatch.value
+    )
+    .sort(
+      (a, b) =>
+        Number(a.orden ?? a.id) - Number(b.orden ?? b.id) ||
+        Number(a.id) - Number(b.id)
+    );
+}
+
+function ajustarMarcadorPorIncidencia(
+  marcador,
+  evento,
+  partido,
+  cantidad = 1
+) {
+  if (!["gol", "gol_en_contra"].includes(evento.tipo)) {
+    return marcador;
+  }
+
+  const local = resolverEquipoPartidoAdmin(partido, "local");
+  const visitante = resolverEquipoPartidoAdmin(partido, "visitante");
+  const equipoGol = evento.tipo === "gol"
+    ? evento.equipo_id
+    : String(evento.equipo_id) === String(local.id)
+      ? visitante.id
+      : local.id;
+
+  if (String(equipoGol) === String(local.id)) {
+    marcador.local = Math.max(0, marcador.local + cantidad);
+  } else if (String(equipoGol) === String(visitante.id)) {
+    marcador.visitante = Math.max(
+      0,
+      marcador.visitante + cantidad
+    );
+  }
+
+  return marcador;
+}
+
+function calcularMarcadorModo(partido) {
+  const resultadoCargado =
+    partido?.goles_local !== null &&
+    partido?.goles_local !== undefined &&
+    partido?.goles_visitante !== null &&
+    partido?.goles_visitante !== undefined;
+
+  if (resultadoCargado) {
+    return {
+      local: Number(partido.goles_local) || 0,
+      visitante: Number(partido.goles_visitante) || 0
+    };
+  }
+
+  return incidenciasModoPartido().reduce(
+    (marcador, evento) =>
+      ajustarMarcadorPorIncidencia(marcador, evento, partido),
+    { local: 0, visitante: 0 }
+  );
+}
+
+function renderAccionesEquipoModo(container, lado, disabled) {
+  const acciones = [
+    ["gol", "Gol"],
+    ["gol_en_contra", "En contra"],
+    ["amarilla", "Amarilla"],
+    ["doble_amarilla", "2da amarilla"],
+    ["roja", "Roja"],
+    ["cambio", "Cambio"]
+  ];
+
+  container.innerHTML = acciones.map(([tipo, etiqueta]) => `
+    <button
+      type="button"
+      class="live-action"
+      data-live-action="${tipo}"
+      data-live-side="${lado}"
+      ${disabled ? "disabled" : ""}
+    >
+      ${etiqueta}
+    </button>
+  `).join("");
+}
+
+function nombreParticipanteModo(evento) {
+  if (evento.tipo === "cambio") {
+    return [
+      evento.jugador || "Sale sin identificar",
+      evento.jugador_relacionado || "Entra sin identificar"
+    ].join(" -> ");
+  }
+
+  return evento.jugador || "Jugador sin identificar";
+}
+
+function renderTimelineModo(partido, eventos) {
+  liveEventCount.textContent =
+    `${eventos.length} ${
+      eventos.length === 1 ? "incidencia" : "incidencias"
+    }`;
+
+  if (!partido) {
+    liveTimeline.textContent = "Elegí un partido para comenzar.";
+    return;
+  }
+  if (eventos.length === 0) {
+    liveTimeline.textContent =
+      "Todavía no hay acciones cargadas en este partido.";
+    return;
+  }
+
+  const local = resolverEquipoPartidoAdmin(partido, "local");
+  const marcador = { local: 0, visitante: 0 };
+  const filas = eventos.map(evento => {
+    ajustarMarcadorPorIncidencia(marcador, evento, partido);
+    const esLocal =
+      String(evento.equipo_id) === String(local.id);
+    const detalle = `${etiquetaTipoIncidencia(evento.tipo)} · ${
+      nombreParticipanteModo(evento)
+    }`;
+
+    return `
+      <div class="live-timeline-row">
+        <span class="live-timeline-team local">
+          ${esLocal ? escapeHtml(detalle) : ""}
+        </span>
+        <span class="live-timeline-score">
+          ${marcador.local} - ${marcador.visitante}
+        </span>
+        <span class="live-timeline-team away">
+          ${esLocal ? "" : escapeHtml(detalle)}
+        </span>
+      </div>
+    `;
+  });
+  liveTimeline.innerHTML = filas.slice(-8).join("");
+}
+
+function renderModoPartido() {
+  const partido = partidoModoSeleccionado();
+  const eventos = incidenciasModoPartido();
+  const local = resolverEquipoPartidoAdmin(partido, "local");
+  const visitante = resolverEquipoPartidoAdmin(partido, "visitante");
+  const etapa = obtenerEtapaPartidoAdmin(partido);
+  const etapaCerrada =
+    obtenerEstadoEtapa(etapa)?.estado === "cerrada";
+  const finalizado = partido?.estado === "finalizado";
+  const sinEquipos = !local.id || !visitante.id;
+  const bloqueado =
+    !partido || etapaCerrada || finalizado || sinEquipos;
+  const marcador = partido
+    ? calcularMarcadorModo(partido)
+    : { local: 0, visitante: 0 };
+
+  liveLocalName.textContent = local.nombre || "Por definir";
+  liveAwayName.textContent = visitante.nombre || "Por definir";
+  liveScore.textContent = `${marcador.local} - ${marcador.visitante}`;
+
+  let estado = "Preparado";
+  let estadoClave = "";
+  if (!partido) {
+    estado = "Sin seleccionar";
+  } else if (etapaCerrada) {
+    estado = "Etapa cerrada";
+    estadoClave = "locked";
+  } else if (finalizado) {
+    estado = "Finalizado";
+    estadoClave = "finished";
+  } else if (partido.estado === "en_vivo") {
+    estado = "En vivo";
+    estadoClave = "live";
+  } else if (sinEquipos) {
+    estado = "Equipos pendientes";
+    estadoClave = "locked";
+  }
+  liveModeState.textContent = estado;
+  liveModeState.dataset.state = estadoClave;
+
+  renderAccionesEquipoModo(
+    liveLocalActions,
+    "local",
+    bloqueado || liveBusy
+  );
+  renderAccionesEquipoModo(
+    liveAwayActions,
+    "visitante",
+    bloqueado || liveBusy
+  );
+  renderTimelineModo(partido, eventos);
+
+  liveMatch.disabled = liveBusy || partidos.length === 0;
+  liveUndoBtn.disabled =
+    liveBusy || bloqueado || eventos.length === 0;
+  liveStartBtn.disabled =
+    liveBusy || bloqueado || partido?.estado === "en_vivo";
+  liveFinishBtn.disabled = liveBusy || bloqueado;
+  liveUndoBtn.textContent = liveBusy
+    ? "Procesando..."
+    : "Deshacer última";
+}
+
+function inscripcionesModoEquipo(equipoId, torneoId) {
+  return inscripcionesJugadores
+    .filter(inscripcion =>
+      String(inscripcion.club_id) === String(equipoId) &&
+      String(inscripcion.torneo_id) === String(torneoId) &&
+      inscripcion.estado !== "inactivo"
+    )
+    .sort((a, b) => {
+      const jugadorA = obtenerJugadorPlantel(a.jugador_id);
+      const jugadorB = obtenerJugadorPlantel(b.jugador_id);
+      return String(jugadorA?.nombre_completo || "").localeCompare(
+        String(jugadorB?.nombre_completo || ""),
+        "es",
+        { sensitivity: "base" }
+      );
+    });
+}
+
+function abrirSelectorModo(lado, tipo) {
+  const partido = partidoModoSeleccionado();
+  if (!partido || liveBusy) return;
+
+  const etapa = obtenerEtapaPartidoAdmin(partido);
+  if (obtenerEstadoEtapa(etapa)?.estado === "cerrada") {
+    setLiveFeedback(
+      `${etapa.etiqueta} está cerrada. Reabrila para cargar.`,
+      "warn"
+    );
+    return;
+  }
+  if (partido.estado === "finalizado") {
+    setLiveFeedback(
+      "El partido ya está finalizado. Reabrilo desde el editor.",
+      "warn"
+    );
+    return;
+  }
+
+  const equipo = resolverEquipoPartidoAdmin(partido, lado);
+  if (!equipo.id) {
+    setLiveFeedback("El equipo todavía no está vinculado.", "error");
+    return;
+  }
+
+  const disponibles = inscripcionesModoEquipo(
+    equipo.id,
+    partido.torneo_id
+  );
+  if (tipo === "cambio" && disponibles.length < 2) {
+    setLiveFeedback(
+      `Cargá al menos dos jugadores de ${equipo.nombre} para registrar un cambio.`,
+      "warn"
+    );
+    return;
+  }
+
+  liveAction = {
+    lado,
+    tipo,
+    equipoId: equipo.id,
+    equipoNombre: equipo.nombre,
+    partidoId: partido.id
+  };
+  liveChangeOutId = null;
+  renderSelectorJugadoresModo();
+  livePicker.classList.remove("hidden");
+  livePicker.setAttribute("aria-hidden", "false");
+  document.body.classList.add("live-picker-open");
+}
+
+function renderSelectorJugadoresModo() {
+  const partido = partidoModoSeleccionado();
+  if (!partido || !liveAction) return;
+
+  const disponibles = inscripcionesModoEquipo(
+    liveAction.equipoId,
+    partido.torneo_id
+  ).filter(inscripcion =>
+    !liveChangeOutId ||
+    String(inscripcion.id) !== String(liveChangeOutId)
+  );
+  const esCambio = liveAction.tipo === "cambio";
+  const eligeEntrada = esCambio && liveChangeOutId;
+
+  livePickerEyebrow.textContent =
+    `${liveAction.equipoNombre} · ${
+      etiquetaTipoIncidencia(liveAction.tipo)
+    }`;
+  livePickerTitle.textContent = esCambio
+    ? eligeEntrada
+      ? "Elegí quién entra"
+      : "Elegí quién sale"
+    : "Elegí al jugador";
+  livePickerHelp.textContent = esCambio
+    ? eligeEntrada
+      ? "Al tocar el reemplazante se guardará el cambio."
+      : "Después vas a elegir al jugador que entra."
+    : "La incidencia se guardará al tocar un jugador.";
+
+  const opcionDesconocida = esCambio
+    ? ""
+    : `
+      <button
+        type="button"
+        class="live-player unknown"
+        data-live-player="unknown"
+      >
+        <strong>Jugador sin identificar</strong>
+        <small>Guardar y completar después</small>
+      </button>
+    `;
+
+  livePlayerGrid.innerHTML = opcionDesconocida +
+    disponibles.map(inscripcion => {
+      const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+      const dorsal = inscripcion.dorsal
+        ? `Dorsal ${inscripcion.dorsal}`
+        : "Sin dorsal";
+      return `
+        <button
+          type="button"
+          class="live-player"
+          data-live-player="${inscripcion.id}"
+        >
+          <strong>
+            ${escapeHtml(
+              jugador?.nombre_completo || "Jugador sin nombre"
+            )}
+          </strong>
+          <small>${escapeHtml(dorsal)}</small>
+        </button>
+      `;
+    }).join("");
+}
+
+function cerrarSelectorModo() {
+  livePicker.classList.add("hidden");
+  livePicker.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("live-picker-open");
+  liveAction = null;
+  liveChangeOutId = null;
+}
+
+async function seleccionarJugadorModo(valor) {
+  if (!liveAction || liveBusy) return;
+
+  const inscripcionId = valor === "unknown"
+    ? null
+    : Number(valor);
+  if (liveAction.tipo === "cambio" && !liveChangeOutId) {
+    liveChangeOutId = inscripcionId;
+    renderSelectorJugadoresModo();
+    return;
+  }
+
+  const partidoId = liveAction.partidoId;
+  const valores = {
+    partido_id: partidoId,
+    tipo: liveAction.tipo,
+    equipo_id: liveAction.equipoId,
+    inscripcion_jugador_id:
+      liveAction.tipo === "cambio"
+        ? liveChangeOutId
+        : inscripcionId,
+    inscripcion_relacionada_id:
+      liveAction.tipo === "cambio"
+        ? inscripcionId
+        : null,
+    estado_dato: "por_verificar",
+    fuente: null,
+    observaciones: "Carga rápida desde Modo Partido.",
+    ajustar_resultado: true
+  };
+
+  cerrarSelectorModo();
+  setLiveBusy(true);
+  setLiveFeedback("Guardando acción...");
+
+  try {
+    await apiRequest("POST", valores, EVENTS_API_URL);
+    await cargarPartidos();
+    liveMatch.value = String(partidoId);
+    eventMatch.value = String(partidoId);
+    await cargarIncidenciasAdmin();
+    setLiveFeedback("Acción guardada.", "ok");
+    setStatus("Modo Partido actualizado.", "ok");
+  } finally {
+    setLiveBusy(false);
+  }
+}
+
+async function deshacerUltimaAccionModo() {
+  const eventos = incidenciasModoPartido();
+  const ultima = eventos[eventos.length - 1];
+  if (!ultima || liveBusy) return;
+
+  const confirmar = window.confirm(
+    `¿Deshacer ${etiquetaTipoIncidencia(ultima.tipo)} de ${
+      nombreParticipanteModo(ultima)
+    }?`
+  );
+  if (!confirmar) return;
+
+  const partidoId = Number(liveMatch.value);
+  setLiveBusy(true);
+  setLiveFeedback("Deshaciendo última acción...");
+
+  try {
+    await apiRequest(
+      "DELETE",
+      { id: ultima.id, ajustar_resultado: true },
+      EVENTS_API_URL
+    );
+    await cargarPartidos();
+    liveMatch.value = String(partidoId);
+    eventMatch.value = String(partidoId);
+    await cargarIncidenciasAdmin();
+    setLiveFeedback("Última acción deshecha.", "ok");
+    setStatus("Última incidencia eliminada.", "ok");
+  } finally {
+    setLiveBusy(false);
+  }
+}
+
+async function marcarPartidoEnVivoModo() {
+  const partido = partidoModoSeleccionado();
+  if (!partido || liveBusy) return;
+
+  setLiveBusy(true);
+  setLiveFeedback("Marcando partido en vivo...");
+
+  try {
+    await apiRequest("PATCH", {
+      id: partido.id,
+      patch: { estado: "en_vivo" }
+    });
+    await cargarPartidos();
+    liveMatch.value = String(partido.id);
+    eventMatch.value = String(partido.id);
+    await cargarIncidenciasAdmin();
+    setLiveFeedback("Partido marcado en vivo.", "ok");
+  } finally {
+    setLiveBusy(false);
+  }
+}
+
+async function finalizarPartidoModo() {
+  const partido = partidoModoSeleccionado();
+  if (!partido || liveBusy) return;
+
+  const marcador = calcularMarcadorModo(partido);
+  const confirmar = window.confirm(
+    `¿Finalizar ${nombrePartido(partido)} ${marcador.local} - ${
+      marcador.visitante
+    }?`
+  );
+  if (!confirmar) return;
+
+  setLiveBusy(true);
+  setLiveFeedback("Finalizando partido...");
+
+  try {
+    await apiRequest("PATCH", {
+      id: partido.id,
+      patch: {
+        estado: "finalizado",
+        goles_local: marcador.local,
+        goles_visitante: marcador.visitante
+      }
+    });
+    await cargarPartidos();
+    liveMatch.value = String(partido.id);
+    eventMatch.value = String(partido.id);
+    await cargarIncidenciasAdmin();
+    setLiveFeedback(
+      `Partido finalizado ${marcador.local} - ${marcador.visitante}.`,
+      "ok"
+    );
+    setStatus("Partido finalizado desde Modo Partido.", "ok");
+  } finally {
+    setLiveBusy(false);
+  }
 }
 
 function renderEquiposIncidencia(equipoPreferido = "") {
@@ -1654,6 +2207,7 @@ function seleccionarIncidencia(id) {
 
   incidenciaSeleccionadaId = incidencia.id;
   eventMatch.value = String(incidencia.partido_id);
+  liveMatch.value = String(incidencia.partido_id);
   eventFields.id.value = incidencia.id;
   eventFields.type.value = incidencia.tipo || "gol";
   eventFields.dataStatus.value =
@@ -1927,10 +2481,12 @@ function seleccionarPartido(id) {
     String(option.value) === String(partido.id)
   )) {
     eventMatch.value = String(partido.id);
+    liveMatch.value = String(partido.id);
     incidenciaSeleccionadaId = null;
     eventForm.classList.add("hidden");
     emptyEventEditor.classList.remove("hidden");
     renderIncidenciasAdmin();
+    renderModoPartido();
   }
 }
 
@@ -2343,7 +2899,76 @@ eventMatch.addEventListener("change", () => {
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
+  liveMatch.value = eventMatch.value;
   renderIncidenciasAdmin();
+  renderModoPartido();
+});
+liveMatch.addEventListener("change", () => {
+  eventMatch.value = liveMatch.value;
+  incidenciaSeleccionadaId = null;
+  eventForm.classList.add("hidden");
+  emptyEventEditor.classList.remove("hidden");
+  renderIncidenciasAdmin();
+  renderModoPartido();
+});
+liveLocalActions.addEventListener("click", event => {
+  const button = event.target.closest("[data-live-action]");
+  if (button) {
+    abrirSelectorModo(
+      button.dataset.liveSide,
+      button.dataset.liveAction
+    );
+  }
+});
+liveAwayActions.addEventListener("click", event => {
+  const button = event.target.closest("[data-live-action]");
+  if (button) {
+    abrirSelectorModo(
+      button.dataset.liveSide,
+      button.dataset.liveAction
+    );
+  }
+});
+livePlayerGrid.addEventListener("click", event => {
+  const button = event.target.closest("[data-live-player]");
+  if (!button) return;
+
+  seleccionarJugadorModo(button.dataset.livePlayer).catch(error => {
+    setLiveFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setLiveBusy(false);
+  });
+});
+livePicker.addEventListener("click", event => {
+  if (event.target.closest("[data-live-close]")) {
+    cerrarSelectorModo();
+  }
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !livePicker.classList.contains("hidden")) {
+    cerrarSelectorModo();
+  }
+});
+liveUndoBtn.addEventListener("click", () => {
+  deshacerUltimaAccionModo().catch(error => {
+    setLiveFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setLiveBusy(false);
+  });
+});
+liveStartBtn.addEventListener("click", () => {
+  marcarPartidoEnVivoModo().catch(error => {
+    setLiveFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setLiveBusy(false);
+  });
+});
+liveFinishBtn.addEventListener("click", () => {
+  finalizarPartidoModo().catch(error => {
+    setLiveFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setLiveBusy(false);
+  });
 });
 newEventBtn.addEventListener("click", iniciarNuevaIncidencia);
 eventList.addEventListener("click", event => {

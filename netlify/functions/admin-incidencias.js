@@ -86,9 +86,15 @@ async function saveEvent(event) {
   const body = JSON.parse(event.body || "{}");
   const eventId = optionalId(body.id);
   const existing = eventId ? await getEvent(eventId) : null;
+  const adjustScore = body.ajustar_resultado === true;
 
   if (event.httpMethod === "PATCH" && !existing) {
     return json(404, { error: "Incidencia no encontrada." });
+  }
+  if (eventId && adjustScore) {
+    throw validationError(
+      "El ajuste automatico de resultado solo admite incidencias nuevas."
+    );
   }
 
   const matchId = requiredId(
@@ -99,8 +105,16 @@ async function saveEvent(event) {
   if (!match) return json(404, { error: "Partido no encontrado." });
 
   await assertStageOpen(match);
+  if (adjustScore && match.estado === "finalizado") {
+    throw validationError(
+      "El partido esta finalizado. Reabrilo antes de cargar incidencias."
+    );
+  }
 
   const input = sanitizeInput(body, match);
+  const scoreBefore = adjustScore && isGoalType(input.tipo)
+    ? await getMatchScore(match)
+    : null;
   let enrollment = null;
 
   if (input.inscripcion_jugador_id) {
@@ -143,7 +157,9 @@ async function saveEvent(event) {
   if (!eventId) {
     input.jugador = enrollment
       ? enrollment.jugador.nombre_completo
-      : "Jugador no informado";
+      : adjustScore
+        ? "Jugador sin identificar"
+        : "Jugador no informado";
   }
 
   const method = eventId ? "PATCH" : "POST";
@@ -157,13 +173,51 @@ async function saveEvent(event) {
   });
   const rows = await parseSupabaseResponse(response);
   const incidencia = Array.isArray(rows) ? rows[0] : rows;
+  let updatedMatch = match;
 
-  return json(eventId ? 200 : 201, { incidencia });
+  if (scoreBefore) {
+    const scoreAfter = applyEventToScore(
+      { ...scoreBefore },
+      input,
+      match,
+      1
+    );
+
+    try {
+      updatedMatch = await patchMatch(match.id, {
+        goles_local: scoreAfter.local,
+        goles_visitante: scoreAfter.visitante,
+        estado: match.estado === "finalizado"
+          ? "finalizado"
+          : "en_vivo"
+      });
+    } catch (error) {
+      try {
+        const rollback = await supabaseFetch(
+          `/rest/v1/eventos_partido?id=eq.${incidencia.id}`,
+          { method: "DELETE" }
+        );
+        await parseSupabaseResponse(rollback);
+      } catch (rollbackError) {
+        console.error(
+          "No se pudo revertir la incidencia:",
+          rollbackError
+        );
+      }
+      throw error;
+    }
+  }
+
+  return json(eventId ? 200 : 201, {
+    incidencia,
+    partido: updatedMatch
+  });
 }
 
 async function deleteEvent(event) {
   const body = JSON.parse(event.body || "{}");
   const eventId = requiredId(body.id, "Incidencia invalida.");
+  const adjustScore = body.ajustar_resultado === true;
   const existing = await getEvent(eventId);
 
   if (!existing) {
@@ -172,14 +226,64 @@ async function deleteEvent(event) {
 
   const match = await getMatch(existing.partido_id);
   if (match) await assertStageOpen(match);
+  if (adjustScore && match?.estado === "finalizado") {
+    throw validationError(
+      "El partido esta finalizado. Reabrilo antes de deshacer."
+    );
+  }
 
-  const response = await supabaseFetch(
-    `/rest/v1/eventos_partido?id=eq.${eventId}`,
-    { method: "DELETE" }
-  );
-  await parseSupabaseResponse(response);
+  if (adjustScore) {
+    const lastEvent = await getLastEvent(existing.partido_id);
+    if (!lastEvent || String(lastEvent.id) !== String(eventId)) {
+      throw validationError(
+        "Solo se puede deshacer la ultima incidencia del partido."
+      );
+    }
+  }
 
-  return json(200, { eliminado: eventId });
+  const scoreBefore =
+    adjustScore && match && isGoalType(existing.tipo)
+      ? await getMatchScore(match)
+      : null;
+  const scoreAfter = scoreBefore
+    ? applyEventToScore(
+        { ...scoreBefore },
+        existing,
+        match,
+        -1
+      )
+    : null;
+  let updatedMatch = match;
+
+  if (scoreAfter) {
+    updatedMatch = await patchMatch(match.id, {
+      goles_local: scoreAfter.local,
+      goles_visitante: scoreAfter.visitante,
+      estado: match.estado
+    });
+  }
+
+  try {
+    const response = await supabaseFetch(
+      `/rest/v1/eventos_partido?id=eq.${eventId}`,
+      { method: "DELETE" }
+    );
+    await parseSupabaseResponse(response);
+  } catch (error) {
+    if (scoreBefore) {
+      await patchMatch(match.id, {
+        goles_local: scoreBefore.local,
+        goles_visitante: scoreBefore.visitante,
+        estado: match.estado
+      });
+    }
+    throw error;
+  }
+
+  return json(200, {
+    eliminado: eventId,
+    partido: updatedMatch
+  });
 }
 
 function sanitizeInput(body, match) {
@@ -254,6 +358,18 @@ async function getNextEventOrder(matchId) {
   return Number(current || 0) + 1;
 }
 
+async function getLastEvent(matchId) {
+  const response = await supabaseFetch(
+    "/rest/v1/eventos_partido" +
+    "?select=*" +
+    `&partido_id=eq.${matchId}` +
+    "&order=orden.desc.nullslast,id.desc" +
+    "&limit=1"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows[0] || null : null;
+}
+
 async function getEvent(id) {
   const response = await supabaseFetch(
     `/rest/v1/eventos_partido?select=*&id=eq.${id}&limit=1`
@@ -266,12 +382,77 @@ async function getMatch(id) {
   const response = await supabaseFetch(
     "/rest/v1/partidos" +
     "?select=id,tipo,fecha,fase,local,visitante," +
-    "local_id,visitante_id,torneo_id" +
+    "local_id,visitante_id,torneo_id," +
+    "goles_local,goles_visitante,estado" +
     `&id=eq.${id}&limit=1`
   );
   const rows = await parseSupabaseResponse(response);
   const match = Array.isArray(rows) ? rows[0] || null : null;
   return match ? await resolveMatchClubIds(match) : null;
+}
+
+function isGoalType(type) {
+  return ["gol", "gol_en_contra"].includes(type);
+}
+
+async function getMatchScore(match) {
+  const hasScore =
+    match.goles_local !== null &&
+    match.goles_local !== undefined &&
+    match.goles_visitante !== null &&
+    match.goles_visitante !== undefined;
+
+  if (hasScore) {
+    return {
+      local: Number(match.goles_local) || 0,
+      visitante: Number(match.goles_visitante) || 0
+    };
+  }
+
+  const response = await supabaseFetch(
+    "/rest/v1/eventos_partido" +
+    "?select=tipo,equipo_id" +
+    `&partido_id=eq.${match.id}` +
+    "&order=orden.asc.nullslast,id.asc"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return (Array.isArray(rows) ? rows : []).reduce(
+    (score, item) => applyEventToScore(score, item, match, 1),
+    { local: 0, visitante: 0 }
+  );
+}
+
+function applyEventToScore(score, item, match, amount) {
+  if (!isGoalType(item.tipo)) return score;
+
+  const scoringTeam = item.tipo === "gol"
+    ? item.equipo_id
+    : String(item.equipo_id) === String(match.local_id)
+      ? match.visitante_id
+      : match.local_id;
+
+  if (String(scoringTeam) === String(match.local_id)) {
+    score.local = Math.max(0, score.local + amount);
+  } else if (
+    String(scoringTeam) === String(match.visitante_id)
+  ) {
+    score.visitante = Math.max(0, score.visitante + amount);
+  }
+
+  return score;
+}
+
+async function patchMatch(matchId, patch) {
+  const response = await supabaseFetch(
+    `/rest/v1/partidos?id=eq.${matchId}&select=*`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(patch)
+    }
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows[0] || null : rows;
 }
 
 async function resolveMatchClubIds(match) {

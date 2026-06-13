@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=4">
+  <link rel="stylesheet" href="styles/admin.css?v=5">
 </head>
 <body>
   <main class="admin-shell">
@@ -55,6 +55,104 @@
       </div>
 
       <div class="status" id="statusBox">Listo.</div>
+
+      <section class="admin-card live-mode-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Prueba operativa</span>
+            <h2>Modo Partido</h2>
+          </div>
+          <span class="live-mode-state" id="liveModeState">
+            Sin seleccionar
+          </span>
+        </div>
+
+        <p class="stage-intro">
+          Carga rápida para celular. Tocá una acción del equipo y después
+          elegí al jugador. Cada toque se guarda en el momento.
+        </p>
+
+        <label class="live-match-select">
+          Partido
+          <select id="liveMatch"></select>
+        </label>
+
+        <div class="live-scoreboard">
+          <div class="live-team live-team-local">
+            <span>Local</span>
+            <strong id="liveLocalName">Por definir</strong>
+          </div>
+          <div class="live-score" id="liveScore">0 - 0</div>
+          <div class="live-team live-team-away">
+            <span>Visitante</span>
+            <strong id="liveAwayName">Por definir</strong>
+          </div>
+        </div>
+
+        <div class="live-action-columns">
+          <div class="live-actions-side live-actions-local">
+            <div id="liveLocalActions"></div>
+          </div>
+          <div class="live-actions-side live-actions-away">
+            <div id="liveAwayActions"></div>
+          </div>
+        </div>
+
+        <div class="live-timeline-heading">
+          <h3>Últimas acciones</h3>
+          <span id="liveEventCount">0 incidencias</span>
+        </div>
+        <div class="live-timeline" id="liveTimeline">
+          Elegí un partido para comenzar.
+        </div>
+
+        <div class="live-controls">
+          <button type="button" class="ghost" id="liveUndoBtn">
+            Deshacer última
+          </button>
+          <button type="button" class="ghost" id="liveStartBtn">
+            Marcar en vivo
+          </button>
+          <button type="button" id="liveFinishBtn">
+            Finalizar partido
+          </button>
+        </div>
+
+        <div class="form-feedback" id="liveFeedback">
+          Elegí uno de los partidos restantes para probar el modo rápido.
+        </div>
+      </section>
+
+      <div class="live-picker hidden" id="livePicker" aria-hidden="true">
+        <div class="live-picker-backdrop" data-live-close></div>
+        <section
+          class="live-picker-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="livePickerTitle"
+        >
+          <div class="live-picker-head">
+            <div>
+              <span class="eyebrow" id="livePickerEyebrow">
+                Incidencia
+              </span>
+              <h2 id="livePickerTitle">Elegí al jugador</h2>
+            </div>
+            <button
+              type="button"
+              class="ghost live-picker-close"
+              data-live-close
+              aria-label="Cerrar"
+            >
+              Cerrar
+            </button>
+          </div>
+          <p id="livePickerHelp">
+            La incidencia se guardará al tocar un jugador.
+          </p>
+          <div class="live-player-grid" id="livePlayerGrid"></div>
+        </section>
+      </div>
 
       <section class="admin-card analytics-panel">
         <div class="panel-heading">
@@ -653,6 +751,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=12"></script>
+  <script src="js/admin-panel.js?v=13"></script>
 </body>
 </html>
