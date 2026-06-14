@@ -31,6 +31,13 @@ exports.handler = async event => {
     }
 
     if (["POST", "PATCH"].includes(event.httpMethod)) {
+      const body = JSON.parse(event.body || "{}");
+      if (
+        event.httpMethod === "PATCH" &&
+        body.action === "reordenar"
+      ) {
+        return await reorderEvents(body);
+      }
       return await saveEvent(event);
     }
 
@@ -181,6 +188,93 @@ async function deleteEvent(event) {
   await parseSupabaseResponse(response);
 
   return json(200, { eliminado: eventId });
+}
+
+async function reorderEvents(body) {
+  const matchId = requiredId(
+    body.partido_id,
+    "Partido invalido."
+  );
+  const ids = Array.isArray(body.ids)
+    ? body.ids.map(id => requiredId(id, "Incidencia invalida."))
+    : [];
+
+  if (ids.length === 0 || new Set(ids).size !== ids.length) {
+    throw validationError(
+      "El nuevo orden debe incluir incidencias unicas."
+    );
+  }
+
+  const match = await getMatch(matchId);
+  if (!match) return json(404, { error: "Partido no encontrado." });
+  await assertStageOpen(match);
+
+  const existing = await getMatchEvents(matchId);
+  const existingIds = existing.map(item => Number(item.id));
+  const sameEvents =
+    existingIds.length === ids.length &&
+    existingIds.every(id => ids.includes(id));
+
+  if (!sameEvents) {
+    throw validationError(
+      "El orden debe incluir todas las incidencias del partido."
+    );
+  }
+
+  const original = new Map(
+    existing.map(item => [Number(item.id), Number(item.orden) || null])
+  );
+
+  try {
+    for (let index = 0; index < ids.length; index += 1) {
+      await patchEventOrder(ids[index], 100000 + index);
+    }
+    for (let index = 0; index < ids.length; index += 1) {
+      await patchEventOrder(ids[index], index + 1);
+    }
+  } catch (error) {
+    for (const [id, order] of original.entries()) {
+      try {
+        await patchEventOrder(id, order);
+      } catch (rollbackError) {
+        console.error(
+          "No se pudo restaurar el orden de incidencia:",
+          rollbackError
+        );
+      }
+    }
+    throw error;
+  }
+
+  return json(200, {
+    partido_id: matchId,
+    ids
+  });
+}
+
+async function getMatchEvents(matchId) {
+  const response = await supabaseFetch(
+    "/rest/v1/eventos_partido" +
+    "?select=id,orden" +
+    `&partido_id=eq.${matchId}` +
+    "&order=orden.asc.nullslast,id.asc"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function patchEventOrder(id, order) {
+  const response = await supabaseFetch(
+    `/rest/v1/eventos_partido?id=eq.${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        orden: order,
+        actualizado_en: new Date().toISOString()
+      })
+    }
+  );
+  await parseSupabaseResponse(response);
 }
 
 function sanitizeInput(body, match) {

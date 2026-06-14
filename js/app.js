@@ -3342,12 +3342,13 @@ function renderDetallePartido(id) {
   const tienePenales =
     partido.penales_local !== null &&
     partido.penales_visitante !== null;
-  const eventos = prepararSecuenciaEventos(
+  const secuenciaEventos = prepararSecuenciaEventos(
     state.eventos.filter(
       evento => String(evento.partido_id) === String(partido.id)
     ),
     partido
   );
+  const eventos = secuenciaEventos.eventos;
   const contexto = partido.tipo === "playoff"
     ? `${etiquetaFase(partido.fase)} · Llave ${partido.numero_playoff || 1}`
     : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
@@ -3415,9 +3416,20 @@ function renderDetallePartido(id) {
       </div>
       ${eventos.length > 0
         ? `
+          ${secuenciaEventos.mensaje
+            ? `
+              <div class="event-sequence-note">
+                ${escaparHtml(secuenciaEventos.mensaje)}
+              </div>
+            `
+            : ""}
           <div class="event-team-head">
             <strong>${escaparHtml(nombre(partido.local))}</strong>
-            <span>Marcador</span>
+            <span>
+              ${secuenciaEventos.secuenciaPublicable
+                ? "Marcador"
+                : "Orden"}
+            </span>
             <strong>${escaparHtml(nombre(partido.visitante))}</strong>
           </div>
           <div class="event-list">${eventos.map(evento =>
@@ -3467,11 +3479,80 @@ function renderEquipoDetallePartido(equipo) {
   `;
 }
 
+function analizarSecuenciaEventosPublica(eventos, partido) {
+  const goles = eventos.filter(evento =>
+    ["gol", "gol-penal", "gol-contra"].includes(
+      normalizarTipoEvento(evento.tipo)
+    )
+  );
+  const resultadoCargado =
+    partido.goles_local !== null &&
+    partido.goles_local !== undefined &&
+    partido.goles_visitante !== null &&
+    partido.goles_visitante !== undefined;
+  const conteo = goles.reduce(
+    (resultado, evento) => {
+      const tipo = normalizarTipoEvento(evento.tipo);
+      const lado = resolverLadoEvento(evento, partido);
+
+      if (["gol", "gol-penal"].includes(tipo)) {
+        if (lado === "local") resultado.local += 1;
+        if (lado === "visitante") resultado.visitante += 1;
+      }
+      if (tipo === "gol-contra") {
+        if (lado === "local") resultado.visitante += 1;
+        if (lado === "visitante") resultado.local += 1;
+      }
+      return resultado;
+    },
+    { local: 0, visitante: 0 }
+  );
+  const golesCoinciden =
+    resultadoCargado &&
+    conteo.local === Number(partido.goles_local) &&
+    conteo.visitante === Number(partido.goles_visitante);
+  const golesConfirmados =
+    goles.length > 0 &&
+    goles.every(evento => evento.estado_dato === "confirmado");
+  const ordenes = eventos.map(evento => Number(evento.orden));
+  const ordenValido =
+    ordenes.every(orden => Number.isInteger(orden) && orden > 0) &&
+    new Set(ordenes).size === ordenes.length;
+  const secuenciaPublicable =
+    goles.length > 0 &&
+    golesCoinciden &&
+    golesConfirmados &&
+    ordenValido;
+
+  let mensaje = "";
+  if (goles.length > 0 && !golesCoinciden) {
+    mensaje =
+      "Las incidencias de gol todavía no coinciden con el resultado. " +
+      "Se muestran sin evolución del marcador.";
+  } else if (goles.length > 0 && !golesConfirmados) {
+    mensaje =
+      "La secuencia de goles todavía está por verificar. " +
+      "Se muestran sin evolución del marcador.";
+  } else if (goles.length > 0 && !ordenValido) {
+    mensaje =
+      "El orden de las incidencias todavía necesita revisión.";
+  }
+
+  return {
+    secuenciaPublicable,
+    mensaje
+  };
+}
+
 function prepararSecuenciaEventos(eventos, partido) {
   let golesLocal = 0;
   let golesVisitante = 0;
+  const analisis = analizarSecuenciaEventosPublica(
+    eventos,
+    partido
+  );
 
-  return [...eventos]
+  const ordenados = [...eventos]
     .sort(
       (a, b) =>
         Number(a.orden ?? a.id) - Number(b.orden ?? b.id) ||
@@ -3484,7 +3565,10 @@ function prepararSecuenciaEventos(eventos, partido) {
       const esVisitante = lado === "visitante";
       let marcador = null;
 
-      if (["gol", "gol-penal"].includes(tipo)) {
+      if (
+        analisis.secuenciaPublicable &&
+        ["gol", "gol-penal"].includes(tipo)
+      ) {
         if (esLocal) golesLocal += 1;
         if (esVisitante) golesVisitante += 1;
         if (esLocal || esVisitante) {
@@ -3492,7 +3576,10 @@ function prepararSecuenciaEventos(eventos, partido) {
         }
       }
 
-      if (tipo === "gol-contra") {
+      if (
+        analisis.secuenciaPublicable &&
+        tipo === "gol-contra"
+      ) {
         if (esLocal) golesVisitante += 1;
         if (esVisitante) golesLocal += 1;
         if (esLocal || esVisitante) {
@@ -3505,6 +3592,12 @@ function prepararSecuenciaEventos(eventos, partido) {
         marcador
       };
     });
+
+  return {
+    eventos: ordenados,
+    secuenciaPublicable: analisis.secuenciaPublicable,
+    mensaje: analisis.mensaje
+  };
 }
 
 function renderEventoPartido(evento, partido) {

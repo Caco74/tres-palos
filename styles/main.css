@@ -2265,6 +2265,17 @@ body.detail-mode .app-main {
   text-align: center;
 }
 
+.event-sequence-note {
+  margin: 10px 14px 0;
+  padding: 9px 11px;
+  color: var(--draw);
+  background: rgba(234, 179, 8, .06);
+  border: 1px solid rgba(234, 179, 8, .18);
+  border-radius: 8px;
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
 .event-team-head {
   padding: 10px 14px 8px;
   display: grid;

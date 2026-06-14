@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=7">
+  <link rel="stylesheet" href="styles/admin.css?v=8">
 </head>
 <body>
   <main class="admin-shell">
@@ -90,6 +90,15 @@
         </div>
         <div class="live-goal-progress" id="liveGoalProgress">
           Cargá primero el resultado del partido.
+        </div>
+        <div class="live-consistency">
+          <div class="live-consistency-head">
+            <strong>Control de consistencia</strong>
+            <span id="liveConsistencyState">Sin revisar</span>
+          </div>
+          <div id="liveConsistencyList">
+            Elegí un partido para revisar sus incidencias.
+          </div>
         </div>
 
         <div class="live-action-columns">
@@ -538,7 +547,7 @@
 
         <p class="stage-intro">
           Las incidencias nuevas usan el plantel del club y torneo del partido.
-          Cargalas de la primera a la última.
+          Cargalas de la primera a la última o corregí el orden con las flechas.
           Los nombres históricos pueden conciliarse como datos por verificar.
           En un gol en contra, elegí el club al que pertenece el jugador.
         </p>
@@ -752,6 +761,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=15"></script>
+  <script src="js/admin-panel.js?v=16"></script>
 </body>
 </html>

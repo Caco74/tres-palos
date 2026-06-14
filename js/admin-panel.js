@@ -74,6 +74,12 @@ const liveLocalName = document.getElementById("liveLocalName");
 const liveScore = document.getElementById("liveScore");
 const liveAwayName = document.getElementById("liveAwayName");
 const liveGoalProgress = document.getElementById("liveGoalProgress");
+const liveConsistencyState = document.getElementById(
+  "liveConsistencyState"
+);
+const liveConsistencyList = document.getElementById(
+  "liveConsistencyList"
+);
 const liveLocalActions = document.getElementById("liveLocalActions");
 const liveAwayActions = document.getElementById("liveAwayActions");
 const liveEventCount = document.getElementById("liveEventCount");
@@ -169,6 +175,7 @@ let etapaProcesando = false;
 let liveAction = null;
 let liveChangeOutId = null;
 let liveBusy = false;
+let eventReordering = false;
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -224,6 +231,11 @@ function setEventSaving(isSaving) {
 function setEventFeedback(message, type = "info") {
   eventFeedback.textContent = message;
   eventFeedback.dataset.type = type;
+}
+
+function setEventReordering(isReordering) {
+  eventReordering = isReordering;
+  renderIncidenciasAdmin();
 }
 
 function setLiveFeedback(message, type = "info") {
@@ -583,6 +595,19 @@ function renderEtapaSeleccionada() {
   const faltantes = partidosEtapa.filter(
     partido => !partidoListoParaCierre(partido)
   );
+  const advertenciasIncidencias = partidosEtapa.filter(partido => {
+    const eventos = incidencias.filter(evento =>
+      String(evento.partido_id) === String(partido.id)
+    );
+    return analizarConsistenciaIncidencias(
+      partido,
+      eventos
+    ).state !== "ok";
+  });
+  const notaIncidencias = advertenciasIncidencias.length > 0
+    ? ` ${advertenciasIncidencias.length} partido(s) tienen advertencias ` +
+      "de incidencias; no bloquean el cierre."
+    : "";
   const cerrada = estado?.estado === "cerrada";
 
   stageMatchesTotal.textContent = partidosEtapa.length;
@@ -598,15 +623,18 @@ function renderEtapaSeleccionada() {
     stageValidation.dataset.type = "ok";
   } else if (faltantes.length === 0 && partidosEtapa.length > 0) {
     stageValidation.textContent =
-      "Control completo. La etapa está lista para cerrar y respaldar.";
-    stageValidation.dataset.type = "ok";
+      "Control de partidos completo. La etapa está lista para cerrar y " +
+      `respaldar.${notaIncidencias}`;
+    stageValidation.dataset.type =
+      advertenciasIncidencias.length > 0 ? "warn" : "ok";
   } else {
     const ids = faltantes.slice(0, 6).map(
       partido => `#${partido.id}`
     ).join(", ");
     stageValidation.textContent =
       `${faltantes.length} partido(s) todavía requieren equipos, ` +
-      `resultado o resolver su estado${ids ? `: ${ids}` : "."}`;
+      `resultado o resolver su estado${ids ? `: ${ids}.` : "."}` +
+      notaIncidencias;
     stageValidation.dataset.type = "warn";
   }
 
@@ -1371,6 +1399,7 @@ async function cargarIncidenciasAdmin() {
   );
   renderIncidenciasAdmin();
   renderModoPartido();
+  if (etapasHabilitadas) renderEtapaSeleccionada();
 }
 
 function mostrarIncidenciasNoDisponibles(message) {
@@ -1465,6 +1494,10 @@ function incidenciasVisibles() {
 
 function renderIncidenciasAdmin() {
   const visibles = incidenciasVisibles();
+  const partido = partidoIncidenciasSeleccionado();
+  const etapa = obtenerEtapaPartidoAdmin(partido);
+  const etapaCerrada =
+    obtenerEstadoEtapa(etapa)?.estado === "cerrada";
   eventsTotal.textContent =
     `${visibles.length} ${
       visibles.length === 1 ? "incidencia" : "incidencias"
@@ -1508,29 +1541,61 @@ function renderIncidenciasAdmin() {
       : evento.jugador || "Jugador no informado";
 
     return `
-      <button
-        type="button"
+      <div
         class="event-admin-item ${
           String(evento.id) === String(incidenciaSeleccionadaId)
             ? "on"
             : ""
         }"
-        data-event-id="${evento.id}"
       >
-        <span class="event-admin-order">
-          ${indice + 1}
+        <button
+          type="button"
+          class="event-admin-main"
+          data-event-id="${evento.id}"
+        >
+          <span class="event-admin-order">
+            ${indice + 1}
+          </span>
+          <span>
+            <strong>${escapeHtml(participante)}</strong>
+            <small>
+              ${escapeHtml(nombreEquipoIncidenciaAdmin(evento))} ·
+              ${escapeHtml(etiquetaTipoIncidencia(evento.tipo))}
+            </small>
+          </span>
+          <span class="event-admin-state ${estadoClase}">
+            ${estado}
+          </span>
+        </button>
+        <span class="event-order-actions">
+          <button
+            type="button"
+            data-move-event="${evento.id}"
+            data-direction="up"
+            aria-label="Subir incidencia"
+            title="Subir"
+            ${
+              indice === 0 || etapaCerrada || eventReordering
+                ? "disabled"
+                : ""
+            }
+          >↑</button>
+          <button
+            type="button"
+            data-move-event="${evento.id}"
+            data-direction="down"
+            aria-label="Bajar incidencia"
+            title="Bajar"
+            ${
+              indice === visibles.length - 1 ||
+              etapaCerrada ||
+              eventReordering
+                ? "disabled"
+                : ""
+            }
+          >↓</button>
         </span>
-        <span>
-          <strong>${escapeHtml(participante)}</strong>
-          <small>
-            ${escapeHtml(nombreEquipoIncidenciaAdmin(evento))} ·
-            ${escapeHtml(etiquetaTipoIncidencia(evento.tipo))}
-          </small>
-        </span>
-        <span class="event-admin-state ${estadoClase}">
-          ${estado}
-        </span>
-      </button>
+      </div>
     `;
   }).join("");
 }
@@ -1635,6 +1700,164 @@ function contarGolesIdentificados(partido, eventos) {
   );
 }
 
+function esGolIncidencia(tipo) {
+  return ["gol", "gol_penal", "gol_en_contra"].includes(tipo);
+}
+
+function incidenciaSinVincular(evento) {
+  if (!evento.inscripcion_jugador_id) return true;
+  return evento.tipo === "cambio" &&
+    !evento.inscripcion_relacionada_id;
+}
+
+function analizarConsistenciaIncidencias(partido, eventos) {
+  const resultadoCargado = resultadoPartidoCargado(partido);
+  const identificados = partido
+    ? contarGolesIdentificados(partido, eventos)
+    : { local: 0, visitante: 0 };
+  const esperados = resultadoCargado
+    ? {
+        local: Number(partido.goles_local) || 0,
+        visitante: Number(partido.goles_visitante) || 0
+      }
+    : { local: 0, visitante: 0 };
+  const goles = eventos.filter(evento =>
+    esGolIncidencia(evento.tipo)
+  );
+  const sinVincular = eventos.filter(incidenciaSinVincular).length;
+  const porVerificar = eventos.filter(
+    evento => evento.estado_dato !== "confirmado"
+  ).length;
+  const ordenes = eventos.map(evento => Number(evento.orden));
+  const ordenValido =
+    ordenes.every(orden => Number.isInteger(orden) && orden > 0) &&
+    new Set(ordenes).size === ordenes.length;
+  const golesCoinciden =
+    resultadoCargado &&
+    identificados.local === esperados.local &&
+    identificados.visitante === esperados.visitante;
+  const excesoGoles =
+    resultadoCargado &&
+    (
+      identificados.local > esperados.local ||
+      identificados.visitante > esperados.visitante
+    );
+  const golesConfirmados =
+    goles.length > 0 &&
+    goles.every(evento => evento.estado_dato === "confirmado");
+  const secuenciaPublicable =
+    goles.length > 0 &&
+    golesCoinciden &&
+    golesConfirmados &&
+    ordenValido;
+  const items = [];
+
+  if (!resultadoCargado) {
+    items.push({
+      type: "warn",
+      text: "Falta cargar el resultado del partido."
+    });
+  } else if (excesoGoles) {
+    items.push({
+      type: "error",
+      text:
+        `Hay más goles cargados (${identificados.local}-${identificados.visitante}) ` +
+        `que en el resultado (${esperados.local}-${esperados.visitante}).`
+    });
+  } else if (!golesCoinciden) {
+    items.push({
+      type: "warn",
+      text:
+        `Resultado ${esperados.local}-${esperados.visitante}; ` +
+        `goles identificados ${identificados.local}-${identificados.visitante}.`
+    });
+  } else {
+    items.push({
+      type: "ok",
+      text: "La cantidad de goles coincide con el resultado."
+    });
+  }
+
+  items.push({
+    type: sinVincular > 0 ? "warn" : "ok",
+    text: sinVincular > 0
+      ? `${sinVincular} incidencia(s) tienen jugadores sin vincular.`
+      : "Todos los protagonistas están vinculados al plantel."
+  });
+  items.push({
+    type: porVerificar > 0 ? "warn" : "ok",
+    text: porVerificar > 0
+      ? `${porVerificar} incidencia(s) siguen por verificar.`
+      : "Todas las incidencias están confirmadas."
+  });
+
+  if (goles.length === 0 && resultadoCargado) {
+    items.push({
+      type: esperados.local + esperados.visitante === 0 ? "ok" : "warn",
+      text: esperados.local + esperados.visitante === 0
+        ? "El partido no tuvo goles."
+        : "Todavía no hay goles cargados para construir la secuencia."
+    });
+  } else if (secuenciaPublicable) {
+    items.push({
+      type: "ok",
+      text: "La web puede mostrar la evolución del marcador."
+    });
+  } else if (goles.length > 0) {
+    items.push({
+      type: "warn",
+      text:
+        "La web listará los goles sin evolución del marcador hasta completar, " +
+        "ordenar y confirmar la secuencia."
+    });
+  }
+
+  const state = items.some(item => item.type === "error")
+    ? "error"
+    : items.some(item => item.type === "warn")
+      ? "warn"
+      : "ok";
+
+  return {
+    identificados,
+    esperados,
+    goles,
+    golesCoinciden,
+    ordenValido,
+    secuenciaPublicable,
+    items,
+    state
+  };
+}
+
+function renderConsistenciaModo(partido, eventos) {
+  if (!partido) {
+    liveConsistencyState.textContent = "Sin revisar";
+    liveConsistencyState.dataset.state = "";
+    liveConsistencyList.className = "";
+    liveConsistencyList.textContent =
+      "Elegí un partido para revisar sus incidencias.";
+    return;
+  }
+
+  const analisis = analizarConsistenciaIncidencias(
+    partido,
+    eventos
+  );
+  liveConsistencyState.textContent = {
+    ok: "Consistente",
+    warn: "Con advertencias",
+    error: "Revisar"
+  }[analisis.state];
+  liveConsistencyState.dataset.state = analisis.state;
+  liveConsistencyList.className = "live-consistency-list";
+  liveConsistencyList.innerHTML = analisis.items.map(item => `
+    <div class="live-consistency-item ${item.type}">
+      ${escapeHtml(item.text)}
+    </div>
+  `).join("");
+}
+
 function ladoGolAccion(lado, tipo) {
   if (["gol", "gol_penal"].includes(tipo)) return lado;
   if (tipo === "gol_en_contra") {
@@ -1725,14 +1948,22 @@ function renderTimelineModo(partido, eventos) {
   }
 
   const local = resolverEquipoPartidoAdmin(partido, "local");
+  const analisis = analizarConsistenciaIncidencias(
+    partido,
+    eventos
+  );
   const marcador = { local: 0, visitante: 0 };
-  const filas = eventos.map(evento => {
+  const filas = eventos.map((evento, indice) => {
     ajustarMarcadorPorIncidencia(marcador, evento, partido);
     const esLocal =
       String(evento.equipo_id) === String(local.id);
     const detalle = `${etiquetaTipoIncidencia(evento.tipo)} · ${
       nombreParticipanteModo(evento)
     }`;
+    const centro =
+      analisis.secuenciaPublicable && esGolIncidencia(evento.tipo)
+        ? `${marcador.local} - ${marcador.visitante}`
+        : `#${indice + 1}`;
 
     return `
       <div class="live-timeline-row">
@@ -1740,7 +1971,7 @@ function renderTimelineModo(partido, eventos) {
           ${esLocal ? escapeHtml(detalle) : ""}
         </span>
         <span class="live-timeline-score">
-          ${marcador.local} - ${marcador.visitante}
+          ${centro}
         </span>
         <span class="live-timeline-team away">
           ${esLocal ? "" : escapeHtml(detalle)}
@@ -1826,6 +2057,7 @@ function renderModoPartido() {
     eventos
   );
   renderTimelineModo(partido, eventos);
+  renderConsistenciaModo(partido, eventos);
 
   liveMatch.disabled = liveBusy || partidos.length === 0;
   liveUndoBtn.disabled =
@@ -2409,6 +2641,56 @@ async function eliminarIncidencia() {
     setStatus("Incidencia eliminada.", "ok");
   } finally {
     setEventSaving(false);
+  }
+}
+
+async function moverIncidencia(id, direction) {
+  if (eventReordering) return;
+
+  const visibles = incidenciasVisibles();
+  const currentIndex = visibles.findIndex(
+    evento => String(evento.id) === String(id)
+  );
+  const targetIndex = direction === "up"
+    ? currentIndex - 1
+    : currentIndex + 1;
+
+  if (
+    currentIndex < 0 ||
+    targetIndex < 0 ||
+    targetIndex >= visibles.length
+  ) {
+    return;
+  }
+
+  const partido = partidoIncidenciasSeleccionado();
+  if (!partido) return;
+
+  const ids = visibles.map(evento => Number(evento.id));
+  [ids[currentIndex], ids[targetIndex]] =
+    [ids[targetIndex], ids[currentIndex]];
+
+  setEventReordering(true);
+  setEventFeedback("Guardando nuevo orden...");
+
+  try {
+    await apiRequest(
+      "PATCH",
+      {
+        action: "reordenar",
+        partido_id: partido.id,
+        ids
+      },
+      EVENTS_API_URL
+    );
+    await cargarIncidenciasAdmin();
+    setEventFeedback(
+      "Orden actualizado. Revisá la secuencia antes de confirmar.",
+      "ok"
+    );
+    setStatus("Secuencia de incidencias actualizada.", "ok");
+  } finally {
+    setEventReordering(false);
   }
 }
 
@@ -3026,6 +3308,19 @@ liveFinishBtn.addEventListener("click", () => {
 });
 newEventBtn.addEventListener("click", iniciarNuevaIncidencia);
 eventList.addEventListener("click", event => {
+  const moveButton = event.target.closest("[data-move-event]");
+  if (moveButton) {
+    moverIncidencia(
+      moveButton.dataset.moveEvent,
+      moveButton.dataset.direction
+    ).catch(error => {
+      setEventFeedback(error.message, "error");
+      setStatus(error.message, "error");
+      setEventReordering(false);
+    });
+    return;
+  }
+
   const item = event.target.closest("[data-event-id]");
   if (item) seleccionarIncidencia(item.dataset.eventId);
 });
