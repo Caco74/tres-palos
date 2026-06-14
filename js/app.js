@@ -888,13 +888,20 @@ function obtenerPartidosRegularesVigentes() {
 }
 
 function obtenerEstadioPartido(partido) {
+  const estadioCargado =
+    partido.estadio ||
+    partido.cancha ||
+    partido.sede;
+
+  if (partido.fase === "final") {
+    return estadioCargado || "-";
+  }
+
   const clubLocal = state.clubes.find(
     club => String(club.id) === String(partido.local_id)
   ) || obtenerClub(partido.local);
 
-  return partido.estadio ||
-    partido.cancha ||
-    partido.sede ||
+  return estadioCargado ||
     clubLocal?.estadio ||
     "-";
 }
@@ -1311,13 +1318,29 @@ function resolverPartidoPlayoff(partido) {
     !Boolean(partido.local && partido.visitante);
   const local = resolverEquipoPlayoff(partido, "local");
   const visitante = resolverEquipoPlayoff(partido, "visitante");
+  const invertirVueltaProvisional =
+    localiaPendientePorSorteo &&
+    Number(partido.numero_playoff) === 2;
+  const localResuelto = invertirVueltaProvisional
+    ? visitante
+    : local;
+  const visitanteResuelto = invertirVueltaProvisional
+    ? local
+    : visitante;
+  const localIdOriginal =
+    partido.local_id || obtenerClub(local)?.id || null;
+  const visitanteIdOriginal =
+    partido.visitante_id || obtenerClub(visitante)?.id || null;
   const partidoResuelto = {
     ...partido,
-    local,
-    visitante,
-    local_id: partido.local_id || obtenerClub(local)?.id || null,
-    visitante_id:
-      partido.visitante_id || obtenerClub(visitante)?.id || null,
+    local: localResuelto,
+    visitante: visitanteResuelto,
+    local_id: invertirVueltaProvisional
+      ? visitanteIdOriginal
+      : localIdOriginal,
+    visitante_id: invertirVueltaProvisional
+      ? localIdOriginal
+      : visitanteIdOriginal,
     localia_pendiente: localiaPendientePorSorteo
   };
 
@@ -3548,7 +3571,9 @@ function renderDetallePartido(id) {
         ${renderValorDetalle(
           "Hora",
           partido.hora ||
-            (jugado ? "-" : ESTADOS_DATO.confirmar)
+            (partido.fase === "final" || jugado
+              ? "-"
+              : ESTADOS_DATO.confirmar)
         )}
         ${renderValorDetalle(
           "Estadio",
