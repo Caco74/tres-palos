@@ -870,6 +870,25 @@ input[readonly] {
   white-space: nowrap;
 }
 
+.live-goal-progress {
+  padding: 9px 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .025);
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  font-size: .7rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.live-goal-progress.complete {
+  color: var(--green);
+}
+
+.live-goal-progress.pending {
+  color: var(--yellow);
+}
+
 .live-action-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1005,7 +1024,7 @@ input[readonly] {
 
 .live-controls {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-top: 12px;
 }

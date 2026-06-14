@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=5">
+  <link rel="stylesheet" href="styles/admin.css?v=6">
 </head>
 <body>
   <main class="admin-shell">
@@ -59,8 +59,8 @@
       <section class="admin-card live-mode-panel">
         <div class="panel-heading">
           <div>
-            <span class="eyebrow">Prueba operativa</span>
-            <h2>Modo Partido</h2>
+            <span class="eyebrow">Carga posterior</span>
+            <h2>Incidencias del partido</h2>
           </div>
           <span class="live-mode-state" id="liveModeState">
             Sin seleccionar
@@ -68,8 +68,8 @@
         </div>
 
         <p class="stage-intro">
-          Carga rápida para celular. Tocá una acción del equipo y después
-          elegí al jugador. Cada toque se guarda en el momento.
+          El resultado no se modifica desde acá. Tocá una acción del equipo
+          y elegí al jugador para completar lo ocurrido en el partido.
         </p>
 
         <label class="live-match-select">
@@ -87,6 +87,9 @@
             <span>Visitante</span>
             <strong id="liveAwayName">Por definir</strong>
           </div>
+        </div>
+        <div class="live-goal-progress" id="liveGoalProgress">
+          Cargá primero el resultado del partido.
         </div>
 
         <div class="live-action-columns">
@@ -110,16 +113,13 @@
           <button type="button" class="ghost" id="liveUndoBtn">
             Deshacer última
           </button>
-          <button type="button" class="ghost" id="liveStartBtn">
-            Marcar en vivo
-          </button>
           <button type="button" id="liveFinishBtn">
-            Finalizar partido
+            Confirmar finalizado
           </button>
         </div>
 
         <div class="form-feedback" id="liveFeedback">
-          Elegí uno de los partidos restantes para probar el modo rápido.
+          Elegí un partido para completar sus incidencias.
         </div>
       </section>
 
@@ -751,6 +751,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=13"></script>
+  <script src="js/admin-panel.js?v=14"></script>
 </body>
 </html>

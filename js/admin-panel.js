@@ -73,12 +73,12 @@ const liveMatch = document.getElementById("liveMatch");
 const liveLocalName = document.getElementById("liveLocalName");
 const liveScore = document.getElementById("liveScore");
 const liveAwayName = document.getElementById("liveAwayName");
+const liveGoalProgress = document.getElementById("liveGoalProgress");
 const liveLocalActions = document.getElementById("liveLocalActions");
 const liveAwayActions = document.getElementById("liveAwayActions");
 const liveEventCount = document.getElementById("liveEventCount");
 const liveTimeline = document.getElementById("liveTimeline");
 const liveUndoBtn = document.getElementById("liveUndoBtn");
-const liveStartBtn = document.getElementById("liveStartBtn");
 const liveFinishBtn = document.getElementById("liveFinishBtn");
 const liveFeedback = document.getElementById("liveFeedback");
 const livePicker = document.getElementById("livePicker");
@@ -1434,8 +1434,8 @@ function renderOpcionesPartidosIncidencias(
       String(item.id) === String(partidoRapidoPrevio)
     ) ||
     ordenados.find(item =>
-      item.tipo === "playoff" &&
-      item.estado !== "finalizado" &&
+      item.estado === "finalizado" &&
+      tieneResultado(item) &&
       resolverEquipoPartidoAdmin(item, "local").id &&
       resolverEquipoPartidoAdmin(item, "visitante").id
     ) ||
@@ -1602,13 +1602,7 @@ function ajustarMarcadorPorIncidencia(
 }
 
 function calcularMarcadorModo(partido) {
-  const resultadoCargado =
-    partido?.goles_local !== null &&
-    partido?.goles_local !== undefined &&
-    partido?.goles_visitante !== null &&
-    partido?.goles_visitante !== undefined;
-
-  if (resultadoCargado) {
+  if (resultadoPartidoCargado(partido)) {
     return {
       local: Number(partido.goles_local) || 0,
       visitante: Number(partido.goles_visitante) || 0
@@ -1622,7 +1616,51 @@ function calcularMarcadorModo(partido) {
   );
 }
 
-function renderAccionesEquipoModo(container, lado, disabled) {
+function resultadoPartidoCargado(partido) {
+  return Boolean(
+    partido &&
+    partido.goles_local !== null &&
+    partido.goles_local !== undefined &&
+    partido.goles_visitante !== null &&
+    partido.goles_visitante !== undefined
+  );
+}
+
+function contarGolesIdentificados(partido, eventos) {
+  return eventos.reduce(
+    (marcador, evento) =>
+      ajustarMarcadorPorIncidencia(marcador, evento, partido),
+    { local: 0, visitante: 0 }
+  );
+}
+
+function ladoGolAccion(lado, tipo) {
+  if (tipo === "gol") return lado;
+  if (tipo === "gol_en_contra") {
+    return lado === "local" ? "visitante" : "local";
+  }
+  return null;
+}
+
+function accionGolDisponible(partido, eventos, lado, tipo) {
+  const ladoMarcador = ladoGolAccion(lado, tipo);
+  if (!ladoMarcador) return true;
+  if (!resultadoPartidoCargado(partido)) return false;
+
+  const identificados = contarGolesIdentificados(partido, eventos);
+  const limite = ladoMarcador === "local"
+    ? Number(partido.goles_local) || 0
+    : Number(partido.goles_visitante) || 0;
+  return identificados[ladoMarcador] < limite;
+}
+
+function renderAccionesEquipoModo(
+  container,
+  lado,
+  disabled,
+  partido,
+  eventos
+) {
   const acciones = [
     ["gol", "Gol"],
     ["gol_en_contra", "En contra"],
@@ -1632,17 +1670,29 @@ function renderAccionesEquipoModo(container, lado, disabled) {
     ["cambio", "Cambio"]
   ];
 
-  container.innerHTML = acciones.map(([tipo, etiqueta]) => `
+  container.innerHTML = acciones.map(([tipo, etiqueta]) => {
+    const sinCupoGol =
+      ["gol", "gol_en_contra"].includes(tipo) &&
+      !accionGolDisponible(partido, eventos, lado, tipo);
+    const title = sinCupoGol
+      ? resultadoPartidoCargado(partido)
+        ? "Ya se identificaron todos los goles de ese lado."
+        : "Cargá primero el resultado del partido."
+      : "";
+
+    return `
     <button
       type="button"
       class="live-action"
       data-live-action="${tipo}"
       data-live-side="${lado}"
-      ${disabled ? "disabled" : ""}
+      ${disabled || sinCupoGol ? "disabled" : ""}
+      ${title ? `title="${escapeHtml(title)}"` : ""}
     >
       ${etiqueta}
     </button>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function nombreParticipanteModo(evento) {
@@ -1710,14 +1760,34 @@ function renderModoPartido() {
   const finalizado = partido?.estado === "finalizado";
   const sinEquipos = !local.id || !visitante.id;
   const bloqueado =
-    !partido || etapaCerrada || finalizado || sinEquipos;
+    !partido || etapaCerrada || sinEquipos;
   const marcador = partido
     ? calcularMarcadorModo(partido)
+    : { local: 0, visitante: 0 };
+  const resultadoCargado = resultadoPartidoCargado(partido);
+  const identificados = partido
+    ? contarGolesIdentificados(partido, eventos)
     : { local: 0, visitante: 0 };
 
   liveLocalName.textContent = local.nombre || "Por definir";
   liveAwayName.textContent = visitante.nombre || "Por definir";
-  liveScore.textContent = `${marcador.local} - ${marcador.visitante}`;
+  liveScore.textContent = resultadoCargado
+    ? `${marcador.local} - ${marcador.visitante}`
+    : "- - -";
+  if (resultadoCargado) {
+    const completo =
+      identificados.local === marcador.local &&
+      identificados.visitante === marcador.visitante;
+    liveGoalProgress.textContent =
+      `Goles identificados: ${identificados.local}/${marcador.local}` +
+      ` local · ${identificados.visitante}/${marcador.visitante} visitante`;
+    liveGoalProgress.className =
+      `live-goal-progress ${completo ? "complete" : "pending"}`;
+  } else {
+    liveGoalProgress.textContent =
+      "Cargá primero el resultado para identificar sus goles.";
+    liveGoalProgress.className = "live-goal-progress pending";
+  }
 
   let estado = "Preparado";
   let estadoClave = "";
@@ -1742,21 +1812,24 @@ function renderModoPartido() {
   renderAccionesEquipoModo(
     liveLocalActions,
     "local",
-    bloqueado || liveBusy
+    bloqueado || liveBusy,
+    partido,
+    eventos
   );
   renderAccionesEquipoModo(
     liveAwayActions,
     "visitante",
-    bloqueado || liveBusy
+    bloqueado || liveBusy,
+    partido,
+    eventos
   );
   renderTimelineModo(partido, eventos);
 
   liveMatch.disabled = liveBusy || partidos.length === 0;
   liveUndoBtn.disabled =
     liveBusy || bloqueado || eventos.length === 0;
-  liveStartBtn.disabled =
-    liveBusy || bloqueado || partido?.estado === "en_vivo";
-  liveFinishBtn.disabled = liveBusy || bloqueado;
+  liveFinishBtn.disabled =
+    liveBusy || bloqueado || finalizado || !resultadoCargado;
   liveUndoBtn.textContent = liveBusy
     ? "Procesando..."
     : "Deshacer última";
@@ -1792,17 +1865,26 @@ function abrirSelectorModo(lado, tipo) {
     );
     return;
   }
-  if (partido.estado === "finalizado") {
-    setLiveFeedback(
-      "El partido ya está finalizado. Reabrilo desde el editor.",
-      "warn"
-    );
-    return;
-  }
-
   const equipo = resolverEquipoPartidoAdmin(partido, lado);
   if (!equipo.id) {
     setLiveFeedback("El equipo todavía no está vinculado.", "error");
+    return;
+  }
+  if (
+    ["gol", "gol_en_contra"].includes(tipo) &&
+    !accionGolDisponible(
+      partido,
+      incidenciasModoPartido(),
+      lado,
+      tipo
+    )
+  ) {
+    setLiveFeedback(
+      resultadoPartidoCargado(partido)
+        ? "Ya se identificaron todos los goles de ese lado."
+        : "Cargá primero el resultado del partido.",
+      "warn"
+    );
     return;
   }
 
@@ -1932,8 +2014,7 @@ async function seleccionarJugadorModo(valor) {
         : null,
     estado_dato: "por_verificar",
     fuente: null,
-    observaciones: "Carga rápida desde Modo Partido.",
-    ajustar_resultado: true
+    observaciones: "Carga rápida de incidencias del partido."
   };
 
   cerrarSelectorModo();
@@ -1972,7 +2053,7 @@ async function deshacerUltimaAccionModo() {
   try {
     await apiRequest(
       "DELETE",
-      { id: ultima.id, ajustar_resultado: true },
+      { id: ultima.id },
       EVENTS_API_URL
     );
     await cargarPartidos();
@@ -1981,28 +2062,6 @@ async function deshacerUltimaAccionModo() {
     await cargarIncidenciasAdmin();
     setLiveFeedback("Última acción deshecha.", "ok");
     setStatus("Última incidencia eliminada.", "ok");
-  } finally {
-    setLiveBusy(false);
-  }
-}
-
-async function marcarPartidoEnVivoModo() {
-  const partido = partidoModoSeleccionado();
-  if (!partido || liveBusy) return;
-
-  setLiveBusy(true);
-  setLiveFeedback("Marcando partido en vivo...");
-
-  try {
-    await apiRequest("PATCH", {
-      id: partido.id,
-      patch: { estado: "en_vivo" }
-    });
-    await cargarPartidos();
-    liveMatch.value = String(partido.id);
-    eventMatch.value = String(partido.id);
-    await cargarIncidenciasAdmin();
-    setLiveFeedback("Partido marcado en vivo.", "ok");
   } finally {
     setLiveBusy(false);
   }
@@ -2951,13 +3010,6 @@ document.addEventListener("keydown", event => {
 });
 liveUndoBtn.addEventListener("click", () => {
   deshacerUltimaAccionModo().catch(error => {
-    setLiveFeedback(error.message, "error");
-    setStatus(error.message, "error");
-    setLiveBusy(false);
-  });
-});
-liveStartBtn.addEventListener("click", () => {
-  marcarPartidoEnVivoModo().catch(error => {
     setLiveFeedback(error.message, "error");
     setStatus(error.message, "error");
     setLiveBusy(false);
