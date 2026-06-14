@@ -904,7 +904,7 @@ function obtenerEstadioPartido(partido) {
     partido.cancha ||
     partido.sede ||
     clubLocal?.estadio ||
-    ESTADOS_DATO.confirmar;
+    "-";
 }
 
 function crearFechaHoraPartido(partido) {
@@ -2233,13 +2233,9 @@ function formatearFechaHoraPulso(partido) {
     return partido.hora || ESTADOS_DATO.confirmar;
   }
 
-  const [, mes, dia] = partido.fecha_partido.split("-").map(Number);
-  const meses = [
-    "ene", "feb", "mar", "abr", "may", "jun",
-    "jul", "ago", "sep", "oct", "nov", "dic"
-  ];
-
-  return `${dia} ${meses[mes - 1]} · ${partido.hora || ESTADOS_DATO.confirmar}`;
+  return `${formatearFechaCompleta(partido.fecha_partido)} · ${
+    partido.hora || ESTADOS_DATO.confirmar
+  }`;
 }
 
 function obtenerCuentaRegresivaPulso(partido) {
@@ -2267,11 +2263,13 @@ function renderDatosPartidosPulso(partidos) {
   );
   const estadio = obtenerValorComunPulso(
     partidos,
-    partido => partido.estadio || partido.cancha || partido.sede
+    obtenerEstadioPartido,
+    "-"
   );
   const arbitro = obtenerValorComunPulso(
     partidos,
-    partido => partido.arbitro || partido.arbitro_principal
+    partido => partido.arbitro || partido.arbitro_principal,
+    "-"
   );
   const transmision = obtenerValorComunPulso(
     partidos,
@@ -2322,12 +2320,16 @@ function renderDatosPartidosPulso(partidos) {
   );
 }
 
-function obtenerValorComunPulso(partidos, obtenerValor) {
+function obtenerValorComunPulso(
+  partidos,
+  obtenerValor,
+  valorVacio = ESTADOS_DATO.confirmar
+) {
   const valores = partidos
     .map(obtenerValor)
     .filter(Boolean);
 
-  if (valores.length === 0) return ESTADOS_DATO.confirmar;
+  if (valores.length === 0) return valorVacio;
 
   const unicos = [...new Set(valores)];
   return unicos.length === 1 ? unicos[0] : "Ver cada cruce";
@@ -3394,7 +3396,8 @@ function renderDetallePartido(id) {
         )}
         ${renderValorDetalle(
           "Hora",
-          partido.hora || ESTADOS_DATO.confirmar
+          partido.hora ||
+            (jugado ? "-" : ESTADOS_DATO.confirmar)
         )}
         ${renderValorDetalle(
           "Estadio",
@@ -3404,7 +3407,7 @@ function renderDetallePartido(id) {
           "Árbitro",
           partido.arbitro ||
             partido.arbitro_principal ||
-            ESTADOS_DATO.confirmar
+            "-"
         )}
       </div>
     </article>
@@ -3416,13 +3419,6 @@ function renderDetallePartido(id) {
       </div>
       ${eventos.length > 0
         ? `
-          ${secuenciaEventos.mensaje
-            ? `
-              <div class="event-sequence-note">
-                ${escaparHtml(secuenciaEventos.mensaje)}
-              </div>
-            `
-            : ""}
           <div class="event-team-head">
             <strong>${escaparHtml(nombre(partido.local))}</strong>
             <span>
@@ -3524,24 +3520,7 @@ function analizarSecuenciaEventosPublica(eventos, partido) {
     golesConfirmados &&
     ordenValido;
 
-  let mensaje = "";
-  if (goles.length > 0 && !golesCoinciden) {
-    mensaje =
-      "Las incidencias de gol todavía no coinciden con el resultado. " +
-      "Se muestran sin evolución del marcador.";
-  } else if (goles.length > 0 && !golesConfirmados) {
-    mensaje =
-      "La secuencia de goles todavía está por verificar. " +
-      "Se muestran sin evolución del marcador.";
-  } else if (goles.length > 0 && !ordenValido) {
-    mensaje =
-      "El orden de las incidencias todavía necesita revisión.";
-  }
-
-  return {
-    secuenciaPublicable,
-    mensaje
-  };
+  return { secuenciaPublicable };
 }
 
 function prepararSecuenciaEventos(eventos, partido) {
@@ -3595,8 +3574,7 @@ function prepararSecuenciaEventos(eventos, partido) {
 
   return {
     eventos: ordenados,
-    secuenciaPublicable: analisis.secuenciaPublicable,
-    mensaje: analisis.mensaje
+    secuenciaPublicable: analisis.secuenciaPublicable
   };
 }
 
@@ -3620,9 +3598,6 @@ function renderEventoPartido(evento, partido) {
   const nombreEquipo = equipo
     ? nombre(equipo)
     : "Equipo sin identificar";
-  const verificacion = evento.estado_dato !== "confirmado"
-    ? " · Por verificar"
-    : "";
   const contenido = `
     <strong class="${jugadorIdentificado ? "" : "data-incomplete"}">
       ${escaparHtml(jugador)}
@@ -3630,7 +3605,7 @@ function renderEventoPartido(evento, partido) {
     <small>
       <b>${escaparHtml(nombreEquipo)}</b>
       <span class="event-type event-type-${tipo}">
-        ${etiquetaEvento(tipo)}${verificacion}
+        ${etiquetaEvento(tipo)}
       </span>
     </small>
   `;
@@ -3746,17 +3721,16 @@ function etiquetaFase(fase) {
 }
 
 function formatearFechaCompleta(fecha) {
-  if (!fecha) return ESTADOS_DATO.confirmar;
+  if (!fecha) return "-";
 
   const [year, month, day] = fecha.split("-").map(Number);
-  if (!year || !month || !day) return ESTADOS_DATO.confirmar;
+  if (!year || !month || !day) return "-";
 
-  const meses = [
-    "enero", "febrero", "marzo", "abril", "mayo", "junio",
-    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-  ];
-
-  return `${day} de ${meses[month - 1]} de ${year}`;
+  return [
+    String(day).padStart(2, "0"),
+    String(month).padStart(2, "0"),
+    String(year).slice(-2)
+  ].join("/");
 }
 
 function renderDetalleEquipo(equipo) {
