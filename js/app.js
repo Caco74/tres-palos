@@ -2732,7 +2732,8 @@ function esGolComputable(evento) {
   const tipo = String(evento.tipo || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
 
   return (
     tipo.includes("gol") &&
@@ -3483,7 +3484,7 @@ function prepararSecuenciaEventos(eventos, partido) {
       const esVisitante = lado === "visitante";
       let marcador = null;
 
-      if (tipo === "gol") {
+      if (["gol", "gol-penal"].includes(tipo)) {
         if (esLocal) golesLocal += 1;
         if (esVisitante) golesVisitante += 1;
         if (esLocal || esVisitante) {
@@ -3535,7 +3536,9 @@ function renderEventoPartido(evento, partido) {
     </strong>
     <small>
       <b>${escaparHtml(nombreEquipo)}</b>
-      <span>${etiquetaEvento(tipo)}${verificacion}</span>
+      <span class="event-type event-type-${tipo}">
+        ${etiquetaEvento(tipo)}${verificacion}
+      </span>
     </small>
   `;
 
@@ -3592,14 +3595,14 @@ function resolverLadoEvento(evento, partido) {
 
   const tipo = normalizarTipoEvento(evento.tipo);
   if (
-    ["gol", "gol-contra"].includes(tipo) &&
+    ["gol", "gol-penal", "gol-contra"].includes(tipo) &&
     Number(partido.goles_local) === 0 &&
     Number(partido.goles_visitante) > 0
   ) {
     return "visitante";
   }
   if (
-    ["gol", "gol-contra"].includes(tipo) &&
+    ["gol", "gol-penal", "gol-contra"].includes(tipo) &&
     Number(partido.goles_visitante) === 0 &&
     Number(partido.goles_local) > 0
   ) {
@@ -3618,6 +3621,9 @@ function normalizarTipoEvento(tipo) {
   if (valor.includes("gol") && valor.includes("contra")) {
     return "gol-contra";
   }
+  if (valor.includes("gol") && valor.includes("penal")) {
+    return "gol-penal";
+  }
   if (valor.includes("gol")) return "gol";
   if (valor.includes("doble") && valor.includes("amarilla")) {
     return "doble-amarilla";
@@ -3631,6 +3637,7 @@ function normalizarTipoEvento(tipo) {
 function etiquetaEvento(tipo) {
   return {
     gol: "Gol",
+    "gol-penal": "Gol de penal",
     "gol-contra": "Gol en contra",
     amarilla: "Tarjeta amarilla",
     "doble-amarilla": "Doble amarilla",

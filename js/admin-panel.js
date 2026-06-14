@@ -1545,6 +1545,7 @@ function nombreEquipoIncidenciaAdmin(evento) {
 function etiquetaTipoIncidencia(tipo) {
   return {
     gol: "Gol",
+    gol_penal: "Gol de penal",
     gol_en_contra: "Gol en contra",
     amarilla: "Tarjeta amarilla",
     doble_amarilla: "Doble amarilla",
@@ -1577,13 +1578,13 @@ function ajustarMarcadorPorIncidencia(
   partido,
   cantidad = 1
 ) {
-  if (!["gol", "gol_en_contra"].includes(evento.tipo)) {
+  if (!["gol", "gol_penal", "gol_en_contra"].includes(evento.tipo)) {
     return marcador;
   }
 
   const local = resolverEquipoPartidoAdmin(partido, "local");
   const visitante = resolverEquipoPartidoAdmin(partido, "visitante");
-  const equipoGol = evento.tipo === "gol"
+  const equipoGol = ["gol", "gol_penal"].includes(evento.tipo)
     ? evento.equipo_id
     : String(evento.equipo_id) === String(local.id)
       ? visitante.id
@@ -1635,7 +1636,7 @@ function contarGolesIdentificados(partido, eventos) {
 }
 
 function ladoGolAccion(lado, tipo) {
-  if (tipo === "gol") return lado;
+  if (["gol", "gol_penal"].includes(tipo)) return lado;
   if (tipo === "gol_en_contra") {
     return lado === "local" ? "visitante" : "local";
   }
@@ -1663,6 +1664,7 @@ function renderAccionesEquipoModo(
 ) {
   const acciones = [
     ["gol", "Gol"],
+    ["gol_penal", "Gol de penal"],
     ["gol_en_contra", "En contra"],
     ["amarilla", "Amarilla"],
     ["doble_amarilla", "2da amarilla"],
@@ -1672,7 +1674,7 @@ function renderAccionesEquipoModo(
 
   container.innerHTML = acciones.map(([tipo, etiqueta]) => {
     const sinCupoGol =
-      ["gol", "gol_en_contra"].includes(tipo) &&
+      ["gol", "gol_penal", "gol_en_contra"].includes(tipo) &&
       !accionGolDisponible(partido, eventos, lado, tipo);
     const title = sinCupoGol
       ? resultadoPartidoCargado(partido)
@@ -1871,7 +1873,7 @@ function abrirSelectorModo(lado, tipo) {
     return;
   }
   if (
-    ["gol", "gol_en_contra"].includes(tipo) &&
+    ["gol", "gol_penal", "gol_en_contra"].includes(tipo) &&
     !accionGolDisponible(
       partido,
       incidenciasModoPartido(),

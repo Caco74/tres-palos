@@ -1,5 +1,6 @@
 const EVENT_TYPES = new Set([
   "gol",
+  "gol_penal",
   "gol_en_contra",
   "amarilla",
   "doble_amarilla",

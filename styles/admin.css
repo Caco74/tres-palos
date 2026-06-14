@@ -931,9 +931,14 @@ input[readonly] {
   line-height: 1.15;
 }
 
-.live-action[data-action="gol"] {
+.live-action[data-action="gol"],
+.live-action[data-action="gol_penal"] {
   color: var(--green);
   border-color: rgba(53, 199, 122, .3);
+}
+
+.live-action[data-action="gol_penal"] {
+  background: rgba(53, 199, 122, .07);
 }
 
 .live-action[data-action="gol_en_contra"] {
