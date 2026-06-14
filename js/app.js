@@ -710,18 +710,10 @@ function obtenerEstadoTorneo(ahora = new Date()) {
   const fase = FASES_PLAYOFF.find(
     item => item.valor === faseActual
   );
-  const final = state.partidos
-    .filter(
-      partido =>
-        partido.tipo === "playoff" &&
-        partido.fase === "final"
-    )
-    .map(resolverPartidoPlayoff)
-    .find(partido => obtenerGanadorPlayoff(partido));
+  const serieFinal = obtenerResultadoSerieFinal();
 
-  if (final) {
-    const ladoGanador = obtenerGanadorPlayoff(final);
-    const campeon = ladoGanador ? final[ladoGanador] : null;
+  if (serieFinal.ganador) {
+    const campeon = serieFinal.ganador;
 
     return {
       tipo: "finalizado",
@@ -1131,6 +1123,91 @@ function obtenerGanadorPlayoff(partido) {
   return null;
 }
 
+function obtenerPartidosFinal() {
+  return state.partidos
+    .filter(
+      partido =>
+        partido.tipo === "playoff" &&
+        partido.fase === "final"
+    )
+    .map(resolverPartidoPlayoff)
+    .sort(
+      (a, b) =>
+        Number(a.numero_playoff || 0) -
+          Number(b.numero_playoff || 0) ||
+        compararFechaPartido(a, b)
+    );
+}
+
+function obtenerResultadoSerieFinal() {
+  const partidos = obtenerPartidosFinal();
+  const jugados = partidos.filter(
+    partido =>
+      partido.goles_local !== null &&
+      partido.goles_visitante !== null
+  );
+  const equipos = [
+    ...new Set(
+      partidos.flatMap(partido => [
+        partido.local,
+        partido.visitante
+      ]).filter(Boolean)
+    )
+  ];
+  const completa =
+    partidos.length >= 2 &&
+    jugados.length === partidos.length &&
+    equipos.length === 2;
+  const goles = new Map(equipos.map(equipo => [equipo, 0]));
+
+  jugados.forEach(partido => {
+    goles.set(
+      partido.local,
+      (goles.get(partido.local) || 0) + Number(partido.goles_local)
+    );
+    goles.set(
+      partido.visitante,
+      (goles.get(partido.visitante) || 0) +
+        Number(partido.goles_visitante)
+    );
+  });
+
+  let ganador = null;
+  if (completa) {
+    const [equipoA, equipoB] = equipos;
+    const golesA = goles.get(equipoA) || 0;
+    const golesB = goles.get(equipoB) || 0;
+
+    if (golesA > golesB) ganador = equipoA;
+    if (golesB > golesA) ganador = equipoB;
+
+    if (!ganador) {
+      const definicion = [...partidos].reverse().find(
+        partido =>
+          partido.penales_local !== null &&
+          partido.penales_visitante !== null
+      );
+      if (definicion) {
+        if (definicion.penales_local > definicion.penales_visitante) {
+          ganador = definicion.local;
+        }
+        if (definicion.penales_visitante > definicion.penales_local) {
+          ganador = definicion.visitante;
+        }
+      }
+    }
+  }
+
+  return {
+    partidos,
+    equipos,
+    goles,
+    completa,
+    ganador,
+    definicionPendiente: completa && !ganador
+  };
+}
+
 function obtenerEquipoGanadorPlayoff(partido) {
   if (!partido) return null;
 
@@ -1229,6 +1306,9 @@ function obtenerPartidoOrigenPorLlave(partido, lado) {
 function resolverPartidoPlayoff(partido) {
   if (!partido || partido.tipo !== "playoff") return partido;
 
+  const localiaPendientePorSorteo =
+    partido.fase === "final" &&
+    !Boolean(partido.local && partido.visitante);
   const local = resolverEquipoPlayoff(partido, "local");
   const visitante = resolverEquipoPlayoff(partido, "visitante");
   const partidoResuelto = {
@@ -1237,7 +1317,8 @@ function resolverPartidoPlayoff(partido) {
     visitante,
     local_id: partido.local_id || obtenerClub(local)?.id || null,
     visitante_id:
-      partido.visitante_id || obtenerClub(visitante)?.id || null
+      partido.visitante_id || obtenerClub(visitante)?.id || null,
+    localia_pendiente: localiaPendientePorSorteo
   };
 
   return ordenarLocaliaPlayoff(partidoResuelto);
@@ -1257,11 +1338,16 @@ function ordenarLocaliaPlayoff(partido) {
     return {
       ...partido,
       localia_pendiente:
+        partido.localia_pendiente ||
         partido.tipo === "playoff" &&
         !jugado &&
         Boolean(partido.local || partido.visitante) &&
         !Boolean(partido.local && partido.visitante)
     };
+  }
+
+  if (partido.fase === "final") {
+    return partido;
   }
 
   const comparacion = compararLocaliaEquipos(
@@ -1320,12 +1406,28 @@ function obtenerSeedPlayoffEquipo(equipo) {
 }
 
 function obtenerEstadoPlayoffEquipo(equipo) {
+  const serieFinal = obtenerResultadoSerieFinal();
+  if (serieFinal.equipos.includes(equipo)) {
+    if (serieFinal.ganador) {
+      return {
+        texto: serieFinal.ganador === equipo ? "Campeón" : "Subcampeón",
+        clase:
+          serieFinal.ganador === equipo ? "champion" : "runner-up"
+      };
+    }
+    if (serieFinal.definicionPendiente) {
+      return {
+        texto: "Definición pendiente",
+        clase: "pending"
+      };
+    }
+    return {
+      texto: "Clasificado a la final",
+      clase: "final"
+    };
+  }
+
   const fases = [
-    {
-      valor: "final",
-      pendiente: "Clasificado a la final",
-      eliminado: "Subcampeón"
-    },
     {
       valor: "semifinal",
       pendiente: "Clasificado a semifinales",
@@ -1685,7 +1787,7 @@ function renderPartidoInicio(partido) {
           <small>
             ${estado.tipo === "penales"
               ? "Penales"
-              : `Llave ${partido.numero_playoff || 1}`}
+              : etiquetaInstanciaPartido(partido)}
           </small>
         </div>
         <div class="home-team away">
@@ -1700,6 +1802,19 @@ function renderPartidoInicio(partido) {
       </div>
     </button>
   `;
+}
+
+function etiquetaInstanciaPartido(partido) {
+  if (partido.fase === "final") {
+    const instancia = Number(partido.numero_playoff) === 2
+      ? "Vuelta"
+      : "Ida";
+    return partido.localia_pendiente
+      ? `${instancia} · Localía a definir`
+      : instancia;
+  }
+
+  return `Llave ${partido.numero_playoff || 1}`;
 }
 
 function resumirAntecedenteInicio(partido) {
@@ -1842,6 +1957,25 @@ function generarAnalisisPulso(
       titulo: "Sin datos suficientes para comparar a los protagonistas.",
       parrafos: [
         "El análisis se generará cuando existan partidos de playoffs finalizados y cargados."
+      ]
+    };
+  }
+
+  if (faseObjetivo === "final" && protagonistas.length === 2) {
+    const [equipoA, equipoB] = protagonistas;
+    return {
+      titulo:
+        `${nombre(equipoA)} y ${nombre(equipoB)}, ` +
+        "frente a frente por el título.",
+      parrafos: [
+        generarParrafoCrucePulso(
+          { local: equipoA, visitante: equipoB },
+          estadisticas.get(equipoA),
+          estadisticas.get(equipoB)
+        ),
+        "La final se disputará en dos partidos. El sorteo definirá " +
+        "quién será local en la ida; fechas, horarios y estadios " +
+        "todavía están pendientes."
       ]
     };
   }
@@ -2897,9 +3031,21 @@ function renderFasePlayoff(fase, faseActual) {
 
 function obtenerEstadoFasePlayoff(partidos, esActual) {
   const resueltos = partidos.map(resolverPartidoPlayoff);
-  const terminada = resueltos.every(
-    partido => obtenerGanadorPlayoff(partido)
-  );
+  const esFinal = resueltos.some(partido => partido.fase === "final");
+  if (esFinal) {
+    const serieFinal = obtenerResultadoSerieFinal();
+
+    if (serieFinal.ganador) {
+      return { texto: "Finalizada", clase: "completed" };
+    }
+    if (serieFinal.definicionPendiente) {
+      return { texto: "Definición pendiente", clase: "waiting" };
+    }
+  }
+
+  const terminada =
+    !esFinal &&
+    resueltos.every(partido => obtenerGanadorPlayoff(partido));
 
   if (terminada) {
     return { texto: "Finalizada", clase: "completed" };
@@ -2972,6 +3118,11 @@ function renderCrucePlayoff(partido) {
     semifinal: "SF",
     final: "F"
   }[partido.fase] || "";
+  const codigoPartido = partido.fase === "final"
+    ? `${codigoFase} · ${
+        Number(partido.numero_playoff) === 2 ? "Vuelta" : "Ida"
+      }`
+    : `${codigoFase} · ${partido.numero_playoff || 1}`;
   const detalle = [
     obtenerDetallePlayoff(partido),
     partido.localia_pendiente ? "Localía a definir" : ""
@@ -2986,7 +3137,7 @@ function renderCrucePlayoff(partido) {
     >
       <div class="po-match-hd">
         <div class="po-match-id">
-          ${codigoFase} · ${partido.numero_playoff || 1}
+          ${codigoPartido}
           ${detalle ? `<span>${detalle}</span>` : ""}
         </div>
         <div class="po-st state-${estadoTemporal.clase} ${jugado && estadoTemporal.tipo === "final" ? "done" : ""}">
@@ -3352,7 +3503,7 @@ function renderDetallePartido(id) {
   );
   const eventos = secuenciaEventos.eventos;
   const contexto = partido.tipo === "playoff"
-    ? `${etiquetaFase(partido.fase)} · Llave ${partido.numero_playoff || 1}`
+    ? `${etiquetaFase(partido.fase)} · ${etiquetaInstanciaPartido(partido)}`
     : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
   const estado = obtenerEstadoTemporalPartido(partido);
 

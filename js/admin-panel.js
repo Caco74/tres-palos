@@ -58,6 +58,7 @@ const rosterList = document.getElementById("rosterList");
 const rosterForm = document.getElementById("rosterForm");
 const emptyRosterEditor = document.getElementById("emptyRosterEditor");
 const saveRosterBtn = document.getElementById("saveRosterBtn");
+const toggleRosterBtn = document.getElementById("toggleRosterBtn");
 const rosterFeedback = document.getElementById("rosterFeedback");
 const eventsTotal = document.getElementById("eventsTotal");
 const eventMatch = document.getElementById("eventMatch");
@@ -210,6 +211,7 @@ function setClubFeedback(message, type = "info") {
 
 function setRosterSaving(isSaving) {
   saveRosterBtn.disabled = isSaving;
+  toggleRosterBtn.disabled = isSaving;
   saveRosterBtn.textContent = isSaving
     ? "Guardando..."
     : "Guardar inscripción";
@@ -1066,6 +1068,7 @@ function mostrarPlantelesNoDisponibles(message) {
     </div>
   `;
   newRosterBtn.disabled = true;
+  toggleRosterBtn.classList.add("hidden");
   rosterForm.classList.add("hidden");
   emptyRosterEditor.classList.remove("hidden");
   renderModoPartido();
@@ -1136,6 +1139,10 @@ function inscripcionesVisibles() {
       String(inscripcion.club_id) === rosterClub.value
     )
     .sort((a, b) => {
+      const estadoA = a.estado === "inactivo" ? 1 : 0;
+      const estadoB = b.estado === "inactivo" ? 1 : 0;
+      if (estadoA !== estadoB) return estadoA - estadoB;
+
       const jugadorA = obtenerJugadorPlantel(a.jugador_id);
       const jugadorB = obtenerJugadorPlantel(b.jugador_id);
       return String(jugadorA?.nombre_completo || "").localeCompare(
@@ -1242,6 +1249,7 @@ function iniciarNuevaInscripcion() {
   rosterFields.playerName.readOnly = false;
   rosterFields.position.value = "sin_definir";
   rosterFields.status.value = "por_verificar";
+  toggleRosterBtn.classList.add("hidden");
 
   emptyRosterEditor.classList.add("hidden");
   rosterForm.classList.remove("hidden");
@@ -1274,6 +1282,14 @@ function seleccionarInscripcion(id) {
   rosterFields.to.value = inscripcion.fecha_hasta || "";
   rosterFields.source.value = inscripcion.fuente || "";
   rosterFields.notes.value = inscripcion.observaciones || "";
+  toggleRosterBtn.classList.remove("hidden");
+  toggleRosterBtn.textContent = inscripcion.estado === "inactivo"
+    ? "Reactivar en el plantel"
+    : "Quitar del plantel";
+  toggleRosterBtn.classList.toggle(
+    "danger",
+    inscripcion.estado !== "inactivo"
+  );
 
   emptyRosterEditor.classList.add("hidden");
   rosterForm.classList.remove("hidden");
@@ -1380,6 +1396,60 @@ async function guardarInscripcionJugador(event) {
       "ok"
     );
     setStatus("Plantel actualizado.", "ok");
+  } finally {
+    setRosterSaving(false);
+  }
+}
+
+function fechaLocalInput(fecha = new Date()) {
+  return [
+    fecha.getFullYear(),
+    String(fecha.getMonth() + 1).padStart(2, "0"),
+    String(fecha.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+async function cambiarEstadoInscripcionJugador() {
+  const inscripcion = inscripcionesJugadores.find(
+    item =>
+      String(item.id) === String(rosterFields.enrollmentId.value)
+  );
+  if (!inscripcion) return;
+
+  const estaInactivo = inscripcion.estado === "inactivo";
+  const confirmado = window.confirm(
+    estaInactivo
+      ? "¿Reactivar este jugador en el plantel actual?"
+      : "¿Quitar este jugador del plantel? Sus incidencias históricas se conservarán."
+  );
+  if (!confirmado) return;
+
+  const valores = valoresFormularioPlantel();
+  valores.estado = estaInactivo ? "por_verificar" : "inactivo";
+  valores.fecha_hasta = estaInactivo
+    ? null
+    : valores.fecha_hasta || fechaLocalInput();
+  validarInscripcionJugador(valores);
+
+  setRosterSaving(true);
+  setRosterFeedback(
+    estaInactivo ? "Reactivando jugador..." : "Quitando del plantel..."
+  );
+
+  try {
+    await apiRequest("PATCH", valores, ROSTERS_API_URL);
+    await cargarPlantelesAdmin();
+    seleccionarInscripcion(inscripcion.id);
+    setRosterFeedback(
+      estaInactivo
+        ? "Jugador reactivado. Ya está disponible para nuevas incidencias."
+        : "Jugador fuera del plantel. Se conserva su historial.",
+      "ok"
+    );
+    setStatus(
+      estaInactivo ? "Jugador reactivado." : "Jugador fuera del plantel.",
+      "ok"
+    );
   } finally {
     setRosterSaving(false);
   }
@@ -2364,14 +2434,20 @@ function renderEquiposIncidencia(equipoPreferido = "") {
   }
 }
 
-function inscripcionesParaIncidencia() {
+function inscripcionesParaIncidencia(idsPermitidos = []) {
   const partido = partidoIncidenciasSeleccionado();
   if (!partido) return [];
 
   return inscripcionesJugadores
     .filter(inscripcion =>
       String(inscripcion.club_id) === eventFields.team.value &&
-      String(inscripcion.torneo_id) === String(partido.torneo_id)
+      String(inscripcion.torneo_id) === String(partido.torneo_id) &&
+      (
+        inscripcion.estado !== "inactivo" ||
+        idsPermitidos.some(
+          id => String(id) === String(inscripcion.id)
+        )
+      )
     )
     .sort((a, b) => {
       const jugadorA = obtenerJugadorPlantel(a.jugador_id);
@@ -2388,14 +2464,19 @@ function renderJugadoresIncidencia(
   jugadorPreferido = "",
   relacionadoPreferido = ""
 ) {
-  const disponibles = inscripcionesParaIncidencia();
+  const disponibles = inscripcionesParaIncidencia([
+    jugadorPreferido,
+    relacionadoPreferido
+  ]);
   const opciones = `
     <option value="">Jugador no informado</option>
     ${disponibles.map(inscripcion => {
       const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
-      const estado = inscripcion.estado === "confirmado"
-        ? ""
-        : " · por verificar";
+      const estado = {
+        confirmado: "",
+        por_verificar: " · por verificar",
+        inactivo: " · fuera del plantel"
+      }[inscripcion.estado] || "";
       return `
         <option value="${inscripcion.id}">
           ${escapeHtml(jugador?.nombre_completo || "Sin nombre")}${estado}
@@ -2750,7 +2831,7 @@ function renderLista() {
 
   matchList.innerHTML = visibles.map(partido => {
     const titulo = partido.tipo === "playoff"
-      ? `${etiquetaFase(partido.fase)} ${partido.numero_playoff || ""}`.trim()
+      ? etiquetaPartidoPlayoffAdmin(partido)
       : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
     const resultado = tieneResultado(partido)
       ? `${partido.goles_local} - ${partido.goles_visitante}`
@@ -2949,6 +3030,18 @@ function etiquetaFase(fase) {
   }[fase] || "Playoffs";
 }
 
+function etiquetaPartidoPlayoffAdmin(partido) {
+  if (partido.fase === "final") {
+    return `Final · ${
+      Number(partido.numero_playoff) === 2 ? "Vuelta" : "Ida"
+    }`;
+  }
+
+  return `${etiquetaFase(partido.fase)} ${
+    partido.numero_playoff || ""
+  }`.trim();
+}
+
 function limpiarResultado() {
   fields.golesLocal.value = "";
   fields.golesVisitante.value = "";
@@ -3061,11 +3154,17 @@ function validarCargaPartido(valores) {
     penalesCargados === 2 &&
     (
       golesCargados !== 2 ||
-      valores.goles_local !== valores.goles_visitante
+      (
+        valores.goles_local !== valores.goles_visitante &&
+        !(
+          partidoOriginal?.fase === "final" &&
+          Number(partidoOriginal?.numero_playoff) === 2
+        )
+      )
     )
   ) {
     throw new Error(
-      "Los penales solo corresponden cuando el resultado está empatado."
+      "Los penales solo corresponden a un partido empatado o a la vuelta de la final."
     );
   }
   if (
@@ -3212,12 +3311,14 @@ clubForm.addEventListener("submit", event => {
 });
 rosterTournament.addEventListener("change", () => {
   inscripcionSeleccionadaId = null;
+  toggleRosterBtn.classList.add("hidden");
   rosterForm.classList.add("hidden");
   emptyRosterEditor.classList.remove("hidden");
   renderPlantel();
 });
 rosterClub.addEventListener("change", () => {
   inscripcionSeleccionadaId = null;
+  toggleRosterBtn.classList.add("hidden");
   rosterForm.classList.add("hidden");
   emptyRosterEditor.classList.remove("hidden");
   renderPlantel();
@@ -3233,6 +3334,13 @@ rosterFields.playerId.addEventListener(
 );
 rosterForm.addEventListener("submit", event => {
   guardarInscripcionJugador(event).catch(error => {
+    setRosterFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setRosterSaving(false);
+  });
+});
+toggleRosterBtn.addEventListener("click", () => {
+  cambiarEstadoInscripcionJugador().catch(error => {
     setRosterFeedback(error.message, "error");
     setStatus(error.message, "error");
     setRosterSaving(false);
