@@ -1,6 +1,7 @@
 alter table public.eventos_partido
   add column if not exists inscripcion_relacionada_id bigint null,
   add column if not exists jugador_relacionado text null,
+  add column if not exists periodo text null,
   add column if not exists orden integer null,
   add column if not exists estado_dato text default 'por_verificar',
   add column if not exists fuente text null,
@@ -28,6 +29,22 @@ where evento.id = secuencia.id
 
 do $$
 begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where
+      conname = 'eventos_partido_periodo_check'
+      and conrelid = 'public.eventos_partido'::regclass
+  ) then
+    alter table public.eventos_partido
+      add constraint eventos_partido_periodo_check
+      check (
+        periodo is null
+        or periodo in ('primer_tiempo', 'segundo_tiempo')
+      )
+      not valid;
+  end if;
+
   if not exists (
     select 1
     from pg_constraint
@@ -90,6 +107,9 @@ alter table public.eventos_partido
   validate constraint eventos_partido_estado_dato_check;
 
 alter table public.eventos_partido
+  validate constraint eventos_partido_periodo_check;
+
+alter table public.eventos_partido
   validate constraint eventos_partido_minuto_check;
 
 alter table public.eventos_partido
@@ -131,6 +151,12 @@ comment on column public.eventos_partido.inscripcion_relacionada_id is
 
 comment on column public.eventos_partido.orden is
   'Secuencia narrativa de la incidencia dentro del partido.';
+
+comment on column public.eventos_partido.periodo is
+  'Periodo del partido: primer_tiempo o segundo_tiempo.';
+
+comment on column public.eventos_partido.minuto is
+  'Minuto total del partido, opcional cuando la fuente lo informa.';
 
 comment on column public.eventos_partido.estado_dato is
   'Nivel de verificacion de la incidencia y su fuente.';

@@ -13,6 +13,11 @@ const DATA_STATES = new Set([
   "por_verificar"
 ]);
 
+const PERIODS = new Set([
+  "primer_tiempo",
+  "segundo_tiempo"
+]);
+
 exports.handler = async event => {
   if (event.httpMethod === "OPTIONS") {
     return json(204, {});
@@ -81,9 +86,7 @@ function isAuthorized(event) {
 async function listEvents() {
   const response = await supabaseFetch(
     "/rest/v1/eventos_partido" +
-    "?select=id,partido_id,tipo,equipo_id,jugador,minuto,orden," +
-    "inscripcion_jugador_id,inscripcion_relacionada_id," +
-    "jugador_relacionado,estado_dato,fuente,observaciones,actualizado_en" +
+    "?select=*" +
     "&order=partido_id.desc,orden.asc,id.asc"
   );
   const incidencias = await parseSupabaseResponse(response);
@@ -138,14 +141,19 @@ async function saveEvent(event) {
       )
     : null;
 
+  input.orden = Number(existing?.orden) ||
+    await getNextEventOrder(match.id);
+  const tipoOriginal = input.tipo;
+  input.tipo = await resolveAutomaticCardType(
+    input,
+    eventId
+  );
   input.jugador = enrollment
     ? enrollment.jugador.nombre_completo
     : cleanText(existing?.jugador);
   input.jugador_relacionado = relatedEnrollment
     ? relatedEnrollment.jugador.nombre_completo
     : null;
-  input.orden = Number(existing?.orden) ||
-    await getNextEventOrder(match.id);
   input.actualizado_en = new Date().toISOString();
 
   if (!eventId) {
@@ -158,15 +166,57 @@ async function saveEvent(event) {
   const path = eventId
     ? `/rest/v1/eventos_partido?id=eq.${eventId}&select=*`
     : "/rest/v1/eventos_partido?select=*";
-  const response = await supabaseFetch(path, {
-    method,
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify(input)
-  });
-  const rows = await parseSupabaseResponse(response);
+  const {
+    rows,
+    periodoOmitido
+  } = await persistEvent(path, method, input);
   const incidencia = Array.isArray(rows) ? rows[0] : rows;
 
-  return json(eventId ? 200 : 201, { incidencia });
+  return json(eventId ? 200 : 201, {
+    incidencia,
+    periodo_omitido: periodoOmitido,
+    ajuste_tipo:
+      tipoOriginal !== input.tipo
+        ? {
+            de: tipoOriginal,
+            a: input.tipo,
+            motivo: "segunda_amarilla"
+          }
+        : null
+  });
+}
+
+async function persistEvent(path, method, input) {
+  try {
+    const response = await supabaseFetch(path, {
+      method,
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(input)
+    });
+    return {
+      rows: await parseSupabaseResponse(response),
+      periodoOmitido: false
+    };
+  } catch (error) {
+    const columnaPeriodoFaltante =
+      error.code === "PGRST204" &&
+      String(error.message).toLowerCase().includes("periodo");
+
+    if (!columnaPeriodoFaltante) throw error;
+
+    const fallback = { ...input };
+    delete fallback.periodo;
+    const response = await supabaseFetch(path, {
+      method,
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(fallback)
+    });
+
+    return {
+      rows: await parseSupabaseResponse(response),
+      periodoOmitido: true
+    };
+  }
 }
 
 async function deleteEvent(event) {
@@ -286,12 +336,20 @@ function sanitizeInput(body, match) {
   const fuente = cleanText(body.fuente);
   const inscriptionId = optionalId(body.inscripcion_jugador_id);
   const relatedId = optionalId(body.inscripcion_relacionada_id);
+  const periodo = cleanText(body.periodo);
+  const minuto = optionalInteger(body.minuto);
 
   if (!EVENT_TYPES.has(tipo)) {
     throw validationError("Tipo de incidencia invalido.");
   }
   if (!DATA_STATES.has(estadoDato)) {
     throw validationError("Estado de verificacion invalido.");
+  }
+  if (periodo && !PERIODS.has(periodo)) {
+    throw validationError("Periodo invalido.");
+  }
+  if (minuto !== null && (minuto < 1 || minuto > 130)) {
+    throw validationError("El minuto debe estar entre 1 y 130.");
   }
   if (![match.local_id, match.visitante_id].some(
     id => String(id) === String(equipoId)
@@ -330,10 +388,49 @@ function sanitizeInput(body, match) {
     equipo_id: equipoId,
     inscripcion_jugador_id: inscriptionId,
     inscripcion_relacionada_id: relatedId,
+    periodo,
+    minuto,
     estado_dato: estadoDato,
     fuente,
     observaciones: cleanText(body.observaciones)
   };
+}
+
+async function resolveAutomaticCardType(input, eventId) {
+  if (
+    input.tipo !== "amarilla" ||
+    !input.inscripcion_jugador_id
+  ) {
+    return input.tipo;
+  }
+
+  const response = await supabaseFetch(
+    "/rest/v1/eventos_partido" +
+    "?select=id,tipo,orden" +
+    `&partido_id=eq.${input.partido_id}` +
+    `&equipo_id=eq.${input.equipo_id}` +
+    `&inscripcion_jugador_id=eq.${input.inscripcion_jugador_id}` +
+    "&tipo=in.(amarilla,doble_amarilla)"
+  );
+  const rows = await parseSupabaseResponse(response);
+  const anteriores = (Array.isArray(rows) ? rows : []).filter(
+    item =>
+      String(item.id) !== String(eventId || "") &&
+      (
+        !eventId ||
+        Number(item.orden) < Number(input.orden)
+      )
+  );
+
+  if (anteriores.some(item => item.tipo === "doble_amarilla")) {
+    throw validationError(
+      "El jugador ya fue expulsado por doble amarilla en este partido."
+    );
+  }
+
+  return anteriores.some(item => item.tipo === "amarilla")
+    ? "doble_amarilla"
+    : "amarilla";
 }
 
 async function getNextEventOrder(matchId) {
@@ -561,6 +658,15 @@ function requiredId(value, message) {
   const id = optionalId(value);
   if (!id) throw validationError(message);
   return id;
+}
+
+function optionalInteger(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  if (!Number.isInteger(number)) {
+    throw validationError("Valor numerico invalido.");
+  }
+  return number;
 }
 
 function cleanText(value) {

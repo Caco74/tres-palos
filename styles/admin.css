@@ -1054,10 +1054,20 @@ input[readonly] {
   color: var(--blue);
 }
 
-.live-action[data-action="amarilla"],
-.live-action[data-action="doble_amarilla"] {
+.live-action[data-action="amarilla"] {
   color: var(--yellow);
   border-color: rgba(244, 185, 66, .25);
+}
+
+.live-action[data-action="doble_amarilla"] {
+  color: #ff7d8a;
+  border-color: rgba(255, 48, 69, .3);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(244, 185, 66, .07),
+      rgba(255, 48, 69, .08)
+    );
 }
 
 .live-action[data-action="roja"] {
@@ -1198,6 +1208,25 @@ body.live-picker-open {
   padding: 8px 10px;
 }
 
+.live-picker-moment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.live-picker-moment label {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.live-picker-moment select,
+.live-picker-moment input {
+  margin-top: 5px;
+}
+
 .live-player-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1242,7 +1271,8 @@ body.live-picker-open {
   .event-filters,
   .event-admin-grid,
   .form-row.two,
-  .form-row.three {
+  .form-row.three,
+  .live-picker-moment {
     grid-template-columns: 1fr;
   }
 

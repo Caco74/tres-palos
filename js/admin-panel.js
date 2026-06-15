@@ -92,6 +92,8 @@ const livePicker = document.getElementById("livePicker");
 const livePickerEyebrow = document.getElementById("livePickerEyebrow");
 const livePickerTitle = document.getElementById("livePickerTitle");
 const livePickerHelp = document.getElementById("livePickerHelp");
+const livePeriod = document.getElementById("livePeriod");
+const liveMinute = document.getElementById("liveMinute");
 const livePlayerGrid = document.getElementById("livePlayerGrid");
 
 const fields = {
@@ -144,6 +146,8 @@ const eventFields = {
   id: document.getElementById("eventId"),
   type: document.getElementById("eventType"),
   team: document.getElementById("eventTeam"),
+  period: document.getElementById("eventPeriod"),
+  minute: document.getElementById("eventMinute"),
   player: document.getElementById("eventPlayer"),
   playerLabel: document.getElementById("eventPlayerLabel"),
   relatedWrap: document.getElementById("eventRelatedWrap"),
@@ -1631,6 +1635,9 @@ function renderIncidenciasAdmin() {
             <small>
               ${escapeHtml(nombreEquipoIncidenciaAdmin(evento))} ·
               ${escapeHtml(etiquetaTipoIncidencia(evento.tipo))}
+              ${momentoIncidencia(evento)
+                ? ` · ${escapeHtml(momentoIncidencia(evento))}`
+                : ""}
             </small>
           </span>
           <span class="event-admin-state ${estadoClase}">
@@ -1683,10 +1690,26 @@ function etiquetaTipoIncidencia(tipo) {
     gol_penal: "Gol de penal",
     gol_en_contra: "Gol en contra",
     amarilla: "Tarjeta amarilla",
-    doble_amarilla: "Doble amarilla",
+    doble_amarilla: "Segunda amarilla · Expulsión",
     roja: "Tarjeta roja",
     cambio: "Cambio"
   }[tipo] || tipo || "Incidencia";
+}
+
+function etiquetaPeriodoIncidencia(periodo) {
+  return {
+    primer_tiempo: "1T",
+    segundo_tiempo: "2T"
+  }[periodo] || "";
+}
+
+function momentoIncidencia(evento) {
+  return [
+    etiquetaPeriodoIncidencia(evento.periodo),
+    Number.isInteger(Number(evento.minuto)) && Number(evento.minuto) > 0
+      ? `${Number(evento.minuto)}'`
+      : ""
+  ].filter(Boolean).join(" · ");
 }
 
 function partidoModoSeleccionado() {
@@ -1780,6 +1803,52 @@ function incidenciaSinVincular(evento) {
     !evento.inscripcion_relacionada_id;
 }
 
+function analizarTarjetasIncidencias(eventos) {
+  const jugadores = new Map();
+  const advertencias = [];
+
+  eventos.forEach(evento => {
+    if (!["amarilla", "doble_amarilla", "roja"].includes(evento.tipo)) {
+      return;
+    }
+
+    const identidad = evento.inscripcion_jugador_id;
+    if (!identidad) return;
+
+    const estado = jugadores.get(identidad) || {
+      amarillas: 0,
+      expulsado: false,
+      nombre: evento.jugador || "Jugador sin identificar"
+    };
+
+    if (estado.expulsado) {
+      advertencias.push(
+        `${estado.nombre} tiene una tarjeta cargada después de su expulsión.`
+      );
+    } else if (evento.tipo === "amarilla") {
+      estado.amarillas += 1;
+      if (estado.amarillas > 1) {
+        advertencias.push(
+          `${estado.nombre} tiene dos amarillas comunes; la segunda debe marcarse como expulsión.`
+        );
+      }
+    } else if (evento.tipo === "doble_amarilla") {
+      if (estado.amarillas === 0) {
+        advertencias.push(
+          `${estado.nombre} tiene una segunda amarilla sin una primera amarilla previa.`
+        );
+      }
+      estado.expulsado = true;
+    } else if (evento.tipo === "roja") {
+      estado.expulsado = true;
+    }
+
+    jugadores.set(identidad, estado);
+  });
+
+  return advertencias;
+}
+
 function analizarConsistenciaIncidencias(partido, eventos) {
   const resultadoCargado = resultadoPartidoCargado(partido);
   const identificados = partido
@@ -1798,6 +1867,8 @@ function analizarConsistenciaIncidencias(partido, eventos) {
   const porVerificar = eventos.filter(
     evento => evento.estado_dato !== "confirmado"
   ).length;
+  const advertenciasTarjetas =
+    analizarTarjetasIncidencias(eventos);
   const ordenes = eventos.map(evento => Number(evento.orden));
   const ordenValido =
     ordenes.every(orden => Number.isInteger(orden) && orden > 0) &&
@@ -1859,6 +1930,9 @@ function analizarConsistenciaIncidencias(partido, eventos) {
     text: porVerificar > 0
       ? `${porVerificar} incidencia(s) siguen por verificar.`
       : "Todas las incidencias están confirmadas."
+  });
+  advertenciasTarjetas.forEach(text => {
+    items.push({ type: "warn", text });
   });
 
   if (goles.length === 0 && resultadoCargado) {
@@ -1960,7 +2034,7 @@ function renderAccionesEquipoModo(
     ["gol_penal", "Gol de penal"],
     ["gol_en_contra", "En contra"],
     ["amarilla", "Amarilla"],
-    ["doble_amarilla", "2da amarilla"],
+    ["doble_amarilla", "2da amarilla + roja"],
     ["roja", "Roja"],
     ["cambio", "Cambio"]
   ];
@@ -2029,7 +2103,9 @@ function renderTimelineModo(partido, eventos) {
       String(evento.equipo_id) === String(local.id);
     const detalle = `${etiquetaTipoIncidencia(evento.tipo)} · ${
       nombreParticipanteModo(evento)
-    }`;
+    }${momentoIncidencia(evento)
+      ? ` · ${momentoIncidencia(evento)}`
+      : ""}`;
     const centro =
       analisis.secuenciaPublicable && esGolIncidencia(evento.tipo)
         ? `${marcador.local} - ${marcador.visitante}`
@@ -2212,6 +2288,7 @@ function abrirSelectorModo(lado, tipo) {
     partidoId: partido.id
   };
   liveChangeOutId = null;
+  liveMinute.value = "";
   renderSelectorJugadoresModo();
   livePicker.classList.remove("hidden");
   livePicker.setAttribute("aria-hidden", "false");
@@ -2316,6 +2393,8 @@ async function seleccionarJugadorModo(valor) {
       liveAction.tipo === "cambio"
         ? inscripcionId
         : null,
+    periodo: livePeriod.value || null,
+    minuto: valorNumero(liveMinute),
     estado_dato: "por_verificar",
     fuente: null,
     observaciones: "Carga rápida de incidencias del partido."
@@ -2326,12 +2405,19 @@ async function seleccionarJugadorModo(valor) {
   setLiveFeedback("Guardando acción...");
 
   try {
-    await apiRequest("POST", valores, EVENTS_API_URL);
+    const data = await apiRequest("POST", valores, EVENTS_API_URL);
     await cargarPartidos();
     liveMatch.value = String(partidoId);
     eventMatch.value = String(partidoId);
     await cargarIncidenciasAdmin();
-    setLiveFeedback("Acción guardada.", "ok");
+    setLiveFeedback(
+      data.periodo_omitido
+        ? "Acción guardada sin el tiempo. Ejecutá incidencias-periodos.sql."
+        : data.ajuste_tipo?.motivo === "segunda_amarilla"
+        ? "Segunda amarilla detectada: se registró la expulsión."
+        : "Acción guardada.",
+      data.periodo_omitido ? "warn" : "ok"
+    );
     setStatus("Modo Partido actualizado.", "ok");
   } finally {
     setLiveBusy(false);
@@ -2551,6 +2637,8 @@ function iniciarNuevaIncidencia() {
   eventForm.reset();
   eventFields.id.value = "";
   eventFields.type.value = "gol";
+  eventFields.period.value = "";
+  eventFields.minute.value = "";
   eventFields.dataStatus.value = "por_verificar";
   renderEquiposIncidencia(
     resolverEquipoPartidoAdmin(partido, "local").id
@@ -2584,6 +2672,8 @@ function seleccionarIncidencia(id) {
   liveMatch.value = String(incidencia.partido_id);
   eventFields.id.value = incidencia.id;
   eventFields.type.value = incidencia.tipo || "gol";
+  eventFields.period.value = incidencia.periodo || "";
+  eventFields.minute.value = valorInput(incidencia.minuto);
   eventFields.dataStatus.value =
     incidencia.estado_dato || "por_verificar";
   eventFields.source.value = incidencia.fuente || "";
@@ -2621,6 +2711,8 @@ function valoresFormularioIncidencia() {
     partido_id: Number(eventMatch.value),
     tipo: eventFields.type.value,
     equipo_id: Number(eventFields.team.value),
+    periodo: eventFields.period.value || null,
+    minuto: valorNumero(eventFields.minute),
     inscripcion_jugador_id: eventFields.player.value || null,
     inscripcion_relacionada_id:
       eventFields.type.value === "cambio"
@@ -2636,6 +2728,16 @@ function valoresFormularioIncidencia() {
 function validarIncidencia(valores) {
   if (!valores.partido_id || !valores.equipo_id) {
     throw new Error("Partido y equipo son obligatorios.");
+  }
+  if (
+    valores.minuto !== null &&
+    (
+      !Number.isInteger(valores.minuto) ||
+      valores.minuto < 1 ||
+      valores.minuto > 130
+    )
+  ) {
+    throw new Error("El minuto debe estar entre 1 y 130.");
   }
   if (
     valores.estado_dato === "confirmado" &&
@@ -2690,7 +2792,14 @@ async function guardarIncidencia(event) {
     await cargarIncidenciasAdmin();
     if (incidenciaId) seleccionarIncidencia(incidenciaId);
 
-    setEventFeedback("Incidencia guardada.", "ok");
+    setEventFeedback(
+      data.periodo_omitido
+        ? "Incidencia guardada sin el tiempo. Ejecutá incidencias-periodos.sql."
+        : data.ajuste_tipo?.motivo === "segunda_amarilla"
+        ? "Segunda amarilla detectada: se registró como expulsión."
+        : "Incidencia guardada.",
+      data.periodo_omitido ? "warn" : "ok"
+    );
     setStatus("Incidencias actualizadas.", "ok");
   } finally {
     setEventSaving(false);

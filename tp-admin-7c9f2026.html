@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=8">
+  <link rel="stylesheet" href="styles/admin.css?v=9">
 </head>
 <body>
   <main class="admin-shell">
@@ -70,6 +70,7 @@
         <p class="stage-intro">
           El resultado no se modifica desde acá. Tocá una acción del equipo
           y elegí al jugador para completar lo ocurrido en el partido.
+          Tiempo y minuto son opcionales.
         </p>
 
         <label class="live-match-select">
@@ -159,6 +160,27 @@
           <p id="livePickerHelp">
             La incidencia se guardará al tocar un jugador.
           </p>
+          <div class="live-picker-moment">
+            <label>
+              Tiempo
+              <select id="livePeriod">
+                <option value="">Sin informar</option>
+                <option value="primer_tiempo">1.er tiempo</option>
+                <option value="segundo_tiempo">2.º tiempo</option>
+              </select>
+            </label>
+            <label>
+              Minuto total
+              <input
+                id="liveMinute"
+                type="number"
+                min="1"
+                max="130"
+                inputmode="numeric"
+                placeholder="Ej. 67"
+              >
+            </label>
+          </div>
           <div class="live-player-grid" id="livePlayerGrid"></div>
         </section>
       </div>
@@ -555,6 +577,7 @@
         <p class="stage-intro">
           Las incidencias nuevas usan el plantel del club y torneo del partido.
           Cargalas de la primera a la última o corregí el orden con las flechas.
+          Tiempo y minuto son opcionales.
           Los nombres históricos pueden conciliarse como datos por verificar.
           En un gol en contra, elegí el club al que pertenece el jugador.
         </p>
@@ -590,7 +613,9 @@
                     <option value="gol_penal">Gol de penal</option>
                     <option value="gol_en_contra">Gol en contra</option>
                     <option value="amarilla">Amarilla</option>
-                    <option value="doble_amarilla">Doble amarilla</option>
+                    <option value="doble_amarilla">
+                      Segunda amarilla + roja
+                    </option>
                     <option value="roja">Roja</option>
                     <option value="cambio">Cambio</option>
                   </select>
@@ -598,6 +623,28 @@
                 <label>
                   Equipo
                   <select id="eventTeam"></select>
+                </label>
+              </div>
+
+              <div class="form-row two">
+                <label>
+                  Tiempo
+                  <select id="eventPeriod">
+                    <option value="">Sin informar</option>
+                    <option value="primer_tiempo">1.er tiempo</option>
+                    <option value="segundo_tiempo">2.º tiempo</option>
+                  </select>
+                </label>
+                <label>
+                  Minuto total
+                  <input
+                    id="eventMinute"
+                    type="number"
+                    min="1"
+                    max="130"
+                    inputmode="numeric"
+                    placeholder="Ej. 67"
+                  >
                 </label>
               </div>
 
@@ -768,6 +815,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=17"></script>
+  <script src="js/admin-panel.js?v=18"></script>
 </body>
 </html>

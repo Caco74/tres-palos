@@ -3774,6 +3774,7 @@ function renderEventoPartido(evento, partido) {
   const nombreEquipo = equipo
     ? nombre(equipo)
     : "Equipo sin identificar";
+  const momento = formatearMomentoIncidencia(evento);
   const contenido = `
     <strong class="${jugadorIdentificado ? "" : "data-incomplete"}">
       ${escaparHtml(jugador)}
@@ -3781,7 +3782,7 @@ function renderEventoPartido(evento, partido) {
     <small>
       <b>${escaparHtml(nombreEquipo)}</b>
       <span class="event-type event-type-${tipo}">
-        ${etiquetaEvento(tipo)}
+        ${etiquetaEvento(tipo)}${momento ? ` · ${momento}` : ""}
       </span>
     </small>
   `;
@@ -3884,11 +3885,24 @@ function etiquetaEvento(tipo) {
     "gol-penal": "Gol de penal",
     "gol-contra": "Gol en contra",
     amarilla: "Tarjeta amarilla",
-    "doble-amarilla": "Doble amarilla",
+    "doble-amarilla": "Segunda amarilla · Expulsión",
     roja: "Tarjeta roja",
     cambio: "Cambio",
     otro: "Incidencia"
   }[tipo];
+}
+
+function formatearMomentoIncidencia(evento) {
+  const periodo = {
+    primer_tiempo: "1T",
+    segundo_tiempo: "2T"
+  }[evento.periodo] || "";
+  const minuto = Number(evento.minuto);
+
+  return [
+    periodo,
+    Number.isInteger(minuto) && minuto > 0 ? `${minuto}'` : ""
+  ].filter(Boolean).join(" · ");
 }
 
 function etiquetaFase(fase) {

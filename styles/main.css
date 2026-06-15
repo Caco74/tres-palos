@@ -1559,7 +1559,13 @@ button {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1rem;
   letter-spacing: 0.06em;
-  color: var(--red);
+  color: #ff6575;
+  background: rgba(255, 48, 69, .09);
+  box-shadow: inset 0 0 0 1px rgba(255, 48, 69, .13);
+}
+
+.tabla th:nth-child(3) {
+  color: rgba(255, 101, 117, .82);
 }
 
 .t-dg {
@@ -2427,6 +2433,11 @@ body.detail-mode .app-main {
   border: 1px solid rgba(34, 197, 94, .28);
   border-radius: 999px;
   background: rgba(34, 197, 94, .08);
+  font-weight: 700;
+}
+
+.event-side small .event-type-doble-amarilla {
+  color: var(--loss);
   font-weight: 700;
 }
 
