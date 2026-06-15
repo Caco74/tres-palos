@@ -3,7 +3,7 @@ let zonaActual = 1;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
 let cargaPartidosFinalizada = false;
-let alcanceDatosActual = "completo";
+let alcanceDatosActual = null;
 let equiposComparadorDatos = {
   equipoA: null,
   equipoB: null
@@ -1906,50 +1906,292 @@ function renderPulsoInicio() {
     )
   ];
   const anio = obtenerAnioPlayoffs();
-  const analisis = generarAnalisisPulso(
-    partidosFase,
-    protagonistas,
+  const resultadosPrevios = renderResultadosEtapaAnterior(
     faseActual
   );
 
   cont.innerHTML = `
     <div class="home-live">
-      ${renderSeccionPulso(
-        "Lectura de los datos",
-        fase.etiqueta,
-        `
-          <article class="home-live__note">
-            <div class="home-live__note-eyebrow">
-              Las claves de la etapa actual
-            </div>
-            <h3 class="home-live__note-title">
-              ${analisis.titulo}
-            </h3>
-            <div class="home-live__note-copy">
-              ${analisis.parrafos.map(parrafo =>
-                `<p>${parrafo}</p>`
-              ).join("")}
-            </div>
-          </article>
-        `
-      )}
+      ${resultadosPrevios}
 
       ${renderSeccionPulso(
-        "Cómo llegan",
+        protagonistas.length === 2
+          ? "Comparación de protagonistas"
+          : "Datos de los protagonistas",
         `Playoffs ${anio}`,
-        `
-          <div class="home-live__arrival-grid">
-            ${protagonistas.map(equipo =>
-              renderLlegadaPulso(
-                equipo,
-                protagonistas,
-                faseActual
-              )
-            ).join("")}
-          </div>
-        `
+        renderComparacionProtagonistasInicio(
+          protagonistas,
+          faseActual
+        )
       )}
+    </div>
+  `;
+}
 
+function obtenerFaseAnteriorPlayoff(faseActual) {
+  const indice = FASES_PLAYOFF.findIndex(
+    fase => fase.valor === faseActual
+  );
+
+  return indice > 0 ? FASES_PLAYOFF[indice - 1] : null;
+}
+
+function obtenerPartidosFasePlayoff(fase) {
+  if (!fase) return [];
+
+  return state.partidos
+    .filter(
+      partido =>
+        partido.tipo === "playoff" &&
+        partido.fase === fase
+    )
+    .map(resolverPartidoPlayoff)
+    .filter(
+      partido =>
+        partido.local &&
+        partido.visitante &&
+        partido.goles_local !== null &&
+        partido.goles_visitante !== null
+    )
+    .sort(
+      (a, b) =>
+        Number(a.numero_playoff || 0) -
+        Number(b.numero_playoff || 0)
+    );
+}
+
+function renderResultadosEtapaAnterior(faseActual) {
+  const faseAnterior = obtenerFaseAnteriorPlayoff(faseActual);
+  const partidos = obtenerPartidosFasePlayoff(
+    faseAnterior?.valor
+  );
+
+  if (!faseAnterior || partidos.length === 0) return "";
+
+  return renderSeccionPulso(
+    "Últimos resultados",
+    faseAnterior.etiqueta,
+    `
+      <div class="home-live__results-grid">
+        ${partidos.map(renderResultadoEtapaAnterior).join("")}
+      </div>
+    `
+  );
+}
+
+function renderResultadoEtapaAnterior(partido) {
+  const ganador = obtenerGanadorPlayoff(partido);
+  const tienePenales =
+    partido.penales_local !== null &&
+    partido.penales_visitante !== null;
+  const incidencias = obtenerResumenIncidenciasResultado(partido);
+
+  return `
+    <button
+      type="button"
+      class="home-live__result-card"
+      onclick="abrirPartido(${JSON.stringify(partido.id)})"
+      aria-label="Ver resultado de ${nombre(partido.local)} contra ${nombre(partido.visitante)}"
+    >
+      <div class="home-live__result-meta">
+        <span>${etiquetaInstanciaPartido(partido)}</span>
+        <strong>Ver detalle</strong>
+      </div>
+      <div class="home-live__result-score">
+        <div class="${ganador === "local" ? "winner" : ""}">
+          ${renderEscudoPulso(partido.local)}
+          <span>${nombre(partido.local)}</span>
+        </div>
+        <strong>
+          ${partido.goles_local} - ${partido.goles_visitante}
+          ${tienePenales
+            ? `<small>Penales ${partido.penales_local} - ${partido.penales_visitante}</small>`
+            : ""}
+        </strong>
+        <div class="${ganador === "visitante" ? "winner" : ""}">
+          ${renderEscudoPulso(partido.visitante)}
+          <span>${nombre(partido.visitante)}</span>
+        </div>
+      </div>
+      ${incidencias
+        ? `<div class="home-live__result-events">${incidencias}</div>`
+        : ""}
+    </button>
+  `;
+}
+
+function obtenerResumenIncidenciasResultado(partido) {
+  const eventos = state.eventos.filter(
+    evento =>
+      String(evento.partido_id) === String(partido.id) &&
+      evento.estado_dato === "confirmado"
+  );
+  const goles = resumirJugadoresIncidencias(
+    eventos.filter(evento =>
+      ["gol", "gol-penal", "gol-contra"].includes(
+        normalizarTipoEvento(evento.tipo)
+      )
+    )
+  );
+  const expulsados = resumirJugadoresIncidencias(
+    eventos.filter(evento =>
+      ["roja", "doble-amarilla"].includes(
+        normalizarTipoEvento(evento.tipo)
+      )
+    )
+  );
+  const lineas = [];
+
+  if (goles) lineas.push(`<span><b>Goles:</b> ${goles}</span>`);
+  if (expulsados) {
+    lineas.push(`<span><b>Expulsados:</b> ${expulsados}</span>`);
+  }
+
+  return lineas.join("");
+}
+
+function resumirJugadoresIncidencias(eventos) {
+  const conteos = new Map();
+
+  eventos.forEach(evento => {
+    const jugador = limpiarNombreJugador(evento.jugador);
+    if (!jugador) return;
+    conteos.set(jugador, (conteos.get(jugador) || 0) + 1);
+  });
+
+  return [...conteos.entries()]
+    .map(([jugador, cantidad]) =>
+      escaparHtml(
+        cantidad > 1 ? `${jugador} (${cantidad})` : jugador
+      )
+    )
+    .join(" · ");
+}
+
+function renderComparacionProtagonistasInicio(
+  protagonistas,
+  faseObjetivo
+) {
+  if (protagonistas.length === 0) {
+    return `
+      <div class="home-live__missing">
+        <strong>Sin protagonistas definidos</strong>
+        <span>La comparación se habilitará cuando se resuelvan las llaves.</span>
+      </div>
+    `;
+  }
+
+  if (protagonistas.length !== 2) {
+    return `
+      <div class="home-live__arrival-grid">
+        ${protagonistas.map(equipo =>
+          renderLlegadaPulso(
+            equipo,
+            protagonistas,
+            faseObjetivo
+          )
+        ).join("")}
+      </div>
+    `;
+  }
+
+  const [equipoA, equipoB] = protagonistas;
+  const datosA = calcularLlegadaPlayoff(equipoA, faseObjetivo);
+  const datosB = calcularLlegadaPlayoff(equipoB, faseObjetivo);
+  const antecedentes = obtenerAntecedentesRegulares(
+    equipoA,
+    equipoB
+  );
+  const filas = [
+    {
+      etiqueta: "Partidos",
+      valorA: datosA.partidos,
+      valorB: datosB.partidos,
+      comparar: false
+    },
+    {
+      etiqueta: "Goles a favor",
+      valorA: datosA.golesFavor,
+      valorB: datosB.golesFavor
+    },
+    {
+      etiqueta: "Goles recibidos",
+      valorA: datosA.golesContra,
+      valorB: datosB.golesContra,
+      menorEsMejor: true
+    },
+    {
+      etiqueta: "Vallas invictas",
+      valorA: datosA.vallasInvictas,
+      valorB: datosB.vallasInvictas
+    },
+    {
+      etiqueta: "Series superadas",
+      valorA: datosA.seriesGanadas,
+      valorB: datosB.seriesGanadas
+    },
+    {
+      etiqueta: "Definiciones por penales",
+      valorA: datosA.seriesPorPenales,
+      valorB: datosB.seriesPorPenales,
+      comparar: false
+    }
+  ];
+
+  return `
+    <div class="home-live__head-to-head">
+      <div class="home-live__compare-team">
+        ${renderEscudoPulso(equipoA)}
+        <strong>${nombre(equipoA)}</strong>
+        ${renderFormaPulso(equipoA)}
+      </div>
+      <div class="home-live__compare-title">VS</div>
+      <div class="home-live__compare-team">
+        ${renderEscudoPulso(equipoB)}
+        <strong>${nombre(equipoB)}</strong>
+        ${renderFormaPulso(equipoB)}
+      </div>
+    </div>
+
+    <div class="home-live__compare-list">
+      ${filas.map(renderFilaComparacionInicio).join("")}
+    </div>
+
+    <div class="home-live__compare-note">
+      <span>Antecedentes en fase regular</span>
+      <strong>
+        ${antecedentes.partidos.length > 0
+          ? `${antecedentes.partidos.length} ${
+              antecedentes.partidos.length === 1
+                ? "partido"
+                : "partidos"
+            } · ${resumirAntecedentesRegulares(antecedentes)}`
+          : "Sin enfrentamientos registrados"}
+      </strong>
+      <small>Cálculos sobre los partidos previos de playoffs.</small>
+    </div>
+  `;
+}
+
+function renderFilaComparacionInicio({
+  etiqueta,
+  valorA,
+  valorB,
+  menorEsMejor = false,
+  comparar = true
+}) {
+  const claseA = comparar
+    ? claseComparador(valorA, valorB, "a", menorEsMejor)
+    : "neutral";
+  const claseB = comparar
+    ? claseComparador(valorA, valorB, "b", menorEsMejor)
+    : "neutral";
+
+  return `
+    <div class="home-live__compare-row">
+      <strong class="${claseA}">${valorA}</strong>
+      <span>${etiqueta}</span>
+      <strong class="${claseB}">${valorB}</strong>
     </div>
   `;
 }
@@ -4305,7 +4547,6 @@ function crearEstadisticaEquipo(equipo) {
     vallasInvictas: 0,
     pjLocal: 0,
     pgLocal: 0,
-    ptsLocal: 0,
     resultados: []
   };
 }
@@ -4347,7 +4588,6 @@ function calcularEstadisticasDatos(alcance = alcanceDatosActual) {
       local.pg += 1;
       local.pts += 3;
       local.pgLocal += 1;
-      local.ptsLocal += 3;
       visitante.pp += 1;
       local.resultados.push("G");
       visitante.resultados.push("P");
@@ -4362,7 +4602,6 @@ function calcularEstadisticasDatos(alcance = alcanceDatosActual) {
       visitante.pe += 1;
       local.pts += 1;
       visitante.pts += 1;
-      local.ptsLocal += 1;
       local.resultados.push("E");
       visitante.resultados.push("E");
     }
@@ -4374,19 +4613,27 @@ function calcularEstadisticasDatos(alcance = alcanceDatosActual) {
       dg: item.gf - item.gc,
       promedioGoles: item.pj > 0 ? item.gf / item.pj : 0,
       promedioRecibidos: item.pj > 0 ? item.gc / item.pj : 0,
-      efectividad:
+      promedioDiferencia:
         item.pj > 0
-          ? item.pts / (item.pj * 3) * 100
+          ? (item.gf - item.gc) / item.pj
           : 0,
-      efectividadLocal:
+      porcentajeVictorias:
+        item.pj > 0
+          ? item.pg / item.pj * 100
+          : 0,
+      porcentajeVallasInvictas:
+        item.pj > 0
+          ? item.vallasInvictas / item.pj * 100
+          : 0,
+      porcentajeVictoriasLocal:
         item.pjLocal > 0
-          ? item.ptsLocal / (item.pjLocal * 3) * 100
+          ? item.pgLocal / item.pjLocal * 100
           : 0,
       rachaSinPerder: calcularRachaSinPerder(item.resultados)
     }))
     .sort((a, b) =>
-      b.pts - a.pts ||
-      b.dg - a.dg ||
+      b.porcentajeVictorias - a.porcentajeVictorias ||
+      b.promedioDiferencia - a.promedioDiferencia ||
       nombre(a.equipo).localeCompare(nombre(b.equipo), "es")
     );
 }
@@ -4402,10 +4649,37 @@ function calcularRachaSinPerder(resultados) {
   return racha;
 }
 
-function obtenerLideresDatos(estadisticas, campo, modo = "max") {
+function obtenerMuestraMinimaDatos(
+  estadisticas,
+  campo = "pj"
+) {
+  const maximo = Math.max(
+    ...estadisticas.map(item => Number(item[campo]) || 0),
+    0
+  );
+
+  return Math.max(2, Math.ceil(maximo / 2));
+}
+
+function obtenerLideresDatos(
+  estadisticas,
+  campo,
+  modo = "max",
+  campoMuestra = "pj"
+) {
   if (estadisticas.length === 0) return [];
 
-  const valorLider = estadisticas.reduce(
+  const muestraMinima = obtenerMuestraMinimaDatos(
+    estadisticas,
+    campoMuestra
+  );
+  const elegibles = estadisticas.filter(
+    item => Number(item[campoMuestra]) >= muestraMinima
+  );
+
+  if (elegibles.length === 0) return [];
+
+  const valorLider = elegibles.reduce(
     (valor, item) =>
       modo === "min"
         ? Math.min(valor, item[campo])
@@ -4413,7 +4687,9 @@ function obtenerLideresDatos(estadisticas, campo, modo = "max") {
     modo === "min" ? Infinity : -Infinity
   );
 
-  return estadisticas.filter(item => item[campo] === valorLider);
+  return elegibles.filter(
+    item => Math.abs(item[campo] - valorLider) < 0.000001
+  );
 }
 
 function listarLideresDatos(lideres) {
@@ -4443,62 +4719,163 @@ function renderTarjetaLiderDatos({
   `;
 }
 
+function renderTarjetaSinMuestraDatos(etiqueta) {
+  return `
+    <article class="datos-leader-card unavailable">
+      <span class="datos-leader-label">${etiqueta}</span>
+      <strong class="datos-leader-value">Sin muestra</strong>
+      <div class="datos-leader-team">Aún no comparable</div>
+      <p>Se necesitan más partidos jugados.</p>
+    </article>
+  `;
+}
+
+function formatearDecimalDatos(valor, decimales = 2) {
+  return Number(valor)
+    .toFixed(decimales)
+    .replace(".", ",");
+}
+
+function formatearPorcentajeDatos(valor) {
+  return `${Math.round(Number(valor))}%`;
+}
+
+function detalleLiderDatos(lideres, detalle) {
+  return lideres.length > 1
+    ? `${lideres.length} equipos igualados`
+    : detalle(lideres[0]);
+}
+
 function renderLideresDatos(estadisticas) {
-  const ataques = obtenerLideresDatos(estadisticas, "gf");
-  const defensas = obtenerLideresDatos(estadisticas, "gc", "min");
-  const victorias = obtenerLideresDatos(estadisticas, "pg");
-  const diferencias = obtenerLideresDatos(estadisticas, "dg");
-  const rachas = obtenerLideresDatos(estadisticas, "rachaSinPerder");
-  const locales = obtenerLideresDatos(estadisticas, "pgLocal");
+  const ataques = obtenerLideresDatos(
+    estadisticas,
+    "promedioGoles"
+  );
+  const defensas = obtenerLideresDatos(
+    estadisticas,
+    "promedioRecibidos",
+    "min"
+  );
+  const victorias = obtenerLideresDatos(
+    estadisticas,
+    "porcentajeVictorias"
+  );
+  const diferencias = obtenerLideresDatos(
+    estadisticas,
+    "promedioDiferencia"
+  );
+  const vallas = obtenerLideresDatos(
+    estadisticas,
+    "porcentajeVallasInvictas"
+  );
+  const locales = obtenerLideresDatos(
+    estadisticas,
+    "porcentajeVictoriasLocal",
+    "max",
+    "pjLocal"
+  );
   const ataque = ataques[0];
   const defensa = defensas[0];
   const ganador = victorias[0];
   const diferencia = diferencias[0];
-  const racha = rachas[0];
+  const valla = vallas[0];
   const local = locales[0];
+  const muestra = obtenerMuestraMinimaDatos(estadisticas);
+  const tarjetaAtaque = ataque
+    ? renderTarjetaLiderDatos({
+        etiqueta: "Mejor ataque",
+        valor: `${formatearDecimalDatos(ataque.promedioGoles)} por partido`,
+        lideres: ataques,
+        detalle: detalleLiderDatos(
+          ataques,
+          item => `${item.gf} goles en ${item.pj} partidos`
+        ),
+        clase: "featured"
+      })
+    : renderTarjetaSinMuestraDatos("Mejor ataque");
+  const tarjetaDefensa = defensa
+    ? renderTarjetaLiderDatos({
+        etiqueta: "Mejor defensa",
+        valor: `${formatearDecimalDatos(defensa.promedioRecibidos)} por partido`,
+        lideres: defensas,
+        detalle: detalleLiderDatos(
+          defensas,
+          item => `${item.gc} recibidos en ${item.pj} partidos`
+        )
+      })
+    : renderTarjetaSinMuestraDatos("Mejor defensa");
+  const tarjetaVictorias = ganador
+    ? renderTarjetaLiderDatos({
+        etiqueta: "Mayor porcentaje de victorias",
+        valor: formatearPorcentajeDatos(
+          ganador.porcentajeVictorias
+        ),
+        lideres: victorias,
+        detalle: detalleLiderDatos(
+          victorias,
+          item => `${item.pg} triunfos en ${item.pj} partidos`
+        )
+      })
+    : renderTarjetaSinMuestraDatos(
+        "Mayor porcentaje de victorias"
+      );
+  const tarjetaDiferencia = diferencia
+    ? renderTarjetaLiderDatos({
+        etiqueta: "Mejor diferencia por partido",
+        valor: `${
+          diferencia.promedioDiferencia > 0 ? "+" : ""
+        }${formatearDecimalDatos(diferencia.promedioDiferencia)}`,
+        lideres: diferencias,
+        detalle: detalleLiderDatos(
+          diferencias,
+          item => `${item.dg > 0 ? "+" : ""}${item.dg} en total`
+        )
+      })
+    : renderTarjetaSinMuestraDatos(
+        "Mejor diferencia por partido"
+      );
+  const tarjetaVallas = valla
+    ? renderTarjetaLiderDatos({
+        etiqueta: "Mayor porcentaje de vallas invictas",
+        valor: formatearPorcentajeDatos(
+          valla.porcentajeVallasInvictas
+        ),
+        lideres: vallas,
+        detalle: detalleLiderDatos(
+          vallas,
+          item => `${item.vallasInvictas} en ${item.pj} partidos`
+        )
+      })
+    : renderTarjetaSinMuestraDatos(
+        "Mayor porcentaje de vallas invictas"
+      );
+  const tarjetaLocal = local
+    ? renderTarjetaLiderDatos({
+        etiqueta: "Mejor local",
+        valor: formatearPorcentajeDatos(
+          local.porcentajeVictoriasLocal
+        ),
+        lideres: locales,
+        detalle: detalleLiderDatos(
+          locales,
+          item => `${item.pgLocal} triunfos en ${item.pjLocal} partidos`
+        )
+      })
+    : renderTarjetaSinMuestraDatos("Mejor local");
 
   return `
     <div class="datos-leaders-grid">
-      ${renderTarjetaLiderDatos({
-        etiqueta: "Mejor ataque",
-        valor: `${ataque.gf} goles`,
-        lideres: ataques,
-        detalle: `${ataque.promedioGoles.toFixed(2).replace(".", ",")} por partido`,
-        clase: "featured"
-      })}
-      ${renderTarjetaLiderDatos({
-        etiqueta: "Mejor defensa",
-        valor: `${defensa.gc} recibidos`,
-        lideres: defensas,
-        detalle: defensas.length > 1
-          ? `${defensas.length} equipos igualados`
-          : `${defensa.vallasInvictas} vallas invictas`
-      })}
-      ${renderTarjetaLiderDatos({
-        etiqueta: "Más victorias",
-        valor: `${ganador.pg} triunfos`,
-        lideres: victorias,
-        detalle: `${Math.round(ganador.pg / ganador.pj * 100)}% de sus partidos`
-      })}
-      ${renderTarjetaLiderDatos({
-        etiqueta: "Mejor diferencia",
-        valor: diferencia.dg > 0 ? `+${diferencia.dg}` : `${diferencia.dg}`,
-        lideres: diferencias,
-        detalle: `${diferencia.gf} a favor · ${diferencia.gc} en contra`
-      })}
-      ${renderTarjetaLiderDatos({
-        etiqueta: "Racha actual",
-        valor: `${racha.rachaSinPerder} partidos`,
-        lideres: rachas,
-        detalle: "sin perder"
-      })}
-      ${renderTarjetaLiderDatos({
-        etiqueta: "Mejor local",
-        valor: `${local.pgLocal} triunfos`,
-        lideres: locales,
-        detalle: `${local.pjLocal} partidos como local`
-      })}
+      ${tarjetaAtaque}
+      ${tarjetaDefensa}
+      ${tarjetaVictorias}
+      ${tarjetaDiferencia}
+      ${tarjetaVallas}
+      ${tarjetaLocal}
     </div>
+    <p class="datos-sample-note">
+      Liderazgos calculados entre equipos con al menos ${muestra}
+      partidos en este alcance.
+    </p>
   `;
 }
 
@@ -4506,20 +4883,52 @@ function seleccionarEquiposComparador(estadisticas) {
   const disponibles = new Set(
     estadisticas.map(item => item.equipo)
   );
+  const protagonistas = obtenerProtagonistasActualesParaDatos()
+    .filter(equipo => disponibles.has(equipo));
+  const equipoPreferidoA = protagonistas[0] || null;
+  const equipoPreferidoB = protagonistas[1] || null;
 
   if (!disponibles.has(equiposComparadorDatos.equipoA)) {
     equiposComparadorDatos.equipoA =
-      estadisticas[0]?.equipo || null;
+      equipoPreferidoA ||
+      estadisticas[0]?.equipo ||
+      null;
   }
   if (
     !disponibles.has(equiposComparadorDatos.equipoB) ||
     equiposComparadorDatos.equipoB === equiposComparadorDatos.equipoA
   ) {
     equiposComparadorDatos.equipoB =
+      (
+        equipoPreferidoB !== equiposComparadorDatos.equipoA
+          ? equipoPreferidoB
+          : null
+      ) ||
       estadisticas.find(
         item => item.equipo !== equiposComparadorDatos.equipoA
       )?.equipo || null;
   }
+}
+
+function obtenerProtagonistasActualesParaDatos() {
+  const faseActual = obtenerFaseActualPlayoffs();
+
+  return [
+    ...new Set(
+      state.partidos
+        .filter(
+          partido =>
+            partido.tipo === "playoff" &&
+            partido.fase === faseActual
+        )
+        .map(resolverPartidoPlayoff)
+        .flatMap(partido => [
+          partido.local,
+          partido.visitante
+        ])
+        .filter(Boolean)
+    )
+  ];
 }
 
 function renderOpcionesComparador(estadisticas, seleccionado) {
@@ -4550,7 +4959,15 @@ function claseComparador(valorA, valorB, lado, menorEsMejor = false) {
 
 function formatearValorComparador(valor, formato) {
   if (formato === "porcentaje") return `${Math.round(valor)}%`;
+  if (formato === "decimal") {
+    return Number(valor).toFixed(2).replace(".", ",");
+  }
   if (formato === "diferencia" && valor > 0) return `+${valor}`;
+  if (formato === "diferencia-decimal") {
+    return `${
+      valor > 0 ? "+" : ""
+    }${Number(valor).toFixed(2).replace(".", ",")}`;
+  }
   return String(valor);
 }
 
@@ -4559,23 +4976,28 @@ function renderFilaComparador({
   valorA,
   valorB,
   formato = "numero",
-  menorEsMejor = false
+  menorEsMejor = false,
+  comparar = true
 }) {
   const maximo = Math.max(Math.abs(valorA), Math.abs(valorB), 1);
   const anchoA = Math.max(Math.abs(valorA) / maximo * 100, 4);
   const anchoB = Math.max(Math.abs(valorB) / maximo * 100, 4);
-  const claseA = claseComparador(
-    valorA,
-    valorB,
-    "a",
-    menorEsMejor
-  );
-  const claseB = claseComparador(
-    valorA,
-    valorB,
-    "b",
-    menorEsMejor
-  );
+  const claseA = comparar
+    ? claseComparador(
+        valorA,
+        valorB,
+        "a",
+        menorEsMejor
+      )
+    : "neutral";
+  const claseB = comparar
+    ? claseComparador(
+        valorA,
+        valorB,
+        "b",
+        menorEsMejor
+      )
+    : "neutral";
 
   return `
     <div class="datos-compare-row">
@@ -4682,27 +5104,47 @@ function renderComparadorDatos(estadisticas) {
   }
 
   const filas = [
-    { etiqueta: "Partidos", valorA: statsA.pj, valorB: statsB.pj },
-    { etiqueta: "Puntos", valorA: statsA.pts, valorB: statsB.pts },
-    { etiqueta: "Victorias", valorA: statsA.pg, valorB: statsB.pg },
-    { etiqueta: "Goles a favor", valorA: statsA.gf, valorB: statsB.gf },
     {
-      etiqueta: "Goles recibidos",
-      valorA: statsA.gc,
-      valorB: statsB.gc,
+      etiqueta: "Partidos",
+      valorA: statsA.pj,
+      valorB: statsB.pj,
+      comparar: false
+    },
+    {
+      etiqueta: "% victorias",
+      valorA: statsA.porcentajeVictorias,
+      valorB: statsB.porcentajeVictorias,
+      formato: "porcentaje"
+    },
+    {
+      etiqueta: "Goles por partido",
+      valorA: statsA.promedioGoles,
+      valorB: statsB.promedioGoles,
+      formato: "decimal"
+    },
+    {
+      etiqueta: "Recibidos por partido",
+      valorA: statsA.promedioRecibidos,
+      valorB: statsB.promedioRecibidos,
+      formato: "decimal",
       menorEsMejor: true
     },
     {
-      etiqueta: "Diferencia",
-      valorA: statsA.dg,
-      valorB: statsB.dg,
-      formato: "diferencia"
+      etiqueta: "Diferencia por partido",
+      valorA: statsA.promedioDiferencia,
+      valorB: statsB.promedioDiferencia,
+      formato: "diferencia-decimal"
     },
     {
-      etiqueta: "Efectividad",
-      valorA: statsA.efectividad,
-      valorB: statsB.efectividad,
+      etiqueta: "Vallas invictas",
+      valorA: statsA.porcentajeVallasInvictas,
+      valorB: statsB.porcentajeVallasInvictas,
       formato: "porcentaje"
+    },
+    {
+      etiqueta: "Racha sin perder",
+      valorA: statsA.rachaSinPerder,
+      valorB: statsB.rachaSinPerder
     }
   ];
   const lecturas = crearLecturasComparador(statsA, statsB);
@@ -4714,7 +5156,7 @@ function renderComparadorDatos(estadisticas) {
           <span>Comparador</span>
           <h2>Equipo contra equipo</h2>
         </div>
-        <small>Penales no alteran PG, PE o PP</small>
+        <small>Promedios por partido · penales no alteran el resultado</small>
       </div>
 
       <div class="datos-selectors">
@@ -4753,8 +5195,25 @@ function etiquetaAlcanceDatos(alcance) {
   return {
     regular: "Fase regular",
     playoffs: "Playoffs",
-    completo: "Torneo completo"
-  }[alcance] || "Torneo completo";
+    completo: "Todos los partidos"
+  }[alcance] || "Todos los partidos";
+}
+
+function descripcionAlcanceDatos(alcance) {
+  return {
+    regular:
+      "Resultados de la fase regular.",
+    playoffs:
+      "Resultados de playoffs. Los liderazgos exigen una muestra mínima.",
+    completo:
+      "Fase regular y playoffs combinados. No representa una tabla oficial."
+  }[alcance] || "";
+}
+
+function obtenerAlcanceDatosInicial() {
+  return obtenerFaseActualPlayoffs()
+    ? "playoffs"
+    : "regular";
 }
 
 function renderDatos() {
@@ -4766,6 +5225,10 @@ function renderDatos() {
       <div class="datos-loading">Calculando estadísticas...</div>
     `;
     return;
+  }
+
+  if (!alcanceDatosActual) {
+    alcanceDatosActual = obtenerAlcanceDatosInicial();
   }
 
   const partidos = obtenerPartidosParaDatos();
@@ -4803,6 +5266,9 @@ function renderDatos() {
         </div>
         <small>${partidos.length} partidos jugados</small>
       </div>
+      <p class="datos-method-note">
+        ${descripcionAlcanceDatos(alcanceDatosActual)}
+      </p>
       ${renderLideresDatos(estadisticas)}
     </section>
 
