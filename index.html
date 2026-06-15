@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tres Palos v11</title>
 
-<link rel="stylesheet" href="/styles/main.css?v=40">
+<link rel="stylesheet" href="/styles/main.css?v=41">
 <link rel="icon" type="image/png" href="/assets/brand/tres-palos-simbolo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -42,6 +42,7 @@
       <li><button class="sb-link" onclick="switchTab('partidos')">Partidos</button></li>
       <li><button class="sb-link" onclick="switchTab('tabla')">Tabla</button></li>
       <li><button class="sb-link" onclick="switchTab('playoffs')">Playoffs</button></li>
+      <li><button class="sb-link" onclick="switchTab('datos')">Datos</button></li>
       <li><button class="sb-link" onclick="switchTab('equipos')">Equipos</button></li>
     </ul>
   </aside>
@@ -97,6 +98,7 @@
       <div class="tab" data-tab="partidos">Partidos</div>
       <div class="tab" data-tab="tabla">Tabla</div>
       <div class="tab" data-tab="playoffs">Playoffs</div>
+      <div class="tab" data-tab="datos">Datos</div>
       <div class="tab" data-tab="equipos">Equipos</div>
     </nav>
 
@@ -176,6 +178,21 @@
         </div>
 
         <div id="playoffsContent" aria-live="polite"></div>
+      </section>
+
+      <!-- DATOS -->
+      <section class="tab-content" id="tab-datos">
+        <div class="sec datos-heading">
+          <div class="sec-head">
+            <div class="sec-title">Estadísticas del torneo</div>
+            <span class="sec-link">Datos cruzados</span>
+          </div>
+          <p class="datos-intro">
+            Líderes, comparaciones y lecturas calculadas con los resultados cargados.
+          </p>
+        </div>
+
+        <div id="datosContent" aria-live="polite"></div>
       </section>
 
       <!-- EQUIPOS -->
@@ -306,11 +323,11 @@
         </svg>
         <span>Playoffs</span>
       </button>
-      <button type="button" class="bn-item" data-tab="equipos" onclick="switchTab('equipos')">
+      <button type="button" class="bn-item" data-tab="datos" onclick="switchTab('datos')">
         <svg class="bn-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-3Z"/>
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
         </svg>
-        <span>Equipos</span>
+        <span>Datos</span>
       </button>
     </nav>
 
@@ -327,6 +344,6 @@
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
 <script src="js/analytics.js?v=1"></script>
-<script src="js/app.js?v=48"></script>
+<script src="js/app.js?v=49"></script>
 </body>
 </html>
