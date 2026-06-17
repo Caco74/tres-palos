@@ -399,8 +399,9 @@ function obtenerEquipoLibre(zona, partidos) {
 
 function renderEquipoLibre(equipo) {
   const nombreEquipo = nombre(equipo);
-  const escudoEquipo = escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+  const escudo = obtenerEscudoEquipo(equipo);
+  const escudoEquipo = escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
   return `
@@ -505,21 +506,35 @@ function renderPartido(p) {
       type="button"
       class="match-row ${estado.clase}"
       onclick="abrirPartido(${JSON.stringify(p.id)})"
-      aria-label="Ver ${nombre(p.local)} contra ${nombre(p.visitante)}"
+      aria-label="Ver ${nombre(p.local, p.local_id)} contra ${nombre(
+        p.visitante,
+        p.visitante_id
+      )}"
     >
-      ${renderEquipoPartido(p.local, visitanteGano)}
+      ${renderEquipoPartido(p.local, p.local_id, visitanteGano)}
       ${center}
-      ${renderEquipoPartido(p.visitante, localGano, true)}
+      ${renderEquipoPartido(
+        p.visitante,
+        p.visitante_id,
+        localGano,
+        true
+      )}
 
       <div class="mr-chev">›</div>
     </button>
   `;
 }
 
-function renderEquipoPartido(equipo, perdio, visitante = false) {
-  const nombreEquipo = equipo ? nombre(equipo) : "Por definir";
-  const escudo = equipo && escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+function renderEquipoPartido(
+  equipo,
+  clubId,
+  perdio,
+  visitante = false
+) {
+  const nombreEquipo = equipo ? nombre(equipo, clubId) : "Por definir";
+  const escudoEquipo = obtenerEscudoEquipo(equipo, clubId);
+  const escudo = equipo && escudoEquipo
+    ? `<img src="${escudoEquipo}" alt="${nombreEquipo}">`
     : `<span>${equipo ? nombreEquipo.slice(0, 2).toUpperCase() : "?"}</span>`;
 
   return `
@@ -1324,19 +1339,23 @@ function resolverPartidoPlayoff(partido) {
     !Boolean(partido.local && partido.visitante);
   const local = resolverEquipoPlayoff(partido, "local");
   const visitante = resolverEquipoPlayoff(partido, "visitante");
+  const clubLocal = obtenerClub(local, partido.local_id);
+  const clubVisitante = obtenerClub(visitante, partido.visitante_id);
+  const localOficial = clubLocal?.nombre_oficial || local;
+  const visitanteOficial =
+    clubVisitante?.nombre_oficial || visitante;
   const invertirVueltaProvisional =
     localiaPendientePorSorteo &&
     Number(partido.numero_playoff) === 2;
   const localResuelto = invertirVueltaProvisional
-    ? visitante
-    : local;
+    ? visitanteOficial
+    : localOficial;
   const visitanteResuelto = invertirVueltaProvisional
-    ? local
-    : visitante;
-  const localIdOriginal =
-    partido.local_id || obtenerClub(local)?.id || null;
+    ? localOficial
+    : visitanteOficial;
+  const localIdOriginal = clubLocal?.id || partido.local_id || null;
   const visitanteIdOriginal =
-    partido.visitante_id || obtenerClub(visitante)?.id || null;
+    clubVisitante?.id || partido.visitante_id || null;
   const partidoResuelto = {
     ...partido,
     local: localResuelto,
@@ -1795,6 +1814,11 @@ function renderPartidoInicio(partido) {
     partido.goles_local !== null &&
     partido.goles_visitante !== null;
   const estado = obtenerEstadoTemporalPartido(partido);
+  const nombreLocal = nombre(partido.local, partido.local_id);
+  const nombreVisitante = nombre(
+    partido.visitante,
+    partido.visitante_id
+  );
   const centro = jugado
     ? `${partido.goles_local} - ${partido.goles_visitante}`
     : renderMomentoPartido(partido, estado, "home-moment");
@@ -1804,12 +1828,12 @@ function renderPartidoInicio(partido) {
       type="button"
       class="home-match-row ${estado.clase}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
-      aria-label="Ver ${nombre(partido.local)} contra ${nombre(partido.visitante)}"
+      aria-label="Ver ${nombreLocal} contra ${nombreVisitante}"
     >
       <div class="home-match-primary">
         <div class="home-team local">
-          <span>${nombre(partido.local)}</span>
-          ${renderEscudoInicio(partido.local)}
+          <span>${nombreLocal}</span>
+          ${renderEscudoInicio(partido.local, partido.local_id)}
         </div>
         <div class="home-match-center">
           ${jugado ? `<strong>${centro}</strong>` : centro}
@@ -1820,8 +1844,11 @@ function renderPartidoInicio(partido) {
           </small>
         </div>
         <div class="home-team away">
-          ${renderEscudoInicio(partido.visitante)}
-          <span>${nombre(partido.visitante)}</span>
+          ${renderEscudoInicio(
+            partido.visitante,
+            partido.visitante_id
+          )}
+          <span>${nombreVisitante}</span>
         </div>
       </div>
       <div class="home-match-insights">
@@ -1861,10 +1888,11 @@ function resumirAntecedenteInicio(partido) {
   } · ${resumirAntecedentesRegulares(antecedentes)}`;
 }
 
-function renderEscudoInicio(equipo) {
-  const nombreEquipo = nombre(equipo);
-  const contenido = escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+function renderEscudoInicio(equipo, clubId = null) {
+  const nombreEquipo = nombre(equipo, clubId);
+  const escudo = obtenerEscudoEquipo(equipo, clubId);
+  const contenido = escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
   return `<div class="home-shield">${contenido}</div>`;
@@ -1999,8 +2027,8 @@ function renderResultadoEtapaAnterior(partido) {
       </div>
       <div class="home-live__result-score">
         <div class="${ganador === "local" ? "winner" : ""}">
-          ${renderEscudoPulso(partido.local)}
-          <span>${nombre(partido.local)}</span>
+          ${renderEscudoPulso(partido.local, partido.local_id)}
+          <span>${nombre(partido.local, partido.local_id)}</span>
         </div>
         <strong>
           ${partido.goles_local} - ${partido.goles_visitante}
@@ -2009,8 +2037,11 @@ function renderResultadoEtapaAnterior(partido) {
             : ""}
         </strong>
         <div class="${ganador === "visitante" ? "winner" : ""}">
-          ${renderEscudoPulso(partido.visitante)}
-          <span>${nombre(partido.visitante)}</span>
+          ${renderEscudoPulso(
+            partido.visitante,
+            partido.visitante_id
+          )}
+          <span>${nombre(partido.visitante, partido.visitante_id)}</span>
         </div>
       </div>
       ${incidencias
@@ -2461,10 +2492,12 @@ function renderEquipoCrucePulso(equipo) {
   `;
 }
 
-function renderEscudoPulso(equipo) {
-  const contenido = escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombre(equipo)}">`
-    : `<span>${nombre(equipo).slice(0, 2).toUpperCase()}</span>`;
+function renderEscudoPulso(equipo, clubId = null) {
+  const nombreEquipo = nombre(equipo, clubId);
+  const escudo = obtenerEscudoEquipo(equipo, clubId);
+  const contenido = escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    : `<span>${nombreEquipo.slice(0, 2).toUpperCase()}</span>`;
 
   return `<div class="home-live__shield">${contenido}</div>`;
 }
@@ -3481,8 +3514,9 @@ function renderEquipoPlayoff(partido, lado, ganador, placeholder) {
 
 function renderEscudoPlayoff(equipo, clase) {
   const nombreEquipo = nombre(equipo);
-  const contenido = escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+  const escudo = obtenerEscudoEquipo(equipo);
+  const contenido = escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
   return `<div class="${clase}">${contenido}</div>`;
@@ -3591,8 +3625,9 @@ function renderTabla(zona) {
       .map(f => `<span class="fd f${f}"></span>`)
       .join('');
     const nombreEquipo = nombre(t.equipo);
-    const escudoEquipo = escudos[t.equipo]
-      ? `<img src="${escudos[t.equipo]}" alt="${nombreEquipo}">`
+    const escudo = obtenerEscudoEquipo(t.equipo);
+    const escudoEquipo = escudo
+      ? `<img src="${escudo}" alt="${nombreEquipo}">`
       : nombreEquipo.slice(0, 2).toUpperCase();
     const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
     const clasePosicion = claseClasificacion(
@@ -3795,7 +3830,7 @@ function renderDetallePartido(id) {
       </div>
 
       <div class="match-detail-scoreboard">
-        ${renderEquipoDetallePartido(partido.local)}
+        ${renderEquipoDetallePartido(partido.local, partido.local_id)}
 
         <div class="match-detail-result">
           <strong>
@@ -3808,7 +3843,10 @@ function renderDetallePartido(id) {
             : ""}
         </div>
 
-        ${renderEquipoDetallePartido(partido.visitante)}
+        ${renderEquipoDetallePartido(
+          partido.visitante,
+          partido.visitante_id
+        )}
       </div>
 
       <div class="match-detail-meta">
@@ -3880,10 +3918,11 @@ function renderValorDetalle(etiqueta, valor) {
   `;
 }
 
-function renderEquipoDetallePartido(equipo) {
-  const nombreEquipo = equipo ? nombre(equipo) : "Por definir";
-  const escudoEquipo = equipo && escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+function renderEquipoDetallePartido(equipo, clubId = null) {
+  const nombreEquipo = equipo ? nombre(equipo, clubId) : "Por definir";
+  const escudo = obtenerEscudoEquipo(equipo, clubId);
+  const escudoEquipo = equipo && escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : `<span>${equipo ? nombreEquipo.slice(0, 2).toUpperCase() : "?"}</span>`;
 
   return `
@@ -4220,8 +4259,9 @@ function renderDetalleEquipo(equipo) {
     )
     .sort(ordenarPartidosProximos)[0];
   const nombreEquipo = nombre(equipo);
-  const escudoEquipo = escudos[equipo]
-    ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+  const escudo = obtenerEscudoEquipo(equipo, club?.id);
+  const escudoEquipo = escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
   const estadoPlayoff = obtenerEstadoPlayoffEquipo(equipo);
   const identidad = [
@@ -5314,8 +5354,9 @@ function renderTeams() {
     .map(({ equipo, zona, stats }) => {
       const nombreEquipo = nombre(equipo);
       const club = obtenerClub(equipo);
-      const escudoEquipo = escudos[equipo]
-        ? `<img src="${escudos[equipo]}" alt="${nombreEquipo}">`
+      const escudo = obtenerEscudoEquipo(equipo, club?.id);
+      const escudoEquipo = escudo
+        ? `<img src="${escudo}" alt="${nombreEquipo}">`
         : nombreEquipo.slice(0, 2).toUpperCase();
       const puntos = state.partidos.length > 0
         ? ` · ${stats?.pts || 0} pts`

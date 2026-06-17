@@ -139,10 +139,28 @@ function aplicarClubes(clubes) {
   vincularClubesPartidos();
 }
 
-function obtenerClub(equipo) {
-  return clubesPorNombre.get(equipo) ||
+function obtenerClub(equipo, clubId = null) {
+  const clubPorId = clubId
+    ? state.clubes.find(club => String(club.id) === String(clubId))
+    : null;
+
+  return clubPorId ||
+    clubesPorNombre.get(equipo) ||
     clubesPorClave.get(normalizarNombreClub(equipo)) ||
     null;
+}
+
+function obtenerNombreOficialEquipo(equipo, clubId = null) {
+  return obtenerClub(equipo, clubId)?.nombre_oficial || equipo || null;
+}
+
+function obtenerEscudoEquipo(equipo, clubId = null) {
+  const club = obtenerClub(equipo, clubId);
+
+  return escudos[equipo] ||
+    club?.escudo_url ||
+    escudos[club?.nombre_oficial] ||
+    "";
 }
 
 function normalizarNombreClub(value) {
@@ -176,6 +194,11 @@ function vincularClubesPartidos() {
   });
 }
   
-function nombre(equipo) {
-  return nombresCortos[equipo] || equipo;
+function nombre(equipo, clubId = null) {
+  const club = obtenerClub(equipo, clubId);
+
+  return nombresCortos[equipo] ||
+    club?.nombre_corto ||
+    nombresCortos[club?.nombre_oficial] ||
+    equipo;
 }
