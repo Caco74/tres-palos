@@ -2921,13 +2921,23 @@ function renderLista() {
   const busqueda = searchInput.value.trim().toLowerCase();
 
   const visibles = partidos.filter(partido => {
+    const partidoVisible = resolverPartidoPlayoffAdmin(partido);
+    const etiqueta = partido.tipo === "playoff"
+      ? etiquetaPartidoPlayoffAdmin(partido)
+      : "";
     const coincideTipo = tipo === "all" || partido.tipo === tipo;
     const texto = [
       partido.id,
       partido.fase,
+      partido.numero_playoff,
+      etiqueta,
       partido.fecha,
       partido.local,
-      partido.visitante
+      partido.visitante,
+      partidoVisible.local,
+      partidoVisible.visitante,
+      partido.source_local,
+      partido.source_visitante
     ].join(" ").toLowerCase();
 
     return coincideTipo && (!busqueda || texto.includes(busqueda));
@@ -2939,6 +2949,7 @@ function renderLista() {
   }
 
   matchList.innerHTML = visibles.map(partido => {
+    const partidoVisible = resolverPartidoPlayoffAdmin(partido);
     const titulo = partido.tipo === "playoff"
       ? etiquetaPartidoPlayoffAdmin(partido)
       : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
@@ -2961,7 +2972,7 @@ function renderLista() {
         data-id="${partido.id}"
       >
         <span>#${partido.id} · ${titulo}</span>
-        <strong>${nombrePartido(partido)}</strong>
+        <strong>${nombrePartido(partidoVisible)}</strong>
         <small>${programacion}</small>
         <small>
           ${resultado} · ${etiquetaEstadoAdmin(estado)}
@@ -2976,13 +2987,19 @@ function seleccionarPartido(id) {
   const partido = partidos.find(item => String(item.id) === String(id));
   if (!partido) return;
 
+  const partidoVisible = resolverPartidoPlayoffAdmin(partido);
+  const tieneEquiposSugeridos =
+    (!partido.local || !partido.visitante) &&
+    partidoVisible.local &&
+    partidoVisible.visitante;
   const estadioClubLocal = obtenerEstadioClubLocal(partido);
   const estadioSugerido = !partido.estadio && estadioClubLocal;
 
   seleccionadoId = partido.id;
   fields.id.value = partido.id;
-  fields.local.value = partido.local || "";
-  fields.visitante.value = partido.visitante || "";
+  fields.local.value = partido.local || partidoVisible.local || "";
+  fields.visitante.value =
+    partido.visitante || partidoVisible.visitante || "";
   fields.fecha.value = partido.fecha_partido || "";
   fields.hora.value = partido.hora || "";
   fields.estado.value = partido.estado || "programado";
@@ -2993,7 +3010,13 @@ function seleccionarPartido(id) {
   fields.penalesLocal.value = valorInput(partido.penales_local);
   fields.penalesVisitante.value = valorInput(partido.penales_visitante);
   fields.sourceInfo.textContent = [
+    partido.tipo === "playoff"
+      ? `Partido: ${etiquetaPartidoPlayoffAdmin(partido)}`
+      : "",
     `Origen: ${partido.source_local || "-"} / ${partido.source_visitante || "-"}`,
+    tieneEquiposSugeridos
+      ? "Equipos sugeridos desde las llaves; guardá para fijarlos."
+      : "",
     partido.actualizado_en
       ? `Última actualización: ${formatearActualizacion(partido.actualizado_en)}`
       : ""
@@ -3004,6 +3027,12 @@ function seleccionarPartido(id) {
       ? "Se sugirió el estadio del club local. Guardá para confirmarlo."
       : "Modificá uno o más campos y guardá los cambios."
   );
+
+  if (tieneEquiposSugeridos) {
+    setSaveFeedback(
+      "El panel completó los equipos desde las llaves. Guardá para dejarlos fijos en la DB."
+    );
+  }
 
   emptyEditor.classList.add("hidden");
   matchForm.classList.remove("hidden");
@@ -3058,14 +3087,146 @@ function resolverClubAdmin(nombreClub, clubId = null) {
 }
 
 function resolverEquipoPartidoAdmin(partido, lado) {
-  const nombreEquipo = partido?.[lado] || "";
+  const partidoVisible = resolverPartidoPlayoffAdmin(partido);
+  const nombreEquipo = partidoVisible?.[lado] || "";
   const campoId = lado === "local" ? "local_id" : "visitante_id";
-  const club = resolverClubAdmin(nombreEquipo, partido?.[campoId]);
+  const club = resolverClubAdmin(nombreEquipo, partidoVisible?.[campoId]);
 
   return {
-    id: club?.id || partido?.[campoId] || null,
+    id: club?.id || partidoVisible?.[campoId] || null,
     nombre: nombreEquipo || club?.nombre_oficial || ""
   };
+}
+
+function resolverPartidoPlayoffAdmin(partido) {
+  if (!partido || partido.tipo !== "playoff") return partido || {};
+
+  const local = partido.local ||
+    resolverEquipoOrigenPlayoffAdmin(partido, "local");
+  const visitante = partido.visitante ||
+    resolverEquipoOrigenPlayoffAdmin(partido, "visitante");
+  const invertirFinalVuelta =
+    partido.fase === "final" &&
+    Number(partido.numero_playoff) === 2 &&
+    !partido.local &&
+    !partido.visitante;
+  const localResuelto = invertirFinalVuelta ? visitante : local;
+  const visitanteResuelto = invertirFinalVuelta ? local : visitante;
+  const localId =
+    partido.local_id ||
+    resolverClubAdmin(localResuelto)?.id ||
+    null;
+  const visitanteId =
+    partido.visitante_id ||
+    resolverClubAdmin(visitanteResuelto)?.id ||
+    null;
+
+  return {
+    ...partido,
+    local: localResuelto || partido.local || null,
+    visitante: visitanteResuelto || partido.visitante || null,
+    local_id: localId,
+    visitante_id: visitanteId
+  };
+}
+
+function resolverEquipoOrigenPlayoffAdmin(partido, lado) {
+  const origen = buscarPartidoDesdeSourceAdmin(
+    lado === "local" ? partido.source_local : partido.source_visitante
+  ) || obtenerPartidoOrigenPorLlaveAdmin(partido, lado);
+
+  return obtenerEquipoGanadorPlayoffAdmin(origen);
+}
+
+function buscarPartidoDesdeSourceAdmin(source) {
+  if (source === null || source === undefined || source === "") {
+    return null;
+  }
+
+  const valor = String(source).trim();
+  if (/^\d+$/.test(valor)) {
+    return partidos.find(partido => String(partido.id) === valor) || null;
+  }
+
+  const normalizado = valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const fase = [
+    ["octavos", "octavos"],
+    ["cuartos", "cuartos"],
+    ["semifinal", "semifinal"],
+    ["semis", "semifinal"],
+    ["final", "final"]
+  ].find(([texto]) => normalizado.includes(texto))?.[1];
+  const numero = Number(normalizado.match(/\d+/)?.[0]);
+
+  if (!fase || !Number.isFinite(numero)) return null;
+
+  return partidos.find(
+    partido =>
+      partido.tipo === "playoff" &&
+      partido.fase === fase &&
+      Number(partido.numero_playoff) === numero
+  ) || null;
+}
+
+function obtenerPartidoOrigenPorLlaveAdmin(partido, lado) {
+  if (!partido || partido.tipo !== "playoff") return null;
+
+  const numero = Number(partido.numero_playoff || 1);
+  let faseAnterior = null;
+  let numeroAnterior = null;
+
+  if (partido.fase === "semifinal") {
+    faseAnterior = "cuartos";
+    numeroAnterior = lado === "local" ? numero * 2 - 1 : numero * 2;
+  }
+
+  if (partido.fase === "final") {
+    faseAnterior = "semifinal";
+    numeroAnterior = lado === "local" ? 1 : 2;
+  }
+
+  if (!faseAnterior || !numeroAnterior) return null;
+
+  return partidos.find(
+    item =>
+      item.tipo === "playoff" &&
+      item.fase === faseAnterior &&
+      Number(item.numero_playoff) === numeroAnterior
+  ) || null;
+}
+
+function obtenerEquipoGanadorPlayoffAdmin(partido) {
+  if (
+    !partido ||
+    partido.goles_local === null ||
+    partido.goles_visitante === null
+  ) {
+    return null;
+  }
+
+  if (partido.goles_local > partido.goles_visitante) {
+    return partido.local;
+  }
+  if (partido.goles_visitante > partido.goles_local) {
+    return partido.visitante;
+  }
+
+  if (
+    partido.penales_local !== null &&
+    partido.penales_visitante !== null
+  ) {
+    if (partido.penales_local > partido.penales_visitante) {
+      return partido.local;
+    }
+    if (partido.penales_visitante > partido.penales_local) {
+      return partido.visitante;
+    }
+  }
+
+  return null;
 }
 
 function vincularClubesPartidosAdmin() {
@@ -3100,7 +3261,10 @@ function tieneResultado(partido) {
 }
 
 function nombrePartido(partido) {
-  return `${partido.local || "Por definir"} vs ${partido.visitante || "Por definir"}`;
+  const partidoVisible = resolverPartidoPlayoffAdmin(partido);
+  return `${partidoVisible.local || "Por definir"} vs ${
+    partidoVisible.visitante || "Por definir"
+  }`;
 }
 
 function formatearFechaAdmin(fecha) {
