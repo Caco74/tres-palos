@@ -1067,6 +1067,23 @@ function calcularTablaZona(zona) {
     );
 }
 
+function calcularTablaGeneral() {
+  return Object.entries(equiposPorZona)
+    .flatMap(([zona, equiposZona]) => {
+      const tablaZona = calcularTablaZona(Number(zona));
+      const posiciones = new Map(
+        tablaZona.map(fila => [fila.equipo, fila])
+      );
+
+      return equiposZona.map(equipo => ({
+        ...crearFilaTabla(equipo),
+        ...posiciones.get(equipo),
+        zona: Number(zona)
+      }));
+    })
+    .sort(compararPosiciones);
+}
+
 function crearFilaTabla(equipo) {
   return {
     equipo,
@@ -3655,8 +3672,77 @@ function renderTabla(zona) {
     `;
   });
 
-  html += '</tbody></table></div>';
+  html += `</tbody></table></div>${renderTablaGeneral()}`;
   cont.innerHTML = html;
+}
+
+function renderTablaGeneral() {
+  const data = calcularTablaGeneral();
+
+  return `
+    <div class="tabla-general">
+      <div class="tabla-general-head">
+        <div>
+          <div class="tabla-general-kicker">General</div>
+          <h3>Tabla general de puntos</h3>
+        </div>
+        <span>${data.length} equipos</span>
+      </div>
+      <div class="tabla-wrap tabla-wrap-general">
+        <table class="tabla tabla-general-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Equipo</th>
+              <th>Zona</th>
+              <th>PTS</th>
+              <th>PJ</th>
+              <th>PG</th>
+              <th>PE</th>
+              <th>PP</th>
+              <th>DG</th>
+              <th>Forma</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map((t, i) => renderFilaTablaGeneral(t, i)).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderFilaTablaGeneral(t, indice) {
+  const dots = t.forma
+    .map(f => `<span class="fd f${f}"></span>`)
+    .join("");
+  const nombreEquipo = nombre(t.equipo);
+  const escudo = obtenerEscudoEquipo(t.equipo);
+  const escudoEquipo = escudo
+    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    : nombreEquipo.slice(0, 2).toUpperCase();
+  const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
+
+  return `
+    <tr>
+      <td class="t-pos">${indice + 1}</td>
+      <td>
+        <div class="t-name">
+          <div class="sm-badge">${escudoEquipo}</div>
+          ${nombreEquipo}
+        </div>
+      </td>
+      <td class="t-zone">Zona ${t.zona}</td>
+      <td class="t-pts">${t.pts}</td>
+      <td>${t.pj}</td>
+      <td>${t.pg}</td>
+      <td>${t.pe}</td>
+      <td>${t.pp}</td>
+      <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
+      <td><div class="form-row">${dots}</div></td>
+    </tr>
+  `;
 }
 
 function obtenerEtapasDisponibles() {

@@ -1929,6 +1929,54 @@ button {
   color: rgba(255, 101, 117, .82);
 }
 
+.tabla-general {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.tabla-general-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 1rem 8px;
+}
+
+.tabla-general-head h3 {
+  margin: 1px 0 0;
+  color: var(--white);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+.tabla-general-head span,
+.tabla-general-kicker,
+.t-zone {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tabla-wrap-general {
+  padding-bottom: 1.75rem;
+}
+
+.tabla-general-table {
+  min-width: 510px;
+}
+
+.tabla-general-table th:nth-child(3) {
+  color: var(--muted);
+}
+
+.tabla-general-table th:nth-child(4) {
+  color: rgba(255, 101, 117, .82);
+}
+
 .t-dg {
   color: var(--win);
 }
