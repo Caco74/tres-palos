@@ -1624,6 +1624,40 @@ function obtenerClasificadosDirectos() {
     .sort(compararPosiciones);
 }
 
+function obtenerPosicionesEquipo(equipo) {
+  const zona = obtenerZonaEquipo(equipo);
+  const tablaZona = zona ? calcularTablaZona(zona) : [];
+  const puestoZona = tablaZona.findIndex(
+    fila => fila.equipo === equipo
+  );
+  const tablaGeneral = calcularTablaGeneral();
+  const puestoGeneral = tablaGeneral.findIndex(
+    fila => fila.equipo === equipo
+  );
+
+  return {
+    zona,
+    puestoZona: puestoZona >= 0 ? puestoZona + 1 : null,
+    puestoGeneral: puestoGeneral >= 0 ? puestoGeneral + 1 : null
+  };
+}
+
+function renderMetaPosicionesEquipo(equipo, clase = "") {
+  const posiciones = obtenerPosicionesEquipo(equipo);
+  const items = [
+    posiciones.zona && posiciones.puestoZona
+      ? `Zona ${posiciones.zona} #${posiciones.puestoZona}`
+      : "",
+    posiciones.puestoGeneral
+      ? `General #${posiciones.puestoGeneral}`
+      : ""
+  ].filter(Boolean);
+
+  if (items.length === 0) return "";
+
+  return `<span class="${clase}">${items.join(" · ")}</span>`;
+}
+
 function obtenerAnioPlayoffs() {
   const fecha = state.partidos.find(
     p => p.tipo === "playoff" && p.fecha_partido
@@ -2147,11 +2181,32 @@ function renderComparacionProtagonistasInicio(
   const [equipoA, equipoB] = protagonistas;
   const datosA = calcularLlegadaPlayoff(equipoA, faseObjetivo);
   const datosB = calcularLlegadaPlayoff(equipoB, faseObjetivo);
+  const posicionesA = obtenerPosicionesEquipo(equipoA);
+  const posicionesB = obtenerPosicionesEquipo(equipoB);
   const antecedentes = obtenerAntecedentesRegulares(
     equipoA,
     equipoB
   );
   const filas = [
+    {
+      etiqueta: "Puesto zona",
+      valorA: posicionesA.puestoZona || 0,
+      valorB: posicionesB.puestoZona || 0,
+      formato: "puesto",
+      menorEsMejor: true,
+      comparar: Boolean(posicionesA.puestoZona && posicionesB.puestoZona)
+    },
+    {
+      etiqueta: "Puesto general",
+      valorA: posicionesA.puestoGeneral || 0,
+      valorB: posicionesB.puestoGeneral || 0,
+      formato: "puesto",
+      menorEsMejor: true,
+      comparar: Boolean(
+        posicionesA.puestoGeneral &&
+        posicionesB.puestoGeneral
+      )
+    },
     {
       etiqueta: "Partidos",
       valorA: datosA.partidos,
@@ -2192,12 +2247,20 @@ function renderComparacionProtagonistasInicio(
       <div class="home-live__compare-team">
         ${renderEscudoPulso(equipoA)}
         <strong>${nombre(equipoA)}</strong>
+        ${renderMetaPosicionesEquipo(
+          equipoA,
+          "home-live__compare-seed"
+        )}
         ${renderFormaPulso(equipoA)}
       </div>
       <div class="home-live__compare-title">VS</div>
       <div class="home-live__compare-team">
         ${renderEscudoPulso(equipoB)}
         <strong>${nombre(equipoB)}</strong>
+        ${renderMetaPosicionesEquipo(
+          equipoB,
+          "home-live__compare-seed"
+        )}
         ${renderFormaPulso(equipoB)}
       </div>
     </div>
@@ -2226,6 +2289,7 @@ function renderFilaComparacionInicio({
   etiqueta,
   valorA,
   valorB,
+  formato = "numero",
   menorEsMejor = false,
   comparar = true
 }) {
@@ -2238,9 +2302,13 @@ function renderFilaComparacionInicio({
 
   return `
     <div class="home-live__compare-row">
-      <strong class="${claseA}">${valorA}</strong>
+      <strong class="${claseA}">
+        ${formatearValorComparador(valorA, formato)}
+      </strong>
       <span>${etiqueta}</span>
-      <strong class="${claseB}">${valorB}</strong>
+      <strong class="${claseB}">
+        ${formatearValorComparador(valorB, formato)}
+      </strong>
     </div>
   `;
 }
@@ -3268,7 +3336,6 @@ function renderPlayoffs() {
     return;
   }
 
-  const directos = obtenerClasificadosDirectos();
   const faseActual = obtenerFaseActualPlayoffs();
   const fasesDisponibles = obtenerFasesPlayoffDisponibles();
   const faseActiva = obtenerFaseActivaPlayoff(
@@ -3289,6 +3356,24 @@ function renderPlayoffs() {
       faseActual
     )}
 
+    ${renderClasificadosDirectosPlayoff(faseActiva)}
+
+    ${faseActiva
+      ? renderFasePlayoff(
+          FASES_PLAYOFF.find(fase => fase.valor === faseActiva),
+          faseActual
+        )
+      : ""}
+    ${renderCaminosPlayoff(faseActiva)}
+  `;
+}
+
+function renderClasificadosDirectosPlayoff(faseActiva) {
+  if (faseActiva !== "cuartos") return "";
+
+  const directos = obtenerClasificadosDirectos();
+
+  return `
     <div class="po-phase">
       <div class="po-phase-title">Clasificados directos</div>
       <span class="po-phase-tag">Cuartos de Final</span>
@@ -3300,14 +3385,6 @@ function renderPlayoffs() {
         renderClasificadoDirecto(fila, indice)
       ).join("")}
     </div>
-
-    ${faseActiva
-      ? renderFasePlayoff(
-          FASES_PLAYOFF.find(fase => fase.valor === faseActiva),
-          faseActual
-        )
-      : ""}
-    ${renderCaminosPlayoff(faseActiva)}
   `;
 }
 
@@ -3646,7 +3723,7 @@ function renderEquipoPlayoff(partido, lado, ganador, placeholder) {
 }
 
 function renderCaminosPlayoff(faseActiva) {
-  if (!["semifinal", "final"].includes(faseActiva)) return "";
+  if (faseActiva !== "final") return "";
 
   const equipos = obtenerEquiposCaminoPlayoff(faseActiva);
   if (equipos.length === 0) return "";
@@ -5382,6 +5459,7 @@ function claseComparador(valorA, valorB, lado, menorEsMejor = false) {
 }
 
 function formatearValorComparador(valor, formato) {
+  if (formato === "puesto") return valor > 0 ? `#${valor}` : "-";
   if (formato === "porcentaje") return `${Math.round(valor)}%`;
   if (formato === "decimal") {
     return Number(valor).toFixed(2).replace(".", ",");
@@ -5401,7 +5479,8 @@ function renderFilaComparador({
   valorB,
   formato = "numero",
   menorEsMejor = false,
-  comparar = true
+  comparar = true,
+  mostrarBarras = true
 }) {
   const maximo = Math.max(Math.abs(valorA), Math.abs(valorB), 1);
   const anchoA = Math.max(Math.abs(valorA) / maximo * 100, 4);
@@ -5434,14 +5513,18 @@ function renderFilaComparador({
           ${formatearValorComparador(valorB, formato)}
         </strong>
       </div>
-      <div class="datos-compare-bars">
-        <div class="datos-bar-track left">
-          <span class="${claseA}" style="width:${anchoA}%"></span>
-        </div>
-        <div class="datos-bar-track">
-          <span class="${claseB}" style="width:${anchoB}%"></span>
-        </div>
-      </div>
+      ${mostrarBarras
+        ? `
+          <div class="datos-compare-bars">
+            <div class="datos-bar-track left">
+              <span class="${claseA}" style="width:${anchoA}%"></span>
+            </div>
+            <div class="datos-bar-track">
+              <span class="${claseB}" style="width:${anchoB}%"></span>
+            </div>
+          </div>
+        `
+        : ""}
     </div>
   `;
 }
@@ -5527,7 +5610,30 @@ function renderComparadorDatos(estadisticas) {
     `;
   }
 
+  const posicionesA = obtenerPosicionesEquipo(statsA.equipo);
+  const posicionesB = obtenerPosicionesEquipo(statsB.equipo);
   const filas = [
+    {
+      etiqueta: "Puesto zona",
+      valorA: posicionesA.puestoZona || 0,
+      valorB: posicionesB.puestoZona || 0,
+      formato: "puesto",
+      menorEsMejor: true,
+      comparar: Boolean(posicionesA.puestoZona && posicionesB.puestoZona),
+      mostrarBarras: false
+    },
+    {
+      etiqueta: "Puesto general",
+      valorA: posicionesA.puestoGeneral || 0,
+      valorB: posicionesB.puestoGeneral || 0,
+      formato: "puesto",
+      menorEsMejor: true,
+      comparar: Boolean(
+        posicionesA.puestoGeneral &&
+        posicionesB.puestoGeneral
+      ),
+      mostrarBarras: false
+    },
     {
       etiqueta: "Partidos",
       valorA: statsA.pj,
@@ -5589,6 +5695,10 @@ function renderComparadorDatos(estadisticas) {
           <select onchange="actualizarEquipoComparadorDatos('equipoA', this.value)">
             ${renderOpcionesComparador(estadisticas, statsA.equipo)}
           </select>
+          ${renderMetaPosicionesEquipo(
+            statsA.equipo,
+            "datos-selector-meta"
+          )}
         </label>
         <span class="datos-versus">VS</span>
         <label>
@@ -5596,6 +5706,10 @@ function renderComparadorDatos(estadisticas) {
           <select onchange="actualizarEquipoComparadorDatos('equipoB', this.value)">
             ${renderOpcionesComparador(estadisticas, statsB.equipo)}
           </select>
+          ${renderMetaPosicionesEquipo(
+            statsB.equipo,
+            "datos-selector-meta"
+          )}
         </label>
       </div>
 
