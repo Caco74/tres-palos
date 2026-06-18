@@ -1,5 +1,6 @@
 let etapaActual = null;
 let zonaActual = 1;
+let fasePlayoffActiva = null;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
 let cargaPartidosFinalizada = false;
@@ -3269,6 +3270,11 @@ function renderPlayoffs() {
 
   const directos = obtenerClasificadosDirectos();
   const faseActual = obtenerFaseActualPlayoffs();
+  const fasesDisponibles = obtenerFasesPlayoffDisponibles();
+  const faseActiva = obtenerFaseActivaPlayoff(
+    fasesDisponibles,
+    faseActual
+  );
 
   cont.innerHTML = `
     <div class="po-banner">
@@ -3276,6 +3282,12 @@ function renderPlayoffs() {
       <div class="po-banner-title">Playoffs ${obtenerAnioPlayoffs()}</div>
       <div class="po-banner-sub">Liga Cañadense · Primera División</div>
     </div>
+
+    ${renderTabsPlayoff(
+      fasesDisponibles,
+      faseActiva,
+      faseActual
+    )}
 
     <div class="po-phase">
       <div class="po-phase-title">Clasificados directos</div>
@@ -3289,10 +3301,101 @@ function renderPlayoffs() {
       ).join("")}
     </div>
 
-    ${FASES_PLAYOFF.map(fase =>
-      renderFasePlayoff(fase, faseActual)
-    ).join("")}
+    ${faseActiva
+      ? renderFasePlayoff(
+          FASES_PLAYOFF.find(fase => fase.valor === faseActiva),
+          faseActual
+        )
+      : ""}
+    ${renderCaminosPlayoff(faseActiva)}
   `;
+}
+
+function obtenerFasesPlayoffDisponibles() {
+  return FASES_PLAYOFF.filter(fase =>
+    state.partidos.some(
+      partido =>
+        partido.tipo === "playoff" &&
+        partido.fase === fase.valor
+    )
+  );
+}
+
+function obtenerFaseActivaPlayoff(fasesDisponibles, faseActual) {
+  const disponibles = new Set(
+    fasesDisponibles.map(fase => fase.valor)
+  );
+
+  if (fasePlayoffActiva && disponibles.has(fasePlayoffActiva)) {
+    return fasePlayoffActiva;
+  }
+  if (faseActual && disponibles.has(faseActual)) {
+    fasePlayoffActiva = faseActual;
+    return faseActual;
+  }
+
+  fasePlayoffActiva =
+    fasesDisponibles[fasesDisponibles.length - 1]?.valor || null;
+  return fasePlayoffActiva;
+}
+
+function seleccionarFasePlayoff(fase) {
+  if (!FASES_PLAYOFF.some(item => item.valor === fase)) return;
+
+  fasePlayoffActiva = fase;
+  renderPlayoffs();
+}
+
+function renderTabsPlayoff(fasesDisponibles, faseActiva, faseActual) {
+  if (fasesDisponibles.length <= 1) return "";
+
+  return `
+    <div class="po-stage-tabs" role="tablist" aria-label="Fases de playoffs">
+      ${fasesDisponibles.map(fase => {
+        const partidos = obtenerPartidosPlayoffPorFase(fase.valor);
+        const estado = obtenerEstadoFasePlayoff(
+          partidos,
+          fase.valor === faseActual
+        );
+        const activa = fase.valor === faseActiva;
+
+        return `
+          <button
+            type="button"
+            class="po-stage-tab ${activa ? "active" : ""} ${fase.valor === faseActual ? "current" : ""} state-${estado.clase}"
+            onclick="seleccionarFasePlayoff('${fase.valor}')"
+            aria-pressed="${activa}"
+          >
+            <span>${obtenerEtiquetaCortaFase(fase.valor)}</span>
+            <small>${estado.texto}</small>
+          </button>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function obtenerEtiquetaCortaFase(fase) {
+  return {
+    octavos: "Octavos",
+    cuartos: "Cuartos",
+    semifinal: "Semis",
+    final: "Final"
+  }[fase] || etiquetaFase(fase);
+}
+
+function obtenerPartidosPlayoffPorFase(fase) {
+  return state.partidos
+    .filter(
+      partido =>
+        partido.tipo === "playoff" &&
+        partido.fase === fase
+    )
+    .sort(
+      (a, b) =>
+        Number(a.numero_playoff || 0) -
+        Number(b.numero_playoff || 0)
+    );
 }
 
 function renderClasificadoDirecto(fila, indice) {
@@ -3313,17 +3416,9 @@ function renderClasificadoDirecto(fila, indice) {
 }
 
 function renderFasePlayoff(fase, faseActual) {
-  const partidos = state.partidos
-    .filter(
-      p =>
-        p.tipo === "playoff" &&
-        p.fase === fase.valor
-    )
-    .sort(
-      (a, b) =>
-        Number(a.numero_playoff || 0) -
-        Number(b.numero_playoff || 0)
-    );
+  if (!fase) return "";
+
+  const partidos = obtenerPartidosPlayoffPorFase(fase.valor);
 
   if (partidos.length === 0) return "";
 
@@ -3341,12 +3436,33 @@ function renderFasePlayoff(fase, faseActual) {
           ${estado.texto}
         </span>
       </div>
+      ${renderProgresoFasePlayoff(partidos)}
       <div class="po-bracket">
         ${partidos.map(partido =>
           renderCrucePlayoff(partido)
         ).join("")}
       </div>
     </section>
+  `;
+}
+
+function renderProgresoFasePlayoff(partidos) {
+  const total = partidos.length;
+  if (total === 0) return "";
+
+  const jugados = partidos
+    .map(resolverPartidoPlayoff)
+    .filter(
+      partido =>
+        partido.goles_local !== null &&
+        partido.goles_visitante !== null
+    ).length;
+  const porcentaje = Math.round((jugados / total) * 100);
+
+  return `
+    <div class="po-progress" aria-label="${jugados} de ${total} partidos con resultado cargado">
+      <div class="po-progress-fill" style="width:${porcentaje}%"></div>
+    </div>
   `;
 }
 
@@ -3527,6 +3643,188 @@ function renderEquipoPlayoff(partido, lado, ganador, placeholder) {
       </div>
     </div>
   `;
+}
+
+function renderCaminosPlayoff(faseActiva) {
+  if (!["semifinal", "final"].includes(faseActiva)) return "";
+
+  const equipos = obtenerEquiposCaminoPlayoff(faseActiva);
+  if (equipos.length === 0) return "";
+
+  return `
+    <section class="po-paths">
+      <div class="po-phase">
+        <div class="po-phase-title">Camino a la final</div>
+        <span class="po-phase-tag">${equipos.length} equipos</span>
+      </div>
+      <div class="po-path-grid">
+        ${equipos.map(equipo =>
+          renderCaminoPlayoffEquipo(equipo, faseActiva)
+        ).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function obtenerEquiposCaminoPlayoff(faseActiva) {
+  const partidos = obtenerPartidosPlayoffPorFase(faseActiva)
+    .map(resolverPartidoPlayoff);
+  let equipos = [];
+
+  if (faseActiva === "final") {
+    equipos = obtenerResultadoSerieFinal().equipos;
+    if (equipos.length === 0) {
+      equipos = obtenerGanadoresFasePlayoff("semifinal");
+    }
+  } else {
+    equipos = obtenerGanadoresFasePlayoff(faseActiva);
+    if (equipos.length === 0) {
+      equipos = partidos
+        .flatMap(partido => [partido.local, partido.visitante])
+        .filter(Boolean);
+    }
+  }
+
+  return [...new Set(equipos)].slice(
+    0,
+    faseActiva === "final" ? 2 : 4
+  );
+}
+
+function obtenerGanadoresFasePlayoff(fase) {
+  return obtenerPartidosPlayoffPorFase(fase)
+    .map(resolverPartidoPlayoff)
+    .map(partido => {
+      const ganador = obtenerGanadorPlayoff(partido);
+      return ganador ? partido[ganador] : null;
+    })
+    .filter(Boolean);
+}
+
+function renderCaminoPlayoffEquipo(equipo, faseActiva) {
+  const pasos = obtenerFasesCaminoPlayoff(faseActiva)
+    .map(fase => renderPasoCaminoPlayoff(equipo, fase))
+    .filter(Boolean)
+    .join("");
+
+  if (!pasos) return "";
+
+  return `
+    <article class="po-path-card">
+      <div class="po-path-head">
+        <span>Equipo</span>
+        <strong>${nombre(equipo)}</strong>
+      </div>
+      ${pasos}
+    </article>
+  `;
+}
+
+function obtenerFasesCaminoPlayoff(faseActiva) {
+  const indice = FASES_PLAYOFF.findIndex(
+    fase => fase.valor === faseActiva
+  );
+  if (indice < 0) return [];
+
+  const limite = faseActiva === "final" ? indice : indice + 1;
+  return FASES_PLAYOFF.slice(
+    0,
+    Math.min(limite, FASES_PLAYOFF.length - 1)
+  );
+}
+
+function renderPasoCaminoPlayoff(equipo, fase) {
+  const partido = obtenerPartidosPlayoffPorFase(fase.valor)
+    .map(resolverPartidoPlayoff)
+    .find(
+      item =>
+        item.local === equipo ||
+        item.visitante === equipo
+    );
+
+  if (!partido) {
+    if (
+      fase.valor === "octavos" &&
+      obtenerClasificadosDirectos().some(fila => fila.equipo === equipo)
+    ) {
+      return `
+        <div class="po-path-step">
+          <span>${obtenerEtiquetaCortaFase(fase.valor)}</span>
+          <strong>Pase directo</strong>
+          <em class="po-path-badge direct">Cuartos</em>
+        </div>
+      `;
+    }
+
+    return "";
+  }
+
+  const rival = partido.local === equipo
+    ? partido.visitante
+    : partido.local;
+  const resultado = obtenerResultadoCaminoPlayoff(equipo, partido);
+
+  return `
+    <button
+      type="button"
+      class="po-path-step"
+      onclick="abrirPartido(${JSON.stringify(partido.id)})"
+    >
+      <span>${obtenerEtiquetaCortaFase(fase.valor)}</span>
+      <strong>vs ${rival ? nombre(rival) : "Por definir"}</strong>
+      <em class="po-path-badge ${resultado.clase}">${resultado.texto}</em>
+    </button>
+  `;
+}
+
+function obtenerResultadoCaminoPlayoff(equipo, partido) {
+  const jugado =
+    partido.goles_local !== null &&
+    partido.goles_visitante !== null;
+
+  if (!jugado) {
+    return {
+      texto: partido.fecha_partido
+        ? formatearFechaCompleta(partido.fecha_partido)
+        : "Pend.",
+      clase: "pending"
+    };
+  }
+
+  const esLocal = partido.local === equipo;
+  const favor = Number(
+    esLocal ? partido.goles_local : partido.goles_visitante
+  );
+  const contra = Number(
+    esLocal ? partido.goles_visitante : partido.goles_local
+  );
+  const penalesFavor = esLocal
+    ? partido.penales_local
+    : partido.penales_visitante;
+  const penalesContra = esLocal
+    ? partido.penales_visitante
+    : partido.penales_local;
+  const ladoGanador = obtenerGanadorPlayoff(partido);
+  const ganador = ladoGanador ? partido[ladoGanador] : null;
+  const textoPenales =
+    penalesFavor !== null &&
+    penalesFavor !== undefined &&
+    penalesContra !== null &&
+    penalesContra !== undefined
+      ? ` Pen ${penalesFavor}-${penalesContra}`
+      : "";
+
+  if (!ganador && favor === contra) {
+    return {
+      texto: `${favor}-${contra}${textoPenales}`,
+      clase: "draw"
+    };
+  }
+
+  return {
+    texto: `${favor}-${contra}${textoPenales}`,
+    clase: ganador === equipo ? "win" : "loss"
+  };
 }
 
 function renderEscudoPlayoff(equipo, clase) {

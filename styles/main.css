@@ -2109,6 +2109,54 @@ button {
   margin-top: 4px;
 }
 
+.po-stage-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 1rem 0.75rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.po-stage-tab {
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 8px 9px;
+  text-align: left;
+  white-space: nowrap;
+  min-width: 84px;
+}
+
+.po-stage-tab span,
+.po-stage-tab small {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+}
+
+.po-stage-tab span {
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  color: inherit;
+}
+
+.po-stage-tab small {
+  margin-top: 2px;
+  font-size: 0.42rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.po-stage-tab.active {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+.po-stage-tab.current small {
+  color: var(--draw);
+}
+
 .po-phase {
   padding: 1.25rem 1rem 0.6rem;
   border-top: 1px solid var(--border);
@@ -2222,6 +2270,22 @@ button {
   gap: 7px;
 }
 
+.po-progress {
+  height: 3px;
+  margin: 0 1rem 0.2rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--card2);
+}
+
+.po-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--red), var(--draw));
+  transition: width 0.4s ease;
+}
+
 .po-stage.current {
   background: linear-gradient(
     180deg,
@@ -2247,6 +2311,13 @@ button {
 
 .po-match.pending {
   opacity: .62;
+}
+
+.po-match:hover,
+.po-match:focus-visible {
+  border-color: var(--border2);
+  background: var(--card2);
+  outline: none;
 }
 
 .po-match-hd {
@@ -2292,6 +2363,7 @@ button {
   gap: 8px;
   padding: 9px 10px;
   border-bottom: 1px solid rgba(40,40,46,.75);
+  position: relative;
 }
 
 .po-trow:last-child,
@@ -2336,6 +2408,17 @@ button {
   font-weight: 600;
 }
 
+.po-trow.winner::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px 0 0 2px;
+  background: var(--win);
+}
+
 .po-trow.loser .po-tn {
   color: var(--muted);
 }
@@ -2377,6 +2460,102 @@ button {
   color: var(--muted);
   font-style: italic;
   font-size: 0.78rem;
+}
+
+.po-paths {
+  border-top: 1px solid var(--border);
+}
+
+.po-path-grid {
+  padding: 0.75rem 1rem 1.4rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.po-path-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.po-path-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.po-path-head span,
+.po-path-step span,
+.po-path-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.48rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.po-path-head strong {
+  color: var(--white);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.po-path-step {
+  width: 100%;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(40,40,46,.75);
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 11px;
+  text-align: left;
+}
+
+.po-path-step:last-child {
+  border-bottom: none;
+}
+
+.po-path-step strong {
+  color: var(--text);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.po-path-badge {
+  padding: 3px 7px;
+  border-radius: 20px;
+  font-style: normal;
+  white-space: nowrap;
+  background: var(--card2);
+  border: 1px solid var(--border);
+}
+
+.po-path-badge.win,
+.po-path-badge.direct {
+  color: var(--win);
+  background: rgba(53, 199, 122, .08);
+  border-color: rgba(53, 199, 122, .28);
+}
+
+.po-path-badge.draw,
+.po-path-badge.pending {
+  color: var(--draw);
+  background: rgba(244, 185, 66, .08);
+  border-color: rgba(244, 185, 66, .28);
+}
+
+.po-path-badge.loss {
+  color: var(--muted);
 }
 
 /* TEAMS */
