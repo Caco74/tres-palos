@@ -4913,19 +4913,6 @@ function resultadoEquipoDetalle(partido, equipo) {
   if (favor > contra) return "G";
   if (favor < contra) return "P";
 
-  if (
-    partido.penales_local !== null &&
-    partido.penales_visitante !== null
-  ) {
-    const penalesFavor = esLocal
-      ? partido.penales_local
-      : partido.penales_visitante;
-    const penalesContra = esLocal
-      ? partido.penales_visitante
-      : partido.penales_local;
-    return penalesFavor > penalesContra ? "G" : "P";
-  }
-
   return "E";
 }
 
