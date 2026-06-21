@@ -15,7 +15,6 @@ const VISTAS_PRINCIPALES = [
   "partidos",
   "tabla",
   "playoffs",
-  "datos",
   "equipos"
 ];
 
@@ -1903,11 +1902,6 @@ function renderPartidoInicio(partido) {
           <span>${nombreVisitante}</span>
         </div>
       </div>
-      <div class="home-match-insights">
-        <span class="home-match-history">
-          Antecedentes: ${resumirAntecedenteInicio(partido)}
-        </span>
-      </div>
     </button>
   `;
 }
@@ -2606,13 +2600,23 @@ function obtenerAntecedentePulso(partido) {
   return `FR: ${marcadores}<br>${balance}`;
 }
 
-function obtenerAntecedentesRegulares(equipoA, equipoB) {
+function obtenerAntecedentesRegulares(
+  equipoA,
+  equipoB,
+  partidoExcluidoId = null
+) {
   const partidos = state.partidos
     .filter(partido => {
       if (
         partido.tipo !== "regular" ||
         partido.goles_local === null ||
         partido.goles_visitante === null
+      ) {
+        return false;
+      }
+      if (
+        partidoExcluidoId !== null &&
+        String(partido.id) === String(partidoExcluidoId)
       ) {
         return false;
       }
@@ -4335,6 +4339,8 @@ function renderDetallePartido(id) {
       </div>
     </article>
 
+    ${renderAntecedentesDetallePartido(partido)}
+
     <section class="detail-section">
       <div class="detail-section-head">
         <h2>Incidencias</h2>
@@ -4376,6 +4382,70 @@ function renderValorDetalle(etiqueta, valor) {
         ${valor}
       </strong>
     </div>
+  `;
+}
+
+function renderAntecedentesDetallePartido(partido) {
+  if (!partido.local || !partido.visitante) return "";
+
+  const antecedentes = obtenerAntecedentesRegulares(
+    partido.local,
+    partido.visitante,
+    partido.id
+  );
+  const cantidad = antecedentes.partidos.length;
+
+  return `
+    <section class="detail-section detail-history">
+      <div class="detail-section-head">
+        <h2>Antecedentes en fase regular</h2>
+        <span>
+          ${cantidad || "Sin"} ${cantidad === 1 ? "cruce" : "cruces"}
+        </span>
+      </div>
+      ${cantidad > 0
+        ? `
+          <div class="detail-history-summary">
+            ${resumirAntecedentesRegulares(antecedentes)}
+          </div>
+          <div class="detail-history-list">
+            ${antecedentes.partidos.map(item =>
+              renderAntecedenteDetallePartido(item, antecedentes)
+            ).join("")}
+          </div>
+        `
+        : `
+          <div class="detail-empty">
+            Sin cruces previos de fase regular cargados para estos equipos.
+          </div>
+        `}
+    </section>
+  `;
+}
+
+function renderAntecedenteDetallePartido(item, antecedentes) {
+  const partido = item.partido;
+  const ganaA = item.golesEquipoA > item.golesEquipoB;
+  const ganaB = item.golesEquipoB > item.golesEquipoA;
+  const contexto = partido.fecha
+    ? `Fecha ${partido.fecha}`
+    : formatearFechaCompleta(partido.fecha_partido);
+
+  return `
+    <button
+      type="button"
+      class="detail-history-row"
+      onclick="abrirPartido(${JSON.stringify(partido.id)})"
+    >
+      <span>${contexto}</span>
+      <strong class="${ganaA ? "winner" : ""}">
+        ${nombre(antecedentes.equipoA)}
+      </strong>
+      <b>${item.golesEquipoA} - ${item.golesEquipoB}</b>
+      <strong class="${ganaB ? "winner" : ""}">
+        ${nombre(antecedentes.equipoB)}
+      </strong>
+    </button>
   `;
 }
 
