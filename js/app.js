@@ -1980,13 +1980,13 @@ function renderPulsoInicio() {
     )
   ];
   const anio = obtenerAnioPlayoffs();
-  const resultadosPrevios = renderResultadosEtapaAnterior(
+  const ultimosResultados = renderUltimosResultadosPlayoff(
     faseActual
   );
 
   cont.innerHTML = `
     <div class="home-live">
-      ${resultadosPrevios}
+      ${ultimosResultados}
 
       ${renderSeccionPulso(
         protagonistas.length === 2
@@ -2034,26 +2034,41 @@ function obtenerPartidosFasePlayoff(fase) {
     );
 }
 
-function renderResultadosEtapaAnterior(faseActual) {
-  const faseAnterior = obtenerFaseAnteriorPlayoff(faseActual);
-  const partidos = obtenerPartidosFasePlayoff(
-    faseAnterior?.valor
+function renderUltimosResultadosPlayoff(faseActual) {
+  const fase = FASES_PLAYOFF.find(
+    item => item.valor === faseActual
   );
+  const partidosFaseActual = obtenerPartidosFasePlayoff(faseActual);
+  const faseAnterior = obtenerFaseAnteriorPlayoff(faseActual);
+  const usarFaseActual = partidosFaseActual.length > 0;
+  const faseResultados = usarFaseActual ? fase : faseAnterior;
+  const partidos = (usarFaseActual
+    ? partidosFaseActual
+    : obtenerPartidosFasePlayoff(faseAnterior?.valor)
+  )
+    .sort(compararResultadosRecientesPlayoff)
+    .slice(0, 2);
 
-  if (!faseAnterior || partidos.length === 0) return "";
+  if (!faseResultados || partidos.length === 0) return "";
 
   return renderSeccionPulso(
     "Últimos resultados",
-    faseAnterior.etiqueta,
+    faseResultados.etiqueta,
     `
       <div class="home-live__results-grid">
-        ${partidos.map(renderResultadoEtapaAnterior).join("")}
+        ${partidos.map(renderResultadoPlayoffInicio).join("")}
       </div>
     `
   );
 }
 
-function renderResultadoEtapaAnterior(partido) {
+function compararResultadosRecientesPlayoff(a, b) {
+  return compararFechaPartido(b, a) ||
+    Number(b.numero_playoff || b.id || 0) -
+    Number(a.numero_playoff || a.id || 0);
+}
+
+function renderResultadoPlayoffInicio(partido) {
   const ganador = obtenerGanadorPlayoff(partido);
   const tienePenales =
     partido.penales_local !== null &&
