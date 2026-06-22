@@ -914,17 +914,48 @@ function obtenerEstadioPartido(partido) {
     partido.cancha ||
     partido.sede;
 
-  if (partido.fase === "final") {
-    return estadioCargado || "-";
+  if (estadioCargado) {
+    return estadioCargado;
   }
 
-  const clubLocal = state.clubes.find(
-    club => String(club.id) === String(partido.local_id)
-  ) || obtenerClub(partido.local);
+  if (partido.fase !== "final") {
+    const clubLocal = state.clubes.find(
+      club => String(club.id) === String(partido.local_id)
+    ) || obtenerClub(partido.local);
 
-  return estadioCargado ||
-    clubLocal?.estadio ||
-    "-";
+    if (clubLocal?.estadio) return clubLocal.estadio;
+  }
+
+  return obtenerDatoFaltantePartido(partido);
+}
+
+function partidoTieneResultado(partido) {
+  return (
+    partido.goles_local !== null &&
+    partido.goles_local !== undefined &&
+    partido.goles_visitante !== null &&
+    partido.goles_visitante !== undefined
+  );
+}
+
+function obtenerDatoFaltantePartido(partido) {
+  return partidoTieneResultado(partido)
+    ? ESTADOS_DATO.sinDatos
+    : ESTADOS_DATO.confirmar;
+}
+
+function obtenerHoraPartido(partido) {
+  return partido.hora || obtenerDatoFaltantePartido(partido);
+}
+
+function obtenerArbitroPartido(partido) {
+  return partido.arbitro ||
+    partido.arbitro_principal ||
+    obtenerDatoFaltantePartido(partido);
+}
+
+function esEventoPublicable(evento) {
+  return evento.estado_dato === "confirmado";
 }
 
 function crearFechaHoraPartido(partido) {
@@ -2116,7 +2147,7 @@ function obtenerResumenIncidenciasResultado(partido) {
   const eventos = state.eventos.filter(
     evento =>
       String(evento.partido_id) === String(partido.id) &&
-      evento.estado_dato === "confirmado"
+      esEventoPublicable(evento)
   );
   const goles = resumirJugadoresIncidencias(
     eventos.filter(evento =>
@@ -2773,11 +2804,11 @@ function renderFormaPulso(equipo) {
 
 function formatearFechaHoraPulso(partido) {
   if (!partido.fecha_partido) {
-    return partido.hora || ESTADOS_DATO.confirmar;
+    return obtenerHoraPartido(partido);
   }
 
   return `${formatearFechaCompleta(partido.fecha_partido)} · ${
-    partido.hora || ESTADOS_DATO.confirmar
+    obtenerHoraPartido(partido)
   }`;
 }
 
@@ -2806,13 +2837,11 @@ function renderDatosPartidosPulso(partidos) {
   );
   const estadio = obtenerValorComunPulso(
     partidos,
-    obtenerEstadioPartido,
-    "-"
+    obtenerEstadioPartido
   );
   const arbitro = obtenerValorComunPulso(
     partidos,
-    partido => partido.arbitro || partido.arbitro_principal,
-    "-"
+    obtenerArbitroPartido
   );
   const transmision = obtenerValorComunPulso(
     partidos,
@@ -4283,7 +4312,9 @@ function renderDetallePartido(id) {
     partido.penales_visitante !== null;
   const secuenciaEventos = prepararSecuenciaEventos(
     state.eventos.filter(
-      evento => String(evento.partido_id) === String(partido.id)
+      evento =>
+        String(evento.partido_id) === String(partido.id) &&
+        esEventoPublicable(evento)
     ),
     partido
   );
@@ -4336,10 +4367,7 @@ function renderDetallePartido(id) {
         )}
         ${renderValorDetalle(
           "Hora",
-          partido.hora ||
-            (partido.fase === "final" || jugado
-              ? "-"
-              : ESTADOS_DATO.confirmar)
+          obtenerHoraPartido(partido)
         )}
         ${renderValorDetalle(
           "Estadio",
@@ -4347,9 +4375,7 @@ function renderDetallePartido(id) {
         )}
         ${renderValorDetalle(
           "Árbitro",
-          partido.arbitro ||
-            partido.arbitro_principal ||
-            "-"
+          obtenerArbitroPartido(partido)
         )}
       </div>
     </article>
@@ -4964,7 +4990,7 @@ function renderProximoPartidoEquipo(partido, equipo) {
         )}
         ${renderDatoProximoPartido(
           "Hora",
-          partido.hora || ESTADOS_DATO.confirmar
+          obtenerHoraPartido(partido)
         )}
         ${renderDatoProximoPartido("Estadio", estadio)}
       </div>
