@@ -46,4 +46,4 @@ where nombre_corto = 'Sport';
 update public.clubes
 set apodo = 'El Rojo',
     actualizado_en = now()
-where nombre_corto = 'Unión';
+where nombre_corto = 'Unión T.';
