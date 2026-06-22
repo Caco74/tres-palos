@@ -1,79 +1,87 @@
 # Estado de Tres Palos
 
-Fecha de revisión: 12 de junio de 2026.
+Fecha de revisión: 21 de junio de 2026.
 
 ## Objetivo actual
 
 Cubrir la Primera División de la Liga Cañadense con resultados, posiciones,
-playoffs y datos verificables. La prioridad es que el sitio publique menos
+playoffs y datos verificables. La prioridad sigue siendo publicar menos
 información antes que mostrar datos dudosos.
 
 ## Qué está funcionando
 
 - Sitio público adaptable a móvil y escritorio.
-- Fixture regular, tabla, playoffs, agenda y detalle de partidos.
-- Inicio generado desde los partidos reales.
-- Panel privado para programación y resultados.
+- Inicio automático con agenda, últimos resultados y comparación de protagonistas.
+- Fixture regular, tabla por zona, tabla general, playoffs y detalle de partidos.
+- Playoffs con octavos, cuartos, semifinales y final ida/vuelta.
+- Filtro público de incidencias: sólo se muestran eventos confirmados.
+- Panel privado para programación, resultados, clubes, planteles e incidencias.
 - Estados de partidos y etapas.
 - Cierre y respaldo inmutable por fecha o fase.
 - Medición de pestañas y partidos consultados.
 - Base central de 21 clubes.
-- Estadio, ciudad, apodo, escudo y aliases editables por club.
 - Torneos Apertura y Clausura separados.
 - Jugadores permanentes e inscripciones por club y torneo.
 
 ## Estado de los datos
 
-- 139 partidos cargados.
+- 140 partidos cargados.
 - 126 partidos de fase regular.
-- 13 registros de playoffs.
-- 136 partidos con resultado.
-- 2 semifinales pendientes y una final todavía sin equipos.
+- 14 registros de playoffs.
+- 139 partidos con resultado.
+- Final ida jugada: Sportivo A. Club 0-1 C. A. Carcarañá, 20 de junio de 2026.
+- Final vuelta pendiente: C.A. Carcarañá vs Sportivo A. Club, 28 de junio de 2026, 15:00, Gigante de la 9.
 - 21 clubes activos.
-- 0 estadios cargados en las fichas de clubes.
-- 0 jugadores e inscripciones cargados.
-- 5 incidencias históricas, todas goles y todas sin vínculo a una inscripción.
-- Los 139 partidos pertenecen al Apertura 2026.
+- 4 clubes con estadio cargado y 17 pendientes.
+- 27 jugadores cargados.
+- 27 inscripciones de jugadores cargadas.
+- 26 incidencias cargadas: 19 confirmadas y 7 por verificar.
+- Los 140 partidos pertenecen al Apertura 2026.
 
-## Incidencias históricas
+## Incidencias
 
-Las cinco incidencias pueden conservarse y vincularse:
+Las incidencias `por_verificar` se conservan para trabajo interno, pero no se
+muestran en el sitio público. Para que una incidencia aparezca en el detalle de
+partido o en resúmenes públicos debe tener `estado_dato = confirmado`.
 
-- Tres ya tienen club identificado.
-- Dos no tienen `equipo_id`, pero corresponden a un partido terminado 0-2.
-  Por el resultado, ambos goles pertenecen al visitante.
-- Los nombres deben crearse inicialmente como `por_verificar`.
-- No deben volver a alimentar una tabla pública de goleadores hasta confirmar
-  fuente y vincular `inscripcion_jugador_id`.
+Estado actual:
 
-La migración debe ser supervisada: normalizar nombre, elegir club y torneo,
-crear o reutilizar jugador, crear inscripción y recién entonces enlazar el
-evento. No conviene hacer coincidencias automáticas sólo por texto cuando
-existan homónimos.
+- 22 goles cargados: 16 confirmados y 6 por verificar.
+- 3 rojas cargadas: 2 confirmadas y 1 por verificar.
+- 1 gol penal cargado y confirmado.
+
+La tabla pública de goleadores debe seguir oculta hasta que los eventos estén
+vinculados a jugadores/inscripciones y tengan una fuente confiable.
 
 ## Faltantes importantes
 
-1. El editor de incidencias requiere ejecutar `supabase/incidencias.sql`.
-2. La columna `arbitro` no está activa en la base, aunque el panel la muestra.
-3. El respaldo por etapa no incluye clubes, torneos, jugadores ni planteles.
-4. No existe todavía un cierre integral del Apertura.
-5. Los estadios, fuentes y planteles están prácticamente vacíos.
+1. Los árbitros de las dos finales no están cargados.
+2. Hay 136 partidos sin estadio propio cargado y 138 sin árbitro; muchos son
+   registros históricos, pero no conviene mostrarlos como dato fuerte.
+3. Quedan 7 incidencias `por_verificar` para conciliar o descartar.
+4. La vista Datos está oculta y pendiente de rediseño de valor.
+5. No existe todavía un cierre integral del Apertura.
 6. No hay pruebas automatizadas ni validación visual estable en el despliegue.
 
 ## Decisiones de producto
 
+- La app pública muestra sólo incidencias confirmadas.
+- Los datos faltantes se diferencian por contexto: futuro como `A confirmar`,
+  histórico como `Sin datos`.
 - Goleadores permanece oculto hasta trabajar con jugadores vinculados.
-- La forma reciente no se muestra en la agenda porque exige interpretación.
+- La pestaña Datos queda fuera de navegación hasta rediseñar qué aporta.
+- La forma reciente toma el resultado del partido; los penales no convierten un
+  empate en victoria o derrota para la racha.
 - El Hero no muestra un estado secundario si no aporta una acción clara.
 - Un jugador confirmado requiere una fuente.
 - Una transferencia crea otra inscripción, no otro jugador.
-- Las incidencias antiguas no se eliminan: se preservan para su conciliación.
 
 ## Orden recomendado
 
-1. Activar la columna de árbitro y completar estadios de semifinales.
-2. Ejecutar `supabase/incidencias.sql`.
-3. Conciliar las cinco incidencias históricas desde el editor.
-4. Ampliar los respaldos a clubes, torneos, jugadores e inscripciones.
-5. Implementar cierre integral del Apertura.
-6. Preparar el Clausura copiando inscripciones como borrador.
+1. Completar o confirmar árbitros de la final.
+2. Conciliar las 7 incidencias `por_verificar`.
+3. Revisar qué estadios/árbitros históricos vale la pena completar antes del cierre.
+4. Preparar validación visual mínima para Inicio, Partidos, Tabla, Playoffs y detalle.
+5. Definir si Datos se rediseña, se congela o se elimina del código público.
+6. Implementar cierre integral del Apertura después de la final.
+7. Preparar el Clausura copiando inscripciones como borrador.

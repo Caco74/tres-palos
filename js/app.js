@@ -2401,9 +2401,8 @@ function generarAnalisisPulso(
           estadisticas.get(equipoA),
           estadisticas.get(equipoB)
         ),
-        "La final se disputará en dos partidos. El sorteo definirá " +
-        "quién será local en la ida; fechas, horarios y estadios " +
-        "todavía están pendientes."
+        "La final se define a ida y vuelta; la serie sigue abierta " +
+        "hasta completar ambos partidos."
       ]
     };
   }
