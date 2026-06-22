@@ -918,13 +918,11 @@ function obtenerEstadioPartido(partido) {
     return estadioCargado;
   }
 
-  if (partido.fase !== "final") {
-    const clubLocal = state.clubes.find(
-      club => String(club.id) === String(partido.local_id)
-    ) || obtenerClub(partido.local);
+  const clubLocal = state.clubes.find(
+    club => String(club.id) === String(partido.local_id)
+  ) || obtenerClub(partido.local);
 
-    if (clubLocal?.estadio) return clubLocal.estadio;
-  }
+  if (clubLocal?.estadio) return clubLocal.estadio;
 
   return obtenerDatoFaltantePartido(partido);
 }
