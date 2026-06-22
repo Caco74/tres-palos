@@ -47,3 +47,8 @@ update public.clubes
 set apodo = 'El Rojo',
     actualizado_en = now()
 where nombre_corto = 'Unión T.';
+
+update public.clubes
+set apodo = null,
+    actualizado_en = now()
+where nombre_corto = 'Unión';
