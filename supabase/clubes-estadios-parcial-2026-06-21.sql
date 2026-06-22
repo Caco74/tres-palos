@@ -52,3 +52,24 @@ update public.clubes
 set apodo = null,
     actualizado_en = now()
 where nombre_corto = 'Unión';
+
+update public.clubes
+set estadio = 'Ethewaldo Tomás Brezzo',
+    actualizado_en = now()
+where nombre_corto = 'Almafuerte';
+
+update public.clubes
+set estadio = '"Pato" Abbondanzieri',
+    apodo = 'La Celeste',
+    actualizado_en = now()
+where nombre_corto = 'Argentino';
+
+update public.clubes
+set estadio = 'Osvaldo Ponisio "El Morumbi"',
+    actualizado_en = now()
+where nombre_corto = 'Kemmis';
+
+update public.clubes
+set apodo = 'Bosque',
+    actualizado_en = now()
+where nombre_corto = 'Montes de Oca';
