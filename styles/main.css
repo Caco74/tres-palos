@@ -509,6 +509,12 @@ button {
   display: none;
 }
 
+@media (max-width: 768px) {
+  .tab-nav {
+    display: none;
+  }
+}
+
 .tab {
   font-family: 'DM Mono', monospace;
   font-size: 0.6rem;
@@ -5156,9 +5162,19 @@ body.detail-mode .app-main {
   z-index: 100;
 }
 
-@media (max-width: 979px) {
+@media (max-width: 768px) {
   .main-column {
     padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .app-main {
+    padding-bottom: 0;
   }
 }
 
