@@ -31,6 +31,51 @@ const ESTADOS_DATO = {
   sinIdentificar: "Sin identificar"
 };
 
+function activarPistasScrollHorizontal(root, animar = false) {
+  if (!root) return;
+
+  const desplazables = root.querySelectorAll(".cat-row, .tabla-wrap");
+
+  desplazables.forEach(elemento => {
+    const actualizarEstado = () => {
+      const desborda = elemento.scrollWidth > elemento.clientWidth + 4;
+      const llegoAlFinal =
+        elemento.scrollLeft + elemento.clientWidth >=
+        elemento.scrollWidth - 4;
+
+      elemento.classList.toggle("horizontal-scroll-cue", desborda);
+      elemento.classList.toggle(
+        "is-at-scroll-end",
+        !desborda || llegoAlFinal
+      );
+    };
+
+    if (!elemento.dataset.scrollCueReady) {
+      elemento.addEventListener("scroll", actualizarEstado, {
+        passive: true
+      });
+      elemento.dataset.scrollCueReady = "true";
+    }
+
+    actualizarEstado();
+  });
+
+  if (
+    animar &&
+    !document.body.dataset.tableScrollHintShown &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    const tabla = root.querySelector(
+      ".tabla-wrap.horizontal-scroll-cue"
+    );
+
+    if (tabla) {
+      document.body.dataset.tableScrollHintShown = "true";
+      tabla.classList.add("scroll-nudge");
+    }
+  }
+}
+
 function mostrarVista(id) {
   document.body.classList.toggle(
     "detail-mode",
@@ -43,6 +88,10 @@ function mostrarVista(id) {
 
   const target = document.getElementById('tab-' + id);
   if (target) target.classList.add('on');
+
+  if (id === "tabla") {
+    activarPistasScrollHorizontal(target, true);
+  }
 
   const vistaNavegacion = vistaActual.navId ||
     (VISTAS_PRINCIPALES.includes(id) ? id : null);
@@ -879,6 +928,43 @@ function crearEstadoTorneo(
   return { tipo, clase, etiqueta, titulo, agenda, animado };
 }
 
+function obtenerTorneoActivo(torneos) {
+  if (!Array.isArray(torneos) || torneos.length === 0) return null;
+
+  const ordenados = [...torneos].sort(
+    (a, b) =>
+      Number(Boolean(b.activo)) - Number(Boolean(a.activo)) ||
+      Number(b.anio || 0) - Number(a.anio || 0) ||
+      String(b.fecha_inicio || "").localeCompare(
+        String(a.fecha_inicio || "")
+      ) ||
+      String(b.tipo || "").localeCompare(String(a.tipo || ""))
+  );
+
+  return ordenados[0] || null;
+}
+
+function filtrarPartidosPorTorneo(partidos, torneo) {
+  if (!Array.isArray(partidos)) return [];
+  if (!torneo?.id) return partidos;
+
+  return partidos.filter(
+    partido => String(partido.torneo_id) === String(torneo.id)
+  );
+}
+
+function filtrarEventosPorPartidos(eventos, partidos) {
+  if (!Array.isArray(eventos)) return [];
+
+  const idsPartidos = new Set(
+    partidos.map(partido => String(partido.id))
+  );
+
+  return eventos.filter(
+    evento => idsPartidos.has(String(evento.partido_id))
+  );
+}
+
 function obtenerPartidosRegularesVigentes() {
   const fechasPendientes = state.partidos
     .filter(
@@ -1691,7 +1777,22 @@ function obtenerAnioPlayoffs() {
     p => p.tipo === "playoff" && p.fecha_partido
   )?.fecha_partido;
 
+  return fecha?.split("-")[0] || obtenerAnioTorneo();
+}
+
+function obtenerAnioTorneo() {
+  if (state.torneoActivo?.anio) return state.torneoActivo.anio;
+
+  const fecha = state.partidos.find(
+    partido => partido.fecha_partido
+  )?.fecha_partido;
+
   return fecha?.split("-")[0] || new Date().getFullYear();
+}
+
+function obtenerNombreTorneoActivo() {
+  return state.torneoActivo?.nombre ||
+    `Liga Cañadense ${obtenerAnioTorneo()}`;
 }
 
 function obtenerAgendaInicio() {
@@ -1701,7 +1802,7 @@ function obtenerAgendaInicio() {
   );
 
   if (!fase) {
-    return { fase: null, partidos: [], pendientes: false };
+    return obtenerAgendaRegularInicio();
   }
 
   const partidosFase = state.partidos
@@ -1721,16 +1822,71 @@ function obtenerAgendaInicio() {
 
   if (pendientes.length > 0) {
     return {
+      tipo: "playoff",
       fase,
+      clave: `fase:${fase.valor}`,
       partidos: pendientes.slice(0, 4),
       pendientes: true
     };
   }
 
   return {
+    tipo: "playoff",
     fase,
+    clave: `fase:${fase.valor}`,
     partidos: partidosFase.slice(-4).reverse(),
     pendientes: false
+  };
+}
+
+function obtenerAgendaRegularInicio() {
+  const partidosRegulares = state.partidos
+    .filter(
+      partido =>
+        partido.tipo === "regular" &&
+        partido.local &&
+        partido.visitante
+    )
+    .sort(compararPartidosParaListado);
+
+  if (partidosRegulares.length === 0) {
+    return { tipo: "regular", fase: null, partidos: [], pendientes: false };
+  }
+
+  const pendientes = partidosRegulares.filter(
+    partido =>
+      partido.goles_local === null ||
+      partido.goles_visitante === null
+  );
+  const fechas = (pendientes.length > 0 ? pendientes : partidosRegulares)
+    .map(partido => Number(partido.fecha))
+    .filter(Number.isFinite);
+
+  if (fechas.length === 0) {
+    return { tipo: "regular", fase: null, partidos: [], pendientes: false };
+  }
+
+  const fecha = pendientes.length > 0
+    ? Math.min(...fechas)
+    : Math.max(...fechas);
+  const partidosFecha = partidosRegulares.filter(
+    partido => Number(partido.fecha) === fecha
+  );
+  const pendientesFecha = partidosFecha.filter(
+    partido =>
+      partido.goles_local === null ||
+      partido.goles_visitante === null
+  );
+  const partidosAgenda = pendientesFecha.length > 0
+    ? pendientesFecha
+    : partidosFecha.slice(-4).reverse();
+
+  return {
+    tipo: "regular",
+    fase: { valor: "regular", etiqueta: `Fecha ${fecha}` },
+    clave: `fecha:${fecha}`,
+    partidos: partidosAgenda.slice(0, 4),
+    pendientes: pendientesFecha.length > 0
   };
 }
 
@@ -1796,6 +1952,10 @@ function renderInicio() {
     return;
   }
 
+  const textoLinkAgenda =
+    agenda.tipo === "regular" ? "Ver fecha completa" : "Ver fase completa";
+  const claveAgenda = agenda.clave || `fase:${agenda.fase.valor}`;
+
   cont.innerHTML = `
     <div class="next-card home-agenda">
       <div class="nc-top">
@@ -1819,9 +1979,9 @@ function renderInicio() {
         </div>
         <button
           class="nc-footer-link"
-          onclick="abrirEtapaPartidos('fase:${agenda.fase.valor}')"
+          onclick="abrirEtapaPartidos('${claveAgenda}')"
         >
-          Ver fase completa →
+          ${textoLinkAgenda} →
         </button>
       </div>
     </div>
@@ -1832,14 +1992,14 @@ function renderInicio() {
 
 function actualizarResumenTorneo(agenda) {
   const etiquetaFase = agenda.fase?.etiqueta || "Fase eliminatoria";
-  const anio = obtenerAnioPlayoffs();
+  const anio = obtenerAnioTorneo();
   const estadoTorneo = obtenerEstadoTorneo();
   const equipos = new Set(
     agenda.partidos.flatMap(p => [p.local, p.visitante]).filter(Boolean)
   );
 
   document.getElementById("heroLabel").textContent =
-    `Liga Cañadense · ${etiquetaFase} · ${anio}`;
+    `${obtenerNombreTorneoActivo()} · ${etiquetaFase} · ${anio}`;
   const heroTitle = document.getElementById("heroTitle");
   if (heroTitle) {
     heroTitle.innerHTML = obtenerTituloHeroInicio(agenda.fase?.valor);
@@ -1871,7 +2031,7 @@ function actualizarPieTorneo(etiquetaFase, anio) {
   const torneo = document.getElementById("footer-tournament");
   const etapa = document.getElementById("footer-stage");
 
-  if (torneo) torneo.textContent = `Liga Cañadense ${anio}`;
+  if (torneo) torneo.textContent = obtenerNombreTorneoActivo();
   if (etapa) etapa.textContent = etiquetaFase;
 }
 
@@ -1930,12 +2090,17 @@ function renderPartidoInicio(partido) {
           )}
           <span>${nombreVisitante}</span>
         </div>
+        <span class="home-match-chev" aria-hidden="true">›</span>
       </div>
     </button>
   `;
 }
 
 function etiquetaInstanciaPartido(partido) {
+  if (partido.tipo === "regular") {
+    return `Fecha ${partido.fecha || ""}`.trim();
+  }
+
   if (partido.fase === "final") {
     const instancia = Number(partido.numero_playoff) === 2
       ? "Vuelta"
@@ -3699,8 +3864,13 @@ function renderCrucePlayoff(partido) {
           ${codigoPartido}
           ${detalle ? `<span>${detalle}</span>` : ""}
         </div>
-        <div class="po-st state-${estadoTemporal.clase} ${jugado && estadoTemporal.tipo === "final" ? "done" : ""}">
-          ${estado}
+        <div class="po-match-meta">
+          <div class="po-st state-${estadoTemporal.clase} ${jugado && estadoTemporal.tipo === "final" ? "done" : ""}">
+            ${estado}
+          </div>
+          ${tieneEquipos
+            ? `<span class="po-match-chev" aria-hidden="true">›</span>`
+            : ""}
         </div>
       </div>
       ${renderEquipoPlayoff(
@@ -3895,6 +4065,7 @@ function renderPasoCaminoPlayoff(equipo, fase) {
       <span>${obtenerEtiquetaCortaFase(fase.valor)}</span>
       <strong>vs ${rival ? nombre(rival) : "Por definir"}</strong>
       <em class="po-path-badge ${resultado.clase}">${resultado.texto}</em>
+      <span class="po-path-chev" aria-hidden="true">›</span>
     </button>
   `;
 }
@@ -4094,6 +4265,7 @@ function renderTabla(zona) {
 
   html += `</tbody></table></div>${renderTablaGeneral()}`;
   cont.innerHTML = html;
+  activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
 }
 
 function renderTablaGeneral() {
@@ -5968,6 +6140,7 @@ function renderTeams() {
             ? `<div class="tc-city">${escaparHtml(club.ciudad)}</div>`
             : ""}
           <div class="tc-pts">Zona ${zona}${puntos}</div>
+          <span class="tc-chev" aria-hidden="true">›</span>
         </button>
       `;
     })
@@ -6001,7 +6174,7 @@ async function obtenerPartidos() {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`
     };
-    const [res, resEventos, resClubes] = await Promise.all([
+    const [res, resEventos, resClubes, resTorneos] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/partidos?select=*&order=id.asc`,
         { headers }
@@ -6012,6 +6185,10 @@ async function obtenerPartidos() {
       ),
       fetch(
         `${SUPABASE_URL}/rest/v1/clubes?select=*&order=zona.asc,nombre_corto.asc`,
+        { headers }
+      ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/torneos?select=*&order=anio.desc,tipo.desc`,
         { headers }
       )
     ]);
@@ -6026,11 +6203,20 @@ async function obtenerPartidos() {
       throw new Error("La respuesta de partidos no tiene el formato esperado");
     }
 
-    cargaPartidosFinalizada = true;
-    state.partidos = data;
-    state.eventos = resEventos.ok
+    const torneos = resTorneos.ok
+      ? await resTorneos.json()
+      : state.torneos;
+    const torneoActivo = obtenerTorneoActivo(torneos);
+    const partidosTorneo = filtrarPartidosPorTorneo(data, torneoActivo);
+    const eventos = resEventos.ok
       ? await resEventos.json()
       : state.eventos;
+
+    cargaPartidosFinalizada = true;
+    state.torneos = Array.isArray(torneos) ? torneos : state.torneos;
+    state.torneoActivo = torneoActivo;
+    state.partidos = partidosTorneo;
+    state.eventos = filtrarEventosPorPartidos(eventos, partidosTorneo);
     if (resClubes.ok) {
       aplicarClubes(await resClubes.json());
     }
@@ -6044,6 +6230,12 @@ async function obtenerPartidos() {
       console.warn(
         `No se pudieron cargar los clubes: ${resClubes.status}. ` +
         "Se usan los datos locales."
+      );
+    }
+    if (!resTorneos.ok) {
+      console.warn(
+        `No se pudieron cargar los torneos: ${resTorneos.status}. ` +
+        "Se muestran todos los partidos."
       );
     }
 

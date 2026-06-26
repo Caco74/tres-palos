@@ -16,3 +16,6 @@ Thumbs.db
 
 # VS Code
 .vscode/
+
+# Adjuntos locales de Codex
+.codex-remote-attachments/

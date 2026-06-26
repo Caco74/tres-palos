@@ -1,6 +1,6 @@
 # Estado de Tres Palos
 
-Fecha de revisión: 21 de junio de 2026.
+Fecha de revisión: 25 de junio de 2026.
 
 ## Objetivo actual
 
@@ -32,6 +32,8 @@ información antes que mostrar datos dudosos.
 - Final ida jugada: Sportivo A. Club 0-1 C. A. Carcarañá, 20 de junio de 2026.
 - Final vuelta pendiente: C.A. Carcarañá vs Sportivo A. Club, 28 de junio de 2026, 15:00, Gigante de la 9.
 - 21 clubes activos.
+- Clausura 2026 sorteado: 3 zonas de 7 equipos, inicio previsto el 5 de julio de 2026.
+- Script `supabase/clausura-2026.sql` preparado para activar el torneo, actualizar zonas y cargar la Fecha 1.
 - 4 clubes con estadio cargado y 17 pendientes.
 - 27 jugadores cargados.
 - 27 inscripciones de jugadores cargadas.
@@ -84,4 +86,4 @@ vinculados a jugadores/inscripciones y tengan una fuente confiable.
 4. Preparar validación visual mínima para Inicio, Partidos, Tabla, Playoffs y detalle.
 5. Definir si Datos se rediseña, se congela o se elimina del código público.
 6. Implementar cierre integral del Apertura después de la final.
-7. Preparar el Clausura copiando inscripciones como borrador.
+7. Completar fixture del Clausura desde Fecha 2 a Fecha 14 cuando haya fuente confirmada.

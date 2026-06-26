@@ -2,7 +2,9 @@ const state = {
   partidos: [],
   playoffs: [],
   eventos: [],
-  clubes: []
+  clubes: [],
+  torneos: [],
+  torneoActivo: null
 }; 
 
 // 🔹 MAPAS

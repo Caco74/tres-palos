@@ -1072,6 +1072,12 @@ button {
   min-height: 58px;
   padding: 9px 12px;
   border-bottom: 1px solid rgba(58,58,66,.7);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.home-match-row:active {
+  background-color: rgba(255,255,255,.06);
 }
 
 .home-match-row:last-child {
@@ -1472,10 +1478,20 @@ button {
   padding: 11px 1rem;
   border-bottom: 1px solid rgba(40,40,46,0.8);
   cursor: pointer;
+  transition: background-color 120ms ease;
 }
 
 .match-row:hover {
   background: var(--card);
+}
+
+.match-row:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+.match-row:active {
+  background-color: rgba(255,255,255,.06);
 }
 
 .match-row:last-child {
@@ -1841,6 +1857,34 @@ button {
 .tabla-wrap {
   overflow-x: auto;
   padding: 0 1rem 1.5rem;
+}
+
+.horizontal-scroll-cue:not(.is-at-scroll-end) {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0,
+    #000 calc(100% - 26px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 0,
+    #000 calc(100% - 26px),
+    transparent 100%
+  );
+}
+
+@keyframes table-scroll-nudge {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  45% {
+    transform: translateX(-12px);
+  }
+}
+
+.tabla-wrap.scroll-nudge > .tabla {
+  animation: table-scroll-nudge 720ms cubic-bezier(.2,.8,.2,1) 180ms 1;
 }
 
 .tabla-referencias {
@@ -2324,6 +2368,10 @@ button {
   border-radius: 10px;
   overflow: hidden;
   background: var(--card);
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
 .po-match.pending {
@@ -2335,6 +2383,12 @@ button {
   border-color: var(--border2);
   background: var(--card2);
   outline: none;
+}
+
+.po-match:not(:disabled):active {
+  transform: scale(.985);
+  border-color: var(--border2);
+  background: var(--card2);
 }
 
 .po-match-hd {
@@ -2506,6 +2560,20 @@ button {
   border-bottom: 1px solid var(--border);
 }
 
+.po-match-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.po-match-chev,
+.po-path-chev {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .po-path-head span,
 .po-path-step span,
 .po-path-badge {
@@ -2514,6 +2582,14 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.po-path-step .po-path-chev {
+  font-family: inherit;
+  font-size: 1rem;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
 }
 
 .po-path-head strong {
@@ -2529,11 +2605,25 @@ button {
   border: 0;
   border-bottom: 1px solid rgba(40,40,46,.75);
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto 8px;
   gap: 8px;
   align-items: center;
   padding: 9px 11px;
   text-align: left;
+}
+
+button.po-path-step {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+button.po-path-step:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+button.po-path-step:active {
+  background-color: rgba(255,255,255,.06);
 }
 
 .po-path-step:last-child {
@@ -2579,12 +2669,13 @@ button {
 
 .teams-grid {
   display: grid;
-  grid-template-columns: repeat(3,1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 0 1rem 1.25rem;
 }
 
 .team-card {
+  position: relative;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -2593,6 +2684,25 @@ button {
   border-radius: 10px;
   text-align: center;
   padding: 14px 8px;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.tc-chev {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.team-card:active {
+  transform: scale(.97);
+  border-color: var(--border2);
+  background: var(--card2);
 }
 
 .tc-shield {
@@ -3590,6 +3700,10 @@ body.detail-mode .app-main {
 
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
+    animation: none;
+  }
+
+  .tabla-wrap.scroll-nudge > .tabla {
     animation: none;
   }
 }
@@ -4751,9 +4865,15 @@ body.detail-mode .app-main {
   min-height: 70px;
   padding: 12px 14px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 8px;
   align-items: center;
   gap: 9px;
+}
+
+.home-match-chev {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .home-live__section:first-child {
@@ -5689,14 +5809,17 @@ body.detail-mode .app-main {
   }
 
   .match-row {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 10px;
     gap: 5px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 
   .mr-chev {
-    display: none;
+    display: block;
+    font-size: 1rem;
+    line-height: 1;
+    text-align: right;
   }
 
   .mr-team {
