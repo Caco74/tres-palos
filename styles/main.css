@@ -26,6 +26,8 @@
   --zone1:    #ff3045;
   --zone2:    #3d8ef0;
   --zone3:    #8b5cf6;
+  --shield-bg: #ededed;
+  --shield-border: rgba(255,255,255,.32);
 }
 
 *,
@@ -1190,7 +1192,7 @@ button {
   overflow: hidden;
   border-radius: 50%;
   padding: 3px;
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   color: var(--bg);
   font-size: 0.36rem;
   font-weight: 800;
@@ -1549,7 +1551,7 @@ button {
 
   overflow: hidden;
 
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   border-radius: 50%;
   padding: 2px;
   box-sizing: border-box;
@@ -1695,7 +1697,7 @@ button {
   overflow: hidden;
   border-radius: 50%;
   padding: 2px;
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   color: var(--bg);
   font-size: 0.34rem;
   font-weight: 800;
@@ -2036,7 +2038,7 @@ button {
   width: 17px;
   height: 17px;
   font-size: 0.34rem;
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   padding: 2px;
   overflow: hidden;
   box-sizing: border-box;
@@ -2534,8 +2536,8 @@ button {
   overflow: hidden;
   padding: 4px;
   color: var(--bg);
-  background: #fff;
-  border: 1px solid rgba(255, 255, 255, .72);
+  background: var(--shield-bg);
+  border: 1px solid var(--shield-border);
   border-radius: 50%;
   font-size: .48rem;
   font-weight: 800;
@@ -2700,7 +2702,7 @@ button {
   width: 18px;
   height: 18px;
   font-size: 0.34rem;
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   padding: 2px;
   overflow: hidden;
   box-sizing: border-box;
@@ -2962,7 +2964,7 @@ button.po-path-step:active {
   justify-content: center;
   color: var(--bg);
   margin: 0 auto 8px;
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   padding: 4px;
   overflow: hidden;
   box-sizing: border-box;
@@ -3127,7 +3129,7 @@ body.detail-mode .app-main {
   width: 76px;
   height: 76px;
   border-radius: 50%;
-  background: rgba(255,255,255,.94);
+  background: var(--shield-bg);
   color: var(--bg);
   display: grid;
   place-items: center;
@@ -4302,8 +4304,8 @@ body.detail-mode .app-main {
   place-items: center;
   overflow: hidden;
   color: var(--bg);
-  background: #fff;
-  border: 1px solid rgba(255, 255, 255, .72);
+  background: var(--shield-bg);
+  border: 1px solid var(--shield-border);
   border-radius: 50%;
   box-shadow: 0 2px 7px rgba(0, 0, 0, .3);
 }
@@ -5936,7 +5938,7 @@ body.detail-mode .app-main {
   align-items: center;
   justify-content: center;
 
-  background: rgba(255,255,255,.92);
+  background: var(--shield-bg);
   border-radius: 50%;
   padding: 3px;
   box-sizing: border-box;
@@ -5967,9 +5969,9 @@ body.detail-mode .app-main {
 .team-detail-shield {
   box-sizing: border-box;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .72);
+  border: 1px solid var(--shield-border);
   border-radius: 50%;
-  background: #fff;
+  background: var(--shield-bg);
   color: var(--bg);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .26);
 }
@@ -6211,8 +6213,8 @@ body.detail-mode .app-main {
   height: 72px;
   flex: 0 0 72px;
   padding: 7px;
-  border: 1px solid rgba(255, 255, 255, .14);
-  background: rgba(255, 255, 255, .94);
+  border: 1px solid var(--shield-border);
+  background: var(--shield-bg);
   font-size: .72rem;
 }
 
@@ -6444,9 +6446,6 @@ body.detail-mode .app-main {
   width: 72px;
   height: 72px;
   padding: 8px;
-  background: rgba(255, 255, 255, .018);
-  border-color: rgba(255, 255, 255, .18);
-  box-shadow: none;
 }
 
 .match-detail-card-featured .match-detail-team strong {
