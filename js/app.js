@@ -1968,7 +1968,7 @@ function renderInicio() {
 
       <div class="home-match-list">
         ${agenda.partidos.map(partido =>
-          renderPartidoInicio(partido)
+          renderPartidoInicio(partido, agenda.partidos.length === 1)
         ).join("")}
       </div>
 
@@ -2049,7 +2049,7 @@ function actualizarFechaPie() {
     `${hoy.getDate()} ${meses[hoy.getMonth()]} ${hoy.getFullYear()}`;
 }
 
-function renderPartidoInicio(partido) {
+function renderPartidoInicio(partido, destacado = false) {
   const jugado =
     partido.goles_local !== null &&
     partido.goles_visitante !== null;
@@ -2062,6 +2062,16 @@ function renderPartidoInicio(partido) {
   const centro = jugado
     ? `${partido.goles_local} - ${partido.goles_visitante}`
     : renderMomentoPartido(partido, estado, "home-moment");
+
+  if (destacado) {
+    return renderPartidoDestacadoInicio(
+      partido,
+      estado,
+      nombreLocal,
+      nombreVisitante,
+      jugado
+    );
+  }
 
   return `
     <button
@@ -2094,6 +2104,130 @@ function renderPartidoInicio(partido) {
       </div>
     </button>
   `;
+}
+
+function renderPartidoDestacadoInicio(
+  partido,
+  estado,
+  nombreLocal,
+  nombreVisitante,
+  jugado
+) {
+  const instancia = partido.tipo === "regular"
+    ? [
+        `Fecha ${partido.fecha || ""}`.trim(),
+        partido.zona ? `Zona ${partido.zona}` : ""
+      ].filter(Boolean).join(" · ")
+    : [etiquetaFase(partido.fase), etiquetaInstanciaPartido(partido)]
+        .filter(Boolean)
+        .join(" · ");
+  const partidoIda = obtenerPartidoIdaInicio(partido);
+  const tienePenales =
+    partido.penales_local !== null &&
+    partido.penales_visitante !== null;
+  const centro = jugado
+    ? `
+      <strong class="home-featured-score">
+        ${partido.goles_local} - ${partido.goles_visitante}
+      </strong>
+      ${tienePenales
+        ? `<span class="home-featured-penalties">
+            Pen. ${partido.penales_local} - ${partido.penales_visitante}
+          </span>`
+        : ""}
+    `
+    : `
+      <span class="home-featured-vs">VS</span>
+      ${partidoIda
+        ? `<span class="home-featured-first-leg">
+            <small>Ida</small>
+            <strong>
+              ${partidoIda.goles_local} - ${partidoIda.goles_visitante}
+            </strong>
+          </span>`
+        : ""}
+    `;
+  const estadio = escaparHtml(obtenerEstadioPartido(partido));
+  const etiquetaDia = obtenerEtiquetaDiaInicio(partido.fecha_partido);
+  const hora = escaparHtml(obtenerHoraPartido(partido));
+
+  return `
+    <button
+      type="button"
+      class="home-featured-match ${estado.clase}"
+      onclick="abrirPartido(${JSON.stringify(partido.id)})"
+      aria-label="Ver ${nombreLocal} contra ${nombreVisitante}"
+    >
+      <span class="home-featured-context">
+        <span class="home-featured-context-label">
+          <span class="home-featured-dot" aria-hidden="true"></span>
+          ${instancia}
+        </span>
+        <span class="home-featured-chevron" aria-hidden="true">›</span>
+      </span>
+
+      <span class="home-featured-matchup">
+        <span class="home-featured-team">
+          ${renderEscudoInicio(partido.local, partido.local_id)}
+          <strong>${nombreLocal}</strong>
+        </span>
+
+        <span class="home-featured-center">
+          ${centro}
+        </span>
+
+        <span class="home-featured-team">
+          ${renderEscudoInicio(partido.visitante, partido.visitante_id)}
+          <strong>${nombreVisitante}</strong>
+        </span>
+      </span>
+
+      <span class="home-featured-meta">
+        <span class="home-featured-venue">
+          <small>Estadio</small>
+          <strong>${estadio}</strong>
+        </span>
+        <span class="home-featured-time">
+          <small>${etiquetaDia}</small>
+          <strong>${hora}</strong>
+        </span>
+      </span>
+    </button>
+  `;
+}
+
+function obtenerPartidoIdaInicio(partido) {
+  if (
+    partido.tipo !== "playoff" ||
+    partido.fase !== "final" ||
+    Number(partido.numero_playoff) !== 2
+  ) {
+    return null;
+  }
+
+  const ida = obtenerPartidosFinal().find(
+    item => Number(item.numero_playoff) === 1
+  );
+
+  return ida && partidoTieneResultado(ida) ? ida : null;
+}
+
+function obtenerEtiquetaDiaInicio(fecha) {
+  const diferencia = diferenciaDiasConHoy(fecha);
+
+  if (diferencia === 0) return "Hoy";
+  if (diferencia === 1) return "Mañana";
+  if (!fecha) return "Fecha";
+
+  const [year, month, day] = fecha.split("-").map(Number);
+  const meses = [
+    "ene", "feb", "mar", "abr", "may", "jun",
+    "jul", "ago", "sep", "oct", "nov", "dic"
+  ];
+
+  if (!year || !month || !day || !meses[month - 1]) return "Fecha";
+
+  return `${day} ${meses[month - 1]}`;
 }
 
 function etiquetaInstanciaPartido(partido) {
@@ -2135,7 +2269,7 @@ function renderEscudoInicio(equipo, clubId = null) {
     ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
-  return `<div class="home-shield">${contenido}</div>`;
+  return `<span class="home-shield">${contenido}</span>`;
 }
 
 function renderPulsoInicio() {

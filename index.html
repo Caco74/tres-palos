@@ -65,17 +65,13 @@
           <span class="logo-name">Tres Palos</span>
         </a>
 
-        <label class="category-select-wrap">
+        <div
+          class="category-select-wrap"
+          aria-label="Categoría actual: Primera División"
+        >
           <span class="ctx-dot"></span>
-          <select
-            class="category-select"
-            id="categorySelect"
-            aria-label="Seleccionar categoría"
-          >
-            <option value="primera">Primera División</option>
-            <option disabled>Más categorías · Próximamente</option>
-          </select>
-        </label>
+          <span class="category-label">Primera División</span>
+        </div>
       </div>
     </header>
 
@@ -151,10 +147,9 @@
         </div>
 
         <div class="cat-row">
-          <button class="cp on">Primera Div.</button>
-          <button class="cp dim">Segunda Div.</button>
-          <button class="cp dim">Reserva</button>
-          <button class="cp dim">Femenino</button>
+          <button type="button" class="cp on" aria-current="true">
+            Primera Div.
+          </button>
         </div>
 
         <div class="zona-tab-bar">
