@@ -4908,9 +4908,13 @@ function renderDetallePartido(id) {
     partido
   );
   const eventos = secuenciaEventos.eventos;
-  const contexto = partido.tipo === "playoff"
+  const contextoPartido = partido.tipo === "playoff"
     ? `${etiquetaFase(partido.fase)} · ${etiquetaInstanciaPartido(partido)}`
     : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
+  const etiquetaContexto = partido.tipo === "playoff"
+    ? "Instancia"
+    : "Jornada";
+  const contextoTorneo = escaparHtml(obtenerNombreTorneoActivo());
   const estado = obtenerEstadoTemporalPartido(partido);
   const etiquetaEstado = {
     programado: "Programado",
@@ -4944,7 +4948,7 @@ function renderDetallePartido(id) {
       <div class="home-featured-context match-detail-featured-context">
         <span class="home-featured-context-label">
           <span class="home-featured-dot" aria-hidden="true"></span>
-          ${contexto}
+          ${contextoTorneo}
         </span>
         <span class="match-detail-featured-state ${estado.clase}">
           ${etiquetaEstado}
@@ -4977,8 +4981,8 @@ function renderDetallePartido(id) {
 
       <div class="match-detail-support">
         ${renderValorDetalle(
-          "Fecha",
-          formatearFechaCompleta(partido.fecha_partido)
+          etiquetaContexto,
+          escaparHtml(contextoPartido)
         )}
         ${renderValorDetalle(
           "Árbitro",
