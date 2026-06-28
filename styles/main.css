@@ -6443,6 +6443,10 @@ body.detail-mode .app-main {
 .match-detail-card-featured .match-detail-shield {
   width: 72px;
   height: 72px;
+  padding: 8px;
+  background: rgba(255, 255, 255, .018);
+  border-color: rgba(255, 255, 255, .18);
+  box-shadow: none;
 }
 
 .match-detail-card-featured .match-detail-team strong {
