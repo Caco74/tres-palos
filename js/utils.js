@@ -1,10 +1,14 @@
 const state = {
   partidos: [],
+  partidosTodos: [],
   playoffs: [],
   eventos: [],
+  eventosTodos: [],
   clubes: [],
   torneos: [],
-  torneoActivo: null
+  torneoActivo: null,
+  torneoVigente: null,
+  torneoSeleccionadoId: null
 }; 
 
 // 🔹 MAPAS

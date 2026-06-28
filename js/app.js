@@ -124,6 +124,10 @@ function switchTab(id) {
     id = "inicio";
   }
 
+  if (id !== "playoffs" && state.torneoSeleccionadoId) {
+    restaurarTorneoVigente();
+  }
+
   vistaActual = { id, navId: id };
   mostrarVista(id);
   guardarVistaEnHistorial();
@@ -175,7 +179,10 @@ function guardarVistaEnHistorial(reemplazar = false) {
   window.history[metodo](
     {
       tresPalos: true,
-      vista: { ...vistaActual }
+      vista: {
+        ...vistaActual,
+        torneoId: state.torneoActivo?.id || null
+      }
     },
     "",
     window.location.href
@@ -190,6 +197,32 @@ function restaurarVistaDesdeHistorial(vista) {
     !["partido", "equipo"].includes(vista.id)
   ) {
     vista = { id: "inicio", navId: "inicio" };
+  }
+
+  const conservaContextoPlayoff =
+    vista.id === "playoffs" ||
+    vista.navId === "playoffs";
+  const torneoVista = conservaContextoPlayoff && vista.torneoId
+    ? state.torneos.find(
+        torneo => String(torneo.id) === String(vista.torneoId)
+      )
+    : null;
+
+  if (torneoVista) {
+    state.torneoSeleccionadoId = torneoVista.activo
+      ? null
+      : String(torneoVista.id);
+    aplicarDatosTorneo(torneoVista);
+  } else if (conservaContextoPlayoff && vista.torneoId) {
+    state.torneoSeleccionadoId = String(vista.torneoId);
+  }
+
+  if (
+    state.torneoSeleccionadoId &&
+    VISTAS_PRINCIPALES.includes(vista.id) &&
+    vista.id !== "playoffs"
+  ) {
+    restaurarTorneoVigente();
   }
 
   vistaActual = vista;
@@ -417,7 +450,7 @@ function renderPartidosRegulares(etapa) {
         <div class="zona-head">
           <div class="zona-pip"></div>
           <div class="zona-name">${zNames[z]}</div>
-          <div class="zona-count">${equiposPorZona[numeroZona].length} equipos</div>
+          <div class="zona-count">${obtenerEquiposZonaTorneo(numeroZona).length} equipos</div>
         </div>
     `;
 
@@ -441,7 +474,7 @@ function obtenerEquipoLibre(zona, partidos) {
     partidos.flatMap(p => [p.local, p.visitante])
   );
 
-  return (equiposPorZona[zona] || []).find(
+  return obtenerEquiposZonaTorneo(zona).find(
     equipo => !participantes.has(equipo)
   ) || null;
 }
@@ -953,6 +986,72 @@ function filtrarPartidosPorTorneo(partidos, torneo) {
   );
 }
 
+function obtenerTorneoSeleccionado(torneos, torneoVigente) {
+  const lista = Array.isArray(torneos) ? torneos : [];
+  const seleccionado = state.torneoSeleccionadoId
+    ? lista.find(
+        torneo =>
+          String(torneo.id) === String(state.torneoSeleccionadoId)
+      )
+    : null;
+
+  if (seleccionado) {
+    if (seleccionado.activo) state.torneoSeleccionadoId = null;
+    return seleccionado;
+  }
+
+  state.torneoSeleccionadoId = null;
+  return torneoVigente;
+}
+
+function aplicarDatosTorneo(torneo, renderizar = false) {
+  state.torneoActivo = torneo || null;
+  state.partidos = torneo
+    ? filtrarPartidosPorTorneo(state.partidosTodos, torneo)
+    : [...state.partidosTodos];
+  state.eventos = filtrarEventosPorPartidos(
+    state.eventosTodos,
+    state.partidos
+  );
+  vincularClubesPartidos();
+
+  etapaActual = null;
+  fasePlayoffActiva = null;
+  alcanceDatosActual = null;
+
+  if (renderizar) renderizarTorneoSeleccionado();
+}
+
+function renderizarTorneoSeleccionado() {
+  actualizarNavegacionEtapas();
+  renderMatches();
+  renderTabla(zonaActual);
+  renderInicio();
+  renderPlayoffs();
+  renderDatos();
+  renderTeams();
+}
+
+function seleccionarTorneoPlayoffs(torneoId) {
+  const torneo = state.torneos.find(
+    item => String(item.id) === String(torneoId)
+  );
+  if (!torneo) return;
+
+  state.torneoSeleccionadoId = torneo.activo
+    ? null
+    : String(torneo.id);
+  aplicarDatosTorneo(torneo, true);
+  guardarVistaEnHistorial(true);
+}
+
+function restaurarTorneoVigente() {
+  if (!state.torneoVigente) return;
+
+  state.torneoSeleccionadoId = null;
+  aplicarDatosTorneo(state.torneoVigente, true);
+}
+
 function filtrarEventosPorPartidos(eventos, partidos) {
   if (!Array.isArray(eventos)) return [];
 
@@ -1086,8 +1185,58 @@ function renderMomentoPartido(partido, estado, clase) {
   return `<div class="${clase} ${estado.clase}">${estado.texto}</div>`;
 }
 
+function obtenerEquiposZonaTorneo(zona) {
+  const esTorneoVigente =
+    !state.torneoVigente?.id ||
+    String(state.torneoActivo?.id) === String(state.torneoVigente.id);
+  const equipos = new Set(
+    esTorneoVigente ? equiposPorZona[zona] || [] : []
+  );
+
+  state.partidos
+    .filter(
+      partido =>
+        partido.tipo === "regular" &&
+        Number(partido.zona) === Number(zona)
+    )
+    .forEach(partido => {
+      const local = obtenerNombreOficialEquipo(
+        partido.local,
+        partido.local_id
+      );
+      const visitante = obtenerNombreOficialEquipo(
+        partido.visitante,
+        partido.visitante_id
+      );
+      if (local) equipos.add(local);
+      if (visitante) equipos.add(visitante);
+    });
+
+  if (equipos.size === 0) {
+    (equiposPorZona[zona] || []).forEach(equipo => equipos.add(equipo));
+  }
+
+  return [...equipos].sort((a, b) =>
+    nombre(a).localeCompare(nombre(b), "es", { sensitivity: "base" })
+  );
+}
+
+function obtenerZonasTorneo() {
+  const zonasPartidos = state.partidos
+    .filter(partido => partido.tipo === "regular")
+    .map(partido => Number(partido.zona))
+    .filter(Number.isFinite);
+  const zonas = new Set(zonasPartidos);
+
+  if (zonas.size === 0) {
+    Object.keys(equiposPorZona).forEach(zona => zonas.add(Number(zona)));
+  }
+
+  return [...zonas].sort((a, b) => a - b);
+}
+
 function calcularTablaZona(zona) {
-  const equiposZona = equiposPorZona[zona] || [];
+  const equiposZona = obtenerEquiposZonaTorneo(zona);
   const tabla = Object.fromEntries(
     equiposZona.map(equipo => [
       equipo,
@@ -1183,9 +1332,10 @@ function calcularTablaZona(zona) {
 }
 
 function calcularTablaGeneral() {
-  return Object.entries(equiposPorZona)
-    .flatMap(([zona, equiposZona]) => {
-      const tablaZona = calcularTablaZona(Number(zona));
+  return obtenerZonasTorneo()
+    .flatMap(zona => {
+      const equiposZona = obtenerEquiposZonaTorneo(zona);
+      const tablaZona = calcularTablaZona(zona);
       const posiciones = new Map(
         tablaZona.map(fila => [fila.equipo, fila])
       );
@@ -1193,7 +1343,7 @@ function calcularTablaGeneral() {
       return equiposZona.map(equipo => ({
         ...crearFilaTabla(equipo),
         ...posiciones.get(equipo),
-        zona: Number(zona)
+        zona
       }));
     })
     .sort(compararPosiciones);
@@ -3682,28 +3832,40 @@ function renderPlayoffs() {
     return;
   }
 
-  if (state.partidos.length === 0) {
+  const faseActual = obtenerFaseActualPlayoffs();
+  const fasesDisponibles = obtenerFasesPlayoffDisponibles();
+  const nombreTorneo = obtenerNombreTorneoActivo();
+  const campeon = obtenerResultadoSerieFinal().ganador;
+  const tituloBanner = campeon
+    ? `${nombre(campeon)} campeón`
+    : "Playoffs";
+  const banner = `
+    <div class="po-banner">
+      <div class="po-banner-icon">🏆</div>
+      <div class="po-banner-tournament">${escaparHtml(nombreTorneo)}</div>
+      <div class="po-banner-title">${escaparHtml(tituloBanner)}</div>
+      <div class="po-banner-sub">Liga Cañadense · Primera División</div>
+    </div>
+  `;
+  const selectorTorneos = renderSelectorTorneosPlayoffs();
+
+  if (fasesDisponibles.length === 0) {
     cont.innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        No hay datos de playoffs disponibles
-      </div>
+      ${banner}
+      ${selectorTorneos}
+      ${renderPlayoffsSinCruces(nombreTorneo)}
     `;
     return;
   }
 
-  const faseActual = obtenerFaseActualPlayoffs();
-  const fasesDisponibles = obtenerFasesPlayoffDisponibles();
   const faseActiva = obtenerFaseActivaPlayoff(
     fasesDisponibles,
     faseActual
   );
 
   cont.innerHTML = `
-    <div class="po-banner">
-      <div class="po-banner-icon">🏆</div>
-      <div class="po-banner-title">Playoffs ${obtenerAnioPlayoffs()}</div>
-      <div class="po-banner-sub">Liga Cañadense · Primera División</div>
-    </div>
+    ${banner}
+    ${selectorTorneos}
 
     ${renderTabsPlayoff(
       fasesDisponibles,
@@ -3720,6 +3882,62 @@ function renderPlayoffs() {
         )
       : ""}
     ${renderCaminosPlayoff(faseActiva)}
+  `;
+}
+
+function renderSelectorTorneosPlayoffs() {
+  const idsConPartidos = new Set(
+    state.partidosTodos.map(partido => String(partido.torneo_id))
+  );
+  const torneos = state.torneos
+    .filter(
+      torneo =>
+        torneo.activo || idsConPartidos.has(String(torneo.id))
+    )
+    .sort(
+      (a, b) =>
+        Number(b.anio || 0) - Number(a.anio || 0) ||
+        String(b.fecha_inicio || "").localeCompare(
+          String(a.fecha_inicio || "")
+        ) ||
+        String(b.tipo || "").localeCompare(String(a.tipo || ""))
+    );
+
+  if (torneos.length <= 1) return "";
+
+  return `
+    <label class="po-tournament-switch">
+      <span>Torneo</span>
+      <select
+        aria-label="Seleccionar torneo de playoffs"
+        onchange="seleccionarTorneoPlayoffs(this.value)"
+      >
+        ${torneos.map(torneo => `
+          <option
+            value="${torneo.id}"
+            ${String(torneo.id) === String(state.torneoActivo?.id)
+              ? "selected"
+              : ""}
+          >
+            ${escaparHtml(torneo.nombre)}${torneo.activo ? " · Actual" : ""}
+          </option>
+        `).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function renderPlayoffsSinCruces(nombreTorneo) {
+  return `
+    <section class="po-empty-state">
+      <span>Fase regular en curso</span>
+      <strong>Los playoffs todavía no comenzaron</strong>
+      <p>
+        Los cruces de ${escaparHtml(nombreTorneo)} aparecerán cuando queden
+        definidos.
+      </p>
+      <button type="button" onclick="switchTab('tabla')">Ver tabla</button>
+    </section>
   `;
 }
 
@@ -3868,6 +4086,7 @@ function renderFasePlayoff(fase, faseActual) {
           ${estado.texto}
         </span>
       </div>
+      ${fase.valor === "final" ? renderResumenSerieFinal() : ""}
       ${renderProgresoFasePlayoff(partidos)}
       <div class="po-bracket">
         ${partidos.map(partido =>
@@ -3875,6 +4094,56 @@ function renderFasePlayoff(fase, faseActual) {
         ).join("")}
       </div>
     </section>
+  `;
+}
+
+function renderResumenSerieFinal() {
+  const serie = obtenerResultadoSerieFinal();
+  if (serie.equipos.length !== 2) return "";
+
+  const [equipoA, equipoB] = serie.equipos;
+  const golesA = serie.goles.get(equipoA) || 0;
+  const golesB = serie.goles.get(equipoB) || 0;
+  const jugados = serie.partidos.filter(partidoTieneResultado).length;
+  const definicionPorPenales =
+    serie.ganador && golesA === golesB;
+  const estado = serie.ganador
+    ? `${nombre(serie.ganador)} campeón`
+    : serie.definicionPendiente
+      ? "Definición pendiente"
+      : jugados === 0
+        ? "Serie por comenzar"
+        : "Serie abierta";
+
+  return `
+    <div class="po-series-summary">
+      <div class="po-series-head">
+        <span>Resultado global</span>
+        <strong>${escaparHtml(estado)}</strong>
+      </div>
+      <div class="po-series-score">
+        ${renderEquipoResumenSerie(equipoA)}
+        <div class="po-series-total">
+          <strong>${golesA} - ${golesB}</strong>
+          <span>${definicionPorPenales ? "Definida por penales" : "Global"}</span>
+        </div>
+        ${renderEquipoResumenSerie(equipoB, true)}
+      </div>
+    </div>
+  `;
+}
+
+function renderEquipoResumenSerie(equipo, visitante = false) {
+  return `
+    <button
+      type="button"
+      class="po-series-team ${visitante ? "away" : ""}"
+      onclick='abrirEquipo(${JSON.stringify(equipo)})'
+      aria-label="Ver equipo ${escaparHtml(nombre(equipo))}"
+    >
+      ${renderEscudoPlayoff(equipo, "po-series-shield")}
+      <strong>${escaparHtml(nombre(equipo))}</strong>
+    </button>
   `;
 }
 
@@ -3892,8 +4161,14 @@ function renderProgresoFasePlayoff(partidos) {
   const porcentaje = Math.round((jugados / total) * 100);
 
   return `
-    <div class="po-progress" aria-label="${jugados} de ${total} partidos con resultado cargado">
-      <div class="po-progress-fill" style="width:${porcentaje}%"></div>
+    <div class="po-progress-block">
+      <div class="po-progress-label">
+        <span>Progreso</span>
+        <strong>${jugados} de ${total} partidos</strong>
+      </div>
+      <div class="po-progress" aria-label="${jugados} de ${total} partidos con resultado cargado">
+        <div class="po-progress-fill" style="width:${porcentaje}%"></div>
+      </div>
     </div>
   `;
 }
@@ -4272,7 +4547,7 @@ function renderEscudoPlayoff(equipo, clase) {
     ? `<img src="${escudo}" alt="${nombreEquipo}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
-  return `<div class="${clase}">${contenido}</div>`;
+  return `<span class="${clase}">${contenido}</span>`;
 }
 
 function obtenerDetallePlayoff(partido) {
@@ -5382,7 +5657,7 @@ function obtenerFechasLibresEquipo(equipo, zona) {
           .flatMap(partido => [partido.local, partido.visitante])
           .filter(Boolean)
       );
-      const cantidadEsperada = (equiposPorZona[zona] || []).length - 1;
+      const cantidadEsperada = obtenerEquiposZonaTorneo(zona).length - 1;
 
       if (
         participantes.size !== cantidadEsperada ||
@@ -5414,10 +5689,10 @@ function renderActividadLibre(actividad, equipo) {
 }
 
 function obtenerZonaEquipo(equipo) {
-  const entrada = Object.entries(equiposPorZona).find(
-    ([, equipos]) => equipos.includes(equipo)
+  const zona = obtenerZonasTorneo().find(
+    numeroZona => obtenerEquiposZonaTorneo(numeroZona).includes(equipo)
   );
-  return entrada ? Number(entrada[0]) : null;
+  return zona || null;
 }
 
 function ordenarPartidosRecientes(a, b) {
@@ -6267,16 +6542,17 @@ function actualizarEquipoComparadorDatos(lado, equipo) {
 }
 
 function renderTeams() {
-  const equiposLiga = Object.entries(equiposPorZona)
-    .flatMap(([zona, equiposZona]) => {
-      const tablaZona = calcularTablaZona(Number(zona));
+  const equiposLiga = obtenerZonasTorneo()
+    .flatMap(zona => {
+      const equiposZona = obtenerEquiposZonaTorneo(zona);
+      const tablaZona = calcularTablaZona(zona);
       const posiciones = new Map(
         tablaZona.map(fila => [fila.equipo, fila])
       );
 
       return equiposZona.map(equipo => ({
         equipo,
-        zona: Number(zona),
+        zona,
         stats: posiciones.get(equipo)
       }));
     })
@@ -6379,17 +6655,21 @@ async function obtenerPartidos() {
     const torneos = resTorneos.ok
       ? await resTorneos.json()
       : state.torneos;
-    const torneoActivo = obtenerTorneoActivo(torneos);
-    const partidosTorneo = filtrarPartidosPorTorneo(data, torneoActivo);
+    const torneoVigente = obtenerTorneoActivo(torneos);
+    const torneoSeleccionado = obtenerTorneoSeleccionado(
+      torneos,
+      torneoVigente
+    );
     const eventos = resEventos.ok
       ? await resEventos.json()
-      : state.eventos;
+      : state.eventosTodos;
 
     cargaPartidosFinalizada = true;
     state.torneos = Array.isArray(torneos) ? torneos : state.torneos;
-    state.torneoActivo = torneoActivo;
-    state.partidos = partidosTorneo;
-    state.eventos = filtrarEventosPorPartidos(eventos, partidosTorneo);
+    state.torneoVigente = torneoVigente;
+    state.partidosTodos = data;
+    state.eventosTodos = Array.isArray(eventos) ? eventos : [];
+    aplicarDatosTorneo(torneoSeleccionado);
     if (resClubes.ok) {
       aplicarClubes(await resClubes.json());
     }
@@ -6435,7 +6715,9 @@ async function obtenerPartidos() {
 
     cargaPartidosFinalizada = true;
     state.partidos = [];
+    state.partidosTodos = [];
     state.eventos = [];
+    state.eventosTodos = [];
     etapaActual = null;
     actualizarNavegacionEtapas();
     document.getElementById("tablaContent").innerHTML = `
