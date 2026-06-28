@@ -2109,7 +2109,14 @@ function renderInicio() {
 
   const agenda = obtenerAgendaInicio();
   const estadoTorneo = obtenerEstadoTorneo();
+  const serieFinal = obtenerResultadoSerieFinal();
   actualizarResumenTorneo(agenda);
+
+  if (serieFinal.ganador) {
+    cont.innerHTML = renderCampeonInicio(serieFinal);
+    renderPulsoInicio();
+    return;
+  }
 
   if (!agenda.fase || agenda.partidos.length === 0) {
     cont.innerHTML = `
@@ -2166,19 +2173,97 @@ function renderInicio() {
   renderPulsoInicio();
 }
 
+function renderCampeonInicio(serieFinal) {
+  const campeon = serieFinal.ganador;
+  if (!campeon) return "";
+
+  const rival = serieFinal.equipos.find(equipo => equipo !== campeon);
+  const club = obtenerClub(campeon);
+  const golesCampeon = serieFinal.goles.get(campeon) || 0;
+  const golesRival = serieFinal.goles.get(rival) || 0;
+  const definicion = [...serieFinal.partidos].reverse().find(
+    partido =>
+      partido.penales_local !== null &&
+      partido.penales_visitante !== null
+  );
+  const definicionPenales = definicion && golesCampeon === golesRival;
+  const penalesCampeon = definicionPenales
+    ? Number(
+        definicion.local === campeon
+          ? definicion.penales_local
+          : definicion.penales_visitante
+      )
+    : null;
+  const penalesRival = definicionPenales
+    ? Number(
+        definicion.local === campeon
+          ? definicion.penales_visitante
+          : definicion.penales_local
+      )
+    : null;
+
+  return `
+    <article class="home-champion">
+      <div class="home-champion-main">
+        <div class="home-champion-shield">
+          ${renderEscudoInicio(campeon, club?.id)}
+        </div>
+        <div class="home-champion-copy">
+          <span>Campeón · ${escaparHtml(obtenerNombreTorneoActivo())}</span>
+          <h2>${escaparHtml(nombre(campeon, club?.id))}</h2>
+          ${club?.nombre_oficial
+            ? `<p>${escaparHtml(club.nombre_oficial)}</p>`
+            : ""}
+        </div>
+      </div>
+
+      <div class="home-champion-final">
+        <div>
+          <span>Resultado global</span>
+          <strong>${golesCampeon} - ${golesRival}</strong>
+        </div>
+        <div>
+          <span>Finalista</span>
+          <strong>${escaparHtml(rival ? nombre(rival) : "-")}</strong>
+        </div>
+        ${definicionPenales
+          ? `<div>
+              <span>Definición</span>
+              <strong>Penales ${penalesCampeon} - ${penalesRival}</strong>
+            </div>`
+          : ""}
+      </div>
+
+      <button type="button" onclick="switchTab('playoffs')">
+        Ver recorrido en playoffs →
+      </button>
+    </article>
+  `;
+}
+
 function actualizarResumenTorneo(agenda) {
   const etiquetaFase = agenda.fase?.etiqueta || "Fase eliminatoria";
   const anio = obtenerAnioTorneo();
   const estadoTorneo = obtenerEstadoTorneo();
+  const campeon = obtenerResultadoSerieFinal().ganador;
   const equipos = new Set(
     agenda.partidos.flatMap(p => [p.local, p.visitante]).filter(Boolean)
   );
 
-  document.getElementById("heroLabel").textContent =
-    `${obtenerNombreTorneoActivo()} · ${etiquetaFase} · ${anio}`;
+  document.getElementById("heroLabel").textContent = campeon
+    ? `${obtenerNombreTorneoActivo()} · Torneo finalizado`
+    : `${obtenerNombreTorneoActivo()} · ${etiquetaFase} · ${anio}`;
   const heroTitle = document.getElementById("heroTitle");
   if (heroTitle) {
-    heroTitle.innerHTML = obtenerTituloHeroInicio(agenda.fase?.valor);
+    heroTitle.innerHTML = campeon
+      ? `${escaparHtml(nombre(campeon))}<br><em>campeón</em>`
+      : obtenerTituloHeroInicio(agenda.fase?.valor);
+  }
+  const tituloSeccion = document.getElementById("homeSectionTitle");
+  if (tituloSeccion) {
+    tituloSeccion.textContent = campeon
+      ? "Campeón del torneo"
+      : "Agenda del torneo";
   }
   document.getElementById("sidebarEye").textContent =
     estadoTorneo.etiqueta;
@@ -2191,7 +2276,7 @@ function actualizarResumenTorneo(agenda) {
   document.getElementById("sidebarTeams").textContent =
     equipos.size || "–";
   document.getElementById("sidebarYear").textContent = anio;
-  actualizarPieTorneo(etiquetaFase, anio);
+  actualizarPieTorneo(campeon ? "Torneo finalizado" : etiquetaFase, anio);
 }
 
 function obtenerTituloHeroInicio(fase) {
@@ -2463,7 +2548,10 @@ function renderPulsoInicio() {
   const cont = document.getElementById("homeLiveContent");
   if (!cont) return;
 
-  const faseActual = obtenerFaseActualPlayoffs();
+  const campeon = obtenerResultadoSerieFinal().ganador;
+  const faseActual = campeon
+    ? "final"
+    : obtenerFaseActualPlayoffs();
   const fase = FASES_PLAYOFF.find(
     item => item.valor === faseActual
   );
@@ -2498,6 +2586,15 @@ function renderPulsoInicio() {
   const ultimosResultados = renderUltimosResultadosPlayoff(
     faseActual
   );
+
+  if (campeon) {
+    cont.innerHTML = `
+      <div class="home-live">
+        ${ultimosResultados}
+      </div>
+    `;
+    return;
+  }
 
   cont.innerHTML = `
     <div class="home-live">
