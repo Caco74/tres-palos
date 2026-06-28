@@ -6135,3 +6135,166 @@ body.detail-mode .app-main {
     font-size: 1.8rem;
   }
 }
+
+/* MATCH DETAIL: FEATURED CARD */
+
+.match-detail-card-featured .match-detail-featured-context {
+  min-height: 46px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.match-detail-featured-state {
+  flex: 0 0 auto;
+  color: var(--blue);
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.match-detail-featured-state.live {
+  color: var(--red);
+}
+
+.match-detail-featured-state.waiting {
+  color: var(--draw);
+}
+
+.match-detail-featured-state.final {
+  color: var(--win);
+}
+
+.match-detail-featured-state.suspended,
+.match-detail-featured-state.postponed,
+.match-detail-featured-state.tbd {
+  color: var(--muted);
+}
+
+.match-detail-card-featured .match-detail-scoreboard {
+  min-height: 174px;
+  grid-template-columns: minmax(0, 1fr) minmax(58px, 86px) minmax(0, 1fr);
+  gap: 8px;
+  padding: 18px 18px 22px;
+}
+
+.match-detail-card-featured .match-detail-team {
+  gap: 10px;
+}
+
+.match-detail-card-featured .match-detail-shield {
+  width: 72px;
+  height: 72px;
+}
+
+.match-detail-card-featured .match-detail-team strong {
+  width: 100%;
+  color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.match-detail-card-featured .match-detail-result {
+  min-width: 0;
+}
+
+.match-detail-card-featured .match-detail-result .home-featured-first-leg,
+.match-detail-card-featured .match-detail-result .home-featured-penalties {
+  margin-top: 0;
+}
+
+.match-detail-featured-meta {
+  min-height: 74px;
+}
+
+.match-detail-support {
+  display: grid;
+  grid-template-columns: minmax(110px, .75fr) minmax(0, 1.25fr);
+  border-top: 1px solid var(--border);
+}
+
+.match-detail-support > div {
+  min-width: 0;
+  padding: 11px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.match-detail-support > div:last-child {
+  border-right: 0;
+}
+
+.match-detail-support span {
+  display: block;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .6rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.match-detail-support strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: .82rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.match-detail-card-featured.live .home-featured-dot {
+  box-shadow: 0 0 0 4px rgba(255, 48, 69, .13);
+  animation: livePulse 1.4s ease-in-out infinite;
+}
+
+.match-detail-card-featured.waiting .home-featured-dot {
+  background: var(--draw);
+}
+
+.match-detail-card-featured.final .home-featured-dot {
+  background: var(--win);
+}
+
+.match-detail-card-featured.suspended .home-featured-dot,
+.match-detail-card-featured.postponed .home-featured-dot,
+.match-detail-card-featured.tbd .home-featured-dot {
+  background: var(--muted);
+}
+
+@media (max-width: 390px) {
+  .match-detail-card-featured .match-detail-scoreboard {
+    min-height: 160px;
+    grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr);
+    gap: 5px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .match-detail-card-featured .match-detail-shield {
+    width: 64px;
+    height: 64px;
+  }
+
+  .match-detail-card-featured .match-detail-team strong {
+    font-size: .95rem;
+  }
+
+  .match-detail-featured-state {
+    max-width: 112px;
+  }
+
+  .match-detail-support {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .match-detail-support > div {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}

@@ -2121,34 +2121,16 @@ function renderPartidoDestacadoInicio(
     : [etiquetaFase(partido.fase), etiquetaInstanciaPartido(partido)]
         .filter(Boolean)
         .join(" · ");
-  const partidoIda = obtenerPartidoIdaInicio(partido);
   const tienePenales =
     partido.penales_local !== null &&
     partido.penales_visitante !== null;
-  const centro = jugado
-    ? `
-      <strong class="home-featured-score">
-        ${partido.goles_local} - ${partido.goles_visitante}
-      </strong>
-      ${tienePenales
-        ? `<span class="home-featured-penalties">
-            Pen. ${partido.penales_local} - ${partido.penales_visitante}
-          </span>`
-        : ""}
-    `
-    : `
-      <span class="home-featured-vs">VS</span>
-      ${partidoIda
-        ? `<span class="home-featured-first-leg">
-            <small>Ida</small>
-            <strong>
-              ${partidoIda.goles_local} - ${partidoIda.goles_visitante}
-            </strong>
-          </span>`
-        : ""}
-    `;
+  const centro = renderCentroPartidoDestacado(
+    partido,
+    jugado,
+    tienePenales
+  );
   const estadio = escaparHtml(obtenerEstadioPartido(partido));
-  const etiquetaDia = obtenerEtiquetaDiaInicio(partido.fecha_partido);
+  const etiquetaDia = obtenerEtiquetaDiaPartido(partido.fecha_partido);
   const hora = escaparHtml(obtenerHoraPartido(partido));
 
   return `
@@ -2196,7 +2178,36 @@ function renderPartidoDestacadoInicio(
   `;
 }
 
-function obtenerPartidoIdaInicio(partido) {
+function renderCentroPartidoDestacado(partido, jugado, tienePenales) {
+  if (jugado) {
+    return `
+      <strong class="home-featured-score">
+        ${partido.goles_local} - ${partido.goles_visitante}
+      </strong>
+      ${tienePenales
+        ? `<span class="home-featured-penalties">
+            Pen. ${partido.penales_local} - ${partido.penales_visitante}
+          </span>`
+        : ""}
+    `;
+  }
+
+  const partidoIda = obtenerPartidoIdaSerie(partido);
+
+  return `
+    <span class="home-featured-vs">VS</span>
+    ${partidoIda
+      ? `<span class="home-featured-first-leg">
+          <small>Ida</small>
+          <strong>
+            ${partidoIda.goles_local} - ${partidoIda.goles_visitante}
+          </strong>
+        </span>`
+      : ""}
+  `;
+}
+
+function obtenerPartidoIdaSerie(partido) {
   if (
     partido.tipo !== "playoff" ||
     partido.fase !== "final" ||
@@ -2212,7 +2223,7 @@ function obtenerPartidoIdaInicio(partido) {
   return ida && partidoTieneResultado(ida) ? ida : null;
 }
 
-function obtenerEtiquetaDiaInicio(fecha) {
+function obtenerEtiquetaDiaPartido(fecha) {
   const diferencia = diferenciaDiasConHoy(fecha);
 
   if (diferencia === 0) return "Hoy";
@@ -4626,35 +4637,50 @@ function renderDetallePartido(id) {
     ? `${etiquetaFase(partido.fase)} · ${etiquetaInstanciaPartido(partido)}`
     : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
   const estado = obtenerEstadoTemporalPartido(partido);
+  const etiquetaEstado = {
+    programado: "Programado",
+    "sin-fecha": "A confirmar"
+  }[estado.tipo] || estado.texto;
+  const antecedentes = renderAntecedentesDetallePartido(partido);
+  const incidencias = renderIncidenciasDetallePartido(
+    partido,
+    eventos,
+    secuenciaEventos,
+    estado
+  );
+  const priorizarIncidencias =
+    jugado ||
+    ["en-juego", "penales", "esperando"].includes(estado.tipo);
+  const centro = renderCentroPartidoDestacado(
+    partido,
+    jugado,
+    tienePenales
+  );
 
   cont.innerHTML = `
     <div class="detail-topbar">
       <button type="button" class="detail-back" onclick="volverDetalle()">
         ← Volver
       </button>
-      <span class="detail-context">${contexto}</span>
+      <span class="detail-context">Detalle del partido</span>
     </div>
 
-    <article class="match-detail-card">
-      <div class="match-detail-status ${estado.clase}">
-        ${["en-juego", "penales"].includes(estado.tipo)
-          ? `<span class="live-indicator"></span>`
-          : ""}
-        ${estado.detalle}
+    <article class="match-detail-card match-detail-card-featured ${estado.clase}">
+      <div class="home-featured-context match-detail-featured-context">
+        <span class="home-featured-context-label">
+          <span class="home-featured-dot" aria-hidden="true"></span>
+          ${contexto}
+        </span>
+        <span class="match-detail-featured-state ${estado.clase}">
+          ${etiquetaEstado}
+        </span>
       </div>
 
       <div class="match-detail-scoreboard">
         ${renderEquipoDetallePartido(partido.local, partido.local_id)}
 
-        <div class="match-detail-result">
-          <strong>
-            ${jugado
-              ? `${partido.goles_local} - ${partido.goles_visitante}`
-              : "VS"}
-          </strong>
-          ${tienePenales
-            ? `<span>Penales ${partido.penales_local} - ${partido.penales_visitante}</span>`
-            : ""}
+        <div class="match-detail-result home-featured-center">
+          ${centro}
         </div>
 
         ${renderEquipoDetallePartido(
@@ -4663,18 +4689,21 @@ function renderDetallePartido(id) {
         )}
       </div>
 
-      <div class="match-detail-meta">
+      <div class="home-featured-meta match-detail-featured-meta">
+        <div class="home-featured-venue">
+          <small>Estadio</small>
+          <strong>${escaparHtml(obtenerEstadioPartido(partido))}</strong>
+        </div>
+        <div class="home-featured-time">
+          <small>${obtenerEtiquetaDiaPartido(partido.fecha_partido)}</small>
+          <strong>${escaparHtml(obtenerHoraPartido(partido))}</strong>
+        </div>
+      </div>
+
+      <div class="match-detail-support">
         ${renderValorDetalle(
           "Fecha",
           formatearFechaCompleta(partido.fecha_partido)
-        )}
-        ${renderValorDetalle(
-          "Hora",
-          obtenerHoraPartido(partido)
-        )}
-        ${renderValorDetalle(
-          "Estadio",
-          obtenerEstadioPartido(partido)
         )}
         ${renderValorDetalle(
           "Árbitro",
@@ -4683,9 +4712,20 @@ function renderDetallePartido(id) {
       </div>
     </article>
 
-    ${renderAntecedentesDetallePartido(partido)}
+    ${priorizarIncidencias
+      ? `${incidencias}${antecedentes}`
+      : `${antecedentes}${incidencias}`}
+  `;
+}
 
-    <section class="detail-section">
+function renderIncidenciasDetallePartido(
+  partido,
+  eventos,
+  secuenciaEventos,
+  estado
+) {
+  return `
+    <section class="detail-section detail-events">
       <div class="detail-section-head">
         <h2>Incidencias</h2>
         <span>${eventos.length || "Sin"} registros</span>
@@ -4808,7 +4848,6 @@ function renderEquipoDetallePartido(equipo, clubId = null) {
     >
       <span class="match-detail-shield">${escudoEquipo}</span>
       <strong>${nombreEquipo}</strong>
-      <small>${equipo || ""}</small>
     </button>
   `;
 }
