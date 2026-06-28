@@ -3495,20 +3495,22 @@ body.detail-mode .app-main {
   margin-top: 3px;
   color: var(--white);
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 2rem;
+  font-size: 1.7rem;
   letter-spacing: 0.05em;
-  line-height: 1;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
-.team-detail-head p {
+.team-detail-nickname {
   margin-top: 5px;
-  color: var(--muted);
-  font-size: 0.76rem;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .team-detail-origin {
-  margin-top: 7px;
-  color: var(--text);
+  margin-top: 4px;
+  color: var(--muted);
   font-size: 0.74rem;
 }
 
@@ -3534,6 +3536,12 @@ body.detail-mode .app-main {
 }
 
 .team-stage-badge.eliminated,
+.team-stage-badge.not-qualified {
+  border-color: rgba(239, 91, 103, .4);
+  background: rgba(239, 91, 103, .1);
+  color: var(--loss);
+}
+
 .team-stage-badge.runner-up {
   border-color: var(--border2);
   background: rgba(255, 255, 255, .045);

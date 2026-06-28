@@ -1824,6 +1824,32 @@ function obtenerEstadoPlayoffEquipo(equipo) {
     };
   }
 
+  const hayPlayoffs = state.partidos.some(
+    partido => partido.tipo === "playoff"
+  );
+
+  if (hayPlayoffs) {
+    const clasificados = calcularClasificados();
+
+    if (clasificados.cuartos.has(equipo)) {
+      return {
+        texto: "Clasificado a cuartos de final",
+        clase: "cuartos"
+      };
+    }
+    if (clasificados.octavos.has(equipo)) {
+      return {
+        texto: "Clasificado a octavos de final",
+        clase: "octavos"
+      };
+    }
+
+    return {
+      texto: "No clasificó a playoffs",
+      clase: "not-qualified"
+    };
+  }
+
   return null;
 }
 
@@ -5452,23 +5478,21 @@ function renderDetalleEquipo(equipo) {
     )
     .sort(ordenarPartidosProximos)[0];
   const nombreEquipo = nombre(equipo);
+  const nombreOficial = club?.nombre_oficial || equipo || nombreEquipo;
+  const apodo = club?.apodo?.trim();
+  const ciudad = club?.ciudad?.trim();
   const escudo = obtenerEscudoEquipo(equipo, club?.id);
   const escudoEquipo = escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="${escaparHtml(nombreOficial)}">`
     : nombreEquipo.slice(0, 2).toUpperCase();
   const estadoPlayoff = obtenerEstadoPlayoffEquipo(equipo);
-  const identidad = [
-    club?.ciudad,
-    club?.apodo ? `Apodo: ${club.apodo}` : null,
-    club?.estadio ? `Estadio: ${club.estadio}` : null
-  ].filter(Boolean).join(" · ");
 
   cont.innerHTML = `
     <div class="detail-topbar">
       <button type="button" class="detail-back" onclick="volverDetalle()">
         ← Volver
       </button>
-      <span class="detail-context">Zona ${zona}</span>
+      <span class="detail-context">Detalle del equipo</span>
     </div>
 
     <article class="team-detail-card">
@@ -5476,10 +5500,12 @@ function renderDetalleEquipo(equipo) {
         <div class="team-detail-shield">${escudoEquipo}</div>
         <div>
           <span>Zona ${zona} · ${stats.pts} puntos</span>
-          <h1>${nombreEquipo}</h1>
-          <p>${equipo}</p>
-          ${identidad
-            ? `<div class="team-detail-origin">${escaparHtml(identidad)}</div>`
+          <h1>${escaparHtml(nombreOficial)}</h1>
+          ${apodo
+            ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
+            : ""}
+          ${ciudad
+            ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
             : ""}
           ${estadoPlayoff
             ? `<div class="team-stage-badge ${estadoPlayoff.clase}">
