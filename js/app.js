@@ -25,6 +25,8 @@ const FASES_PLAYOFF = [
   { valor: "final", etiqueta: "Final" }
 ];
 
+const TORNEOS_SIN_CRONOLOGIA_CONFIABLE = new Set([1]);
+
 const ESTADOS_DATO = {
   confirmar: "A confirmar",
   sinDatos: "Sin datos",
@@ -5022,14 +5024,29 @@ function renderDetallePartido(id) {
   const tienePenales =
     partido.penales_local !== null &&
     partido.penales_visitante !== null;
-  const secuenciaEventos = prepararSecuenciaEventos(
-    state.eventos.filter(
-      evento =>
-        String(evento.partido_id) === String(partido.id) &&
-        esEventoPublicable(evento)
-    ),
+  const eventosPublicables = state.eventos.filter(
+    evento =>
+      String(evento.partido_id) === String(partido.id) &&
+      esEventoPublicable(evento)
+  );
+  const analisisEventos = analizarSecuenciaEventosPublica(
+    eventosPublicables,
     partido
   );
+  const usaResumenGoleadores = debeUsarResumenGoleadores(
+    partido,
+    analisisEventos
+  );
+  const secuenciaEventos = usaResumenGoleadores
+    ? {
+        eventos: eventosPublicables,
+        secuenciaPublicable: false
+      }
+    : prepararSecuenciaEventos(
+        eventosPublicables,
+        partido,
+        analisisEventos
+      );
   const eventos = secuenciaEventos.eventos;
   const contextoPartido = partido.tipo === "playoff"
     ? `${etiquetaFase(partido.fase)} · ${etiquetaInstanciaPartido(partido)}`
@@ -5048,7 +5065,8 @@ function renderDetallePartido(id) {
     partido,
     eventos,
     secuenciaEventos,
-    estado
+    estado,
+    usaResumenGoleadores
   );
   const priorizarIncidencias =
     jugado ||
@@ -5121,6 +5139,153 @@ function renderDetallePartido(id) {
 }
 
 function renderIncidenciasDetallePartido(
+  partido,
+  eventos,
+  secuenciaEventos,
+  estado,
+  usaResumenGoleadores
+) {
+  if (usaResumenGoleadores) {
+    return renderResumenGoleadoresDetallePartido(partido, eventos);
+  }
+
+  return renderCronologiaIncidenciasDetallePartido(
+    partido,
+    eventos,
+    secuenciaEventos,
+    estado
+  );
+}
+
+function debeUsarResumenGoleadores(partido, analisisEventos) {
+  const torneoSinCronologia = TORNEOS_SIN_CRONOLOGIA_CONFIABLE.has(
+    Number(partido?.torneo_id)
+  );
+
+  return torneoSinCronologia || !analisisEventos?.secuenciaPublicable;
+}
+
+function renderResumenGoleadoresDetallePartido(partido, eventos) {
+  const resumen = agruparGoleadoresDetallePartido(partido, eventos);
+  const etiquetaCantidad = resumen.total === 1
+    ? "1 gol"
+    : resumen.total > 1
+      ? `${resumen.total} goles`
+      : "Sin goles";
+
+  return `
+    <section class="detail-section detail-events detail-scorers">
+      <div class="detail-section-head">
+        <h2>Goleadores</h2>
+        <span>${etiquetaCantidad}</span>
+      </div>
+      ${resumen.total > 0
+        ? `
+          <div class="scorer-summary">
+            ${renderColumnaResumenGoleadores(
+              partido.local,
+              resumen.local
+            )}
+            ${renderColumnaResumenGoleadores(
+              partido.visitante,
+              resumen.visitante
+            )}
+          </div>
+        `
+        : `
+          <div class="detail-empty">
+            Sin goles cargados para este partido.
+          </div>
+        `}
+    </section>
+  `;
+}
+
+function agruparGoleadoresDetallePartido(partido, eventos) {
+  const columnas = {
+    local: new Map(),
+    visitante: new Map()
+  };
+  const goles = eventos.filter(evento =>
+    ["gol", "gol-penal", "gol-contra"].includes(
+      normalizarTipoEvento(evento.tipo)
+    )
+  );
+
+  goles.forEach(evento => {
+    const tipo = normalizarTipoEvento(evento.tipo);
+    const ladoAutor = resolverLadoEvento(evento, partido);
+    const ladoBeneficiado = tipo === "gol-contra"
+      ? invertirLadoPartido(ladoAutor)
+      : ladoAutor;
+
+    if (!columnas[ladoBeneficiado]) return;
+
+    const jugador = limpiarNombreJugador(evento.jugador) ||
+      `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
+    const identidad = evento.inscripcion_jugador_id
+      ? `inscripcion:${evento.inscripcion_jugador_id}`
+      : `nombre:${jugador}`;
+    const esGolEnContra = tipo === "gol-contra";
+    const clave = `${identidad}:${esGolEnContra ? "ec" : "gol"}`;
+    const existente = columnas[ladoBeneficiado].get(clave);
+
+    if (existente) {
+      existente.cantidad += 1;
+      return;
+    }
+
+    columnas[ladoBeneficiado].set(clave, {
+      jugador,
+      cantidad: 1,
+      esGolEnContra
+    });
+  });
+
+  const ordenar = columna => [...columna.values()].sort((a, b) =>
+    a.jugador.localeCompare(b.jugador, "es", { sensitivity: "base" })
+  );
+
+  return {
+    local: ordenar(columnas.local),
+    visitante: ordenar(columnas.visitante),
+    total: goles.length
+  };
+}
+
+function invertirLadoPartido(lado) {
+  if (lado === "local") return "visitante";
+  if (lado === "visitante") return "local";
+  return null;
+}
+
+function renderColumnaResumenGoleadores(equipo, goleadores) {
+  return `
+    <section class="scorer-summary-team">
+      <h3>${escaparHtml(nombre(equipo))}</h3>
+      ${goleadores.length > 0
+        ? `
+          <ul class="scorer-summary-list">
+            ${goleadores.map(goleador => `
+              <li>
+                <span>
+                  ${escaparHtml(goleador.jugador)}${goleador.esGolEnContra
+                    ? " <em>(e/c)</em>"
+                    : ""}
+                </span>
+                ${goleador.cantidad > 1
+                  ? `<strong>×${goleador.cantidad}</strong>`
+                  : ""}
+              </li>
+            `).join("")}
+          </ul>
+        `
+        : `<p class="scorer-summary-empty">Sin goles</p>`}
+    </section>
+  `;
+}
+
+function renderCronologiaIncidenciasDetallePartido(
   partido,
   eventos,
   secuenciaEventos,
@@ -5289,33 +5454,44 @@ function analizarSecuenciaEventosPublica(eventos, partido) {
   const golesConfirmados =
     goles.length > 0 &&
     goles.every(evento => evento.estado_dato === "confirmado");
-  const ordenes = eventos.map(evento => Number(evento.orden));
-  const ordenValido =
-    ordenes.every(orden => Number.isInteger(orden) && orden > 0) &&
-    new Set(ordenes).size === ordenes.length;
+  const ordenes = eventos.map(evento => evento.orden);
+  const valoresOrden = ordenes.map(orden => Number(orden));
+  const ordenCompletoValido =
+    eventos.length > 0 &&
+    ordenes.every((orden, indice) => {
+      if (orden === null || orden === undefined || orden === "") {
+        return false;
+      }
+
+      return Number.isInteger(valoresOrden[indice]) && valoresOrden[indice] > 0;
+    }) &&
+    new Set(valoresOrden).size === valoresOrden.length;
   const secuenciaPublicable =
     goles.length > 0 &&
     golesCoinciden &&
     golesConfirmados &&
-    ordenValido;
+    ordenCompletoValido;
 
   return { secuenciaPublicable };
 }
 
-function prepararSecuenciaEventos(eventos, partido) {
+function prepararSecuenciaEventos(
+  eventos,
+  partido,
+  analisis = analizarSecuenciaEventosPublica(eventos, partido)
+) {
   let golesLocal = 0;
   let golesVisitante = 0;
-  const analisis = analizarSecuenciaEventosPublica(
-    eventos,
-    partido
-  );
+
+  if (!analisis.secuenciaPublicable) {
+    return {
+      eventos: [...eventos],
+      secuenciaPublicable: false
+    };
+  }
 
   const ordenados = [...eventos]
-    .sort(
-      (a, b) =>
-        Number(a.orden ?? a.id) - Number(b.orden ?? b.id) ||
-        Number(a.id) - Number(b.id)
-    )
+    .sort((a, b) => Number(a.orden) - Number(b.orden))
     .map(evento => {
       const tipo = normalizarTipoEvento(evento.tipo);
       const lado = resolverLadoEvento(evento, partido);

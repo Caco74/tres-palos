@@ -3342,6 +3342,86 @@ body.detail-mode .app-main {
   text-align: center;
 }
 
+.scorer-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scorer-summary-team {
+  min-width: 0;
+  padding: 14px;
+}
+
+.scorer-summary-team + .scorer-summary-team {
+  border-left: 1px solid rgba(58,58,66,.65);
+}
+
+.scorer-summary-team h3 {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .76rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.scorer-summary-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+.scorer-summary-list li {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text);
+  font-size: .84rem;
+  line-height: 1.25;
+}
+
+.scorer-summary-list li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scorer-summary-list em {
+  color: var(--draw);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.scorer-summary-list strong {
+  flex: 0 0 auto;
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: .68rem;
+  font-weight: 500;
+}
+
+.scorer-summary-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+@media (max-width: 390px) {
+  .scorer-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .scorer-summary-team + .scorer-summary-team {
+    border-top: 1px solid rgba(58,58,66,.65);
+    border-left: 0;
+  }
+}
+
 .detail-history-summary {
   padding: 11px 14px;
   color: var(--text);

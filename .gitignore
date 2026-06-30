@@ -19,3 +19,6 @@ Thumbs.db
 
 # Adjuntos locales de Codex
 .codex-remote-attachments/
+
+# Artefactos temporales y respaldos locales
+.tmp/
