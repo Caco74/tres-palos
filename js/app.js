@@ -157,14 +157,17 @@ function abrirPartido(id) {
 function abrirEquipo(equipo) {
   if (!equipo) return;
 
+  const origen = vistaActual.navId || "equipos";
+
   vistaActual = {
     id: "equipo",
     equipo,
-    navId: vistaActual.navId || "equipos"
+    navId: origen
   };
   renderDetalleEquipo(equipo);
   mostrarVista("equipo");
   guardarVistaEnHistorial();
+  registrarVistaEquipo(equipo, origen);
 }
 
 function volverDetalle() {
@@ -245,6 +248,12 @@ function restaurarVistaDesdeHistorial(vista) {
     registrarVistaPartido(
       vista.partidoId,
       vista.navId || "partidos"
+    );
+  }
+  if (vista.id === "equipo" && vista.equipo) {
+    registrarVistaEquipo(
+      vista.equipo,
+      vista.navId || "equipos"
     );
   }
 }
