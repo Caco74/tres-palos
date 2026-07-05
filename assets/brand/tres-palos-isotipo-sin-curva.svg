@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 60 700 430"
+ role="img" aria-label="Tres Palos — Fútbol Regional">
+
+  <defs>
+    <linearGradient id="frontRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF2336"/>
+      <stop offset="0.58" stop-color="#F3192B"/>
+      <stop offset="1" stop-color="#E6091F"/>
+    </linearGradient>
+    <linearGradient id="sideRed" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#D70A20"/>
+      <stop offset="1" stop-color="#A80919"/>
+    </linearGradient>
+    <linearGradient id="fieldGray" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4C4D51"/>
+      <stop offset="0.5" stop-color="#77787C"/>
+      <stop offset="1" stop-color="#4C4D51"/>
+    </linearGradient>
+  </defs>
+
+<g transform="translate(0,0) scale(1.0)">
+<path d="M240 430
+L240 236
+Q240 220 255 216
+L722 112
+L722 420
+L694 416
+L694 154
+L270 248
+L270 416
+Z" fill="url(#frontRed)"/>
+<path d="M722 112
+L746 128
+L746 422
+L722 420
+Z" fill="url(#sideRed)"/>
+</g>
+</svg>

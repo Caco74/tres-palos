@@ -17,13 +17,13 @@
   --text:     #dedee5;
   --muted:    #a3a3af;
 
-  --red:      #ff3045;
-  --red-lo:   rgba(255,48,69,.1);
+  --red:      #f3192b;
+  --red-lo:   rgba(243,25,43,.1);
   --blue:     #55a7ff;
   --win:      #35c77a;
   --draw:     #f4b942;
   --loss:     #ef5b67;
-  --zone1:    #ff3045;
+  --zone1:    #f3192b;
   --zone2:    #3d8ef0;
   --zone3:    #8b5cf6;
   --shield-bg: #ededed;
@@ -381,6 +381,10 @@ button {
   color: var(--white);
 }
 
+.logo-name span {
+  color: var(--red);
+}
+
 .category-select-wrap {
   position: relative;
   font-family: 'DM Mono', monospace;
@@ -708,7 +712,7 @@ button {
   background:
     linear-gradient(145deg, var(--red-lo), transparent 70%),
     var(--bg2);
-  border-color: rgba(255,48,69,.35);
+  border-color: rgba(243,25,43,.35);
 }
 
 .datos-leader-card.unavailable {
@@ -1177,14 +1181,14 @@ button {
 .home-match-row.today,
 .match-row.today {
   background:
-    linear-gradient(90deg, rgba(255,48,69,.14), transparent 65%);
+    linear-gradient(90deg, rgba(243,25,43,.14), transparent 65%);
   box-shadow: inset 3px 0 0 var(--red);
 }
 
 .home-match-row.live,
 .match-row.live {
   background:
-    linear-gradient(90deg, rgba(255,48,69,.2), transparent 72%);
+    linear-gradient(90deg, rgba(243,25,43,.2), transparent 72%);
   box-shadow: inset 3px 0 0 var(--red);
 }
 
@@ -1248,7 +1252,7 @@ button {
   margin-right: 5px;
   border-radius: 50%;
   background: var(--red);
-  box-shadow: 0 0 0 4px rgba(255,48,69,.13);
+  box-shadow: 0 0 0 4px rgba(243,25,43,.13);
   animation: livePulse 1.4s ease-in-out infinite;
 }
 
@@ -1264,8 +1268,8 @@ button {
 }
 
 .match-row.today .mr-time {
-  border-color: rgba(255,48,69,.6);
-  background: rgba(255,48,69,.12);
+  border-color: rgba(243,25,43,.6);
+  background: rgba(243,25,43,.12);
 }
 
 .home-team {
@@ -1730,8 +1734,8 @@ button {
 
 .mr-time.live {
   color: var(--red);
-  border-color: rgba(255,48,69,.55);
-  background: rgba(255,48,69,.12);
+  border-color: rgba(243,25,43,.55);
+  background: rgba(243,25,43,.12);
 }
 
 .mr-time.waiting {
@@ -2557,7 +2561,7 @@ button {
 .po-stage.current {
   background: linear-gradient(
     180deg,
-    rgba(255,48,69,.045),
+    rgba(243,25,43,.045),
     transparent
   );
 }
@@ -3181,7 +3185,7 @@ body.detail-mode .app-main {
 
 .match-detail-status.live {
   color: var(--red);
-  background: rgba(255,48,69,.08);
+  background: rgba(243,25,43,.08);
 }
 
 .match-detail-status.waiting {
@@ -3554,7 +3558,7 @@ body.detail-mode .app-main {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-left: 1px solid rgba(255,48,69,.65);
+  border-left: 1px solid rgba(243,25,43,.65);
   border-right: 1px solid rgba(85,167,255,.65);
   background: rgba(255,255,255,.015);
 }
@@ -5506,7 +5510,6 @@ body.detail-mode .app-main {
 }
 
 .tp-footer__eyebrow,
-.tp-footer__logo,
 .tp-footer__contact-label,
 .tp-footer__contact-link,
 .tp-footer__meta-key,
@@ -5525,17 +5528,13 @@ body.detail-mode .app-main {
   text-transform: uppercase;
 }
 
-.tp-footer__logo {
-  margin-bottom: 12px;
-  color: #f0f0f0;
-  font-size: 1.55rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  text-transform: uppercase;
+.tp-footer__brand-logo {
+  display: block;
+  width: min(100%, 220px);
+  height: auto;
+  margin-bottom: 16px;
 }
 
-.tp-footer__logo span,
 .tp-footer__signature-mark span {
   color: var(--red);
 }
