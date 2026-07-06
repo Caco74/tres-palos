@@ -5615,7 +5615,7 @@ body.detail-mode .app-main {
 .tp-footer__eyebrow {
   margin-bottom: 10px;
   color: var(--red);
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -5623,7 +5623,7 @@ body.detail-mode .app-main {
 
 .tp-footer__brand-logo {
   display: block;
-  width: min(100%, 220px);
+  width: min(100%, 240px);
   height: auto;
   margin-bottom: 16px;
 }
@@ -5634,13 +5634,13 @@ body.detail-mode .app-main {
 
 .tp-footer__text {
   max-width: 390px;
-  color: #777;
-  font-size: 0.8rem;
-  line-height: 1.75;
+  color: #999;
+  font-size: 0.95rem;
+  line-height: 1.7;
 }
 
 .tp-footer__text strong {
-  color: #aaa;
+  color: #c2c2c2;
   font-weight: 600;
 }
 
@@ -5663,16 +5663,16 @@ body.detail-mode .app-main {
 
 .tp-footer__contact-label {
   margin-bottom: 4px;
-  color: #666;
-  font-size: 0.62rem;
+  color: #858585;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 .tp-footer__contact-text {
-  color: #777;
-  font-size: 0.75rem;
+  color: #999;
+  font-size: 0.85rem;
   line-height: 1.5;
 }
 
@@ -5709,7 +5709,7 @@ body.detail-mode .app-main {
 }
 
 .tp-footer__contact-link span {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -5732,18 +5732,18 @@ body.detail-mode .app-main {
 
 .tp-footer__meta-key,
 .tp-footer__meta-value {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
 .tp-footer__meta-key {
-  color: #666;
+  color: #858585;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .tp-footer__meta-value {
-  color: #555;
+  color: #929292;
   letter-spacing: 0.08em;
   text-align: right;
 }
@@ -5764,8 +5764,8 @@ body.detail-mode .app-main {
 }
 
 .tp-footer__signature-text {
-  color: #4b4b4b;
-  font-size: 0.68rem;
+  color: #7d7d7d;
+  font-size: 0.74rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   line-height: 1.6;
@@ -5774,8 +5774,8 @@ body.detail-mode .app-main {
 
 .tp-footer__signature-mark {
   flex-shrink: 0;
-  color: #4b4b4b;
-  font-size: 0.88rem;
+  color: #7d7d7d;
+  font-size: 0.95rem;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
