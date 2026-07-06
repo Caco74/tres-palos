@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Dominio planificado: cambiar la URL si el dominio definitivo fuera otro.
+  Las secciones Partidos, Tabla, Playoffs y Equipos son vistas internas de la
+  portada, no páginas independientes rastreables, por eso no se agregan aquí.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://trespalos.com.ar/</loc>
+  </url>
+</urlset>

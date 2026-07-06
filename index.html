@@ -1,17 +1,21 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Tres Palos — Fútbol Regional</title>
 <meta
   name="description"
-  content="Resultados, posiciones, partidos y estadísticas de la Liga Cañadense en un solo lugar."
+  content="Fixture, resultados, tablas, equipos y playoffs del fútbol regional."
 >
 <meta name="application-name" content="Tres Palos">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Tres Palos">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0A0B0D">
 
+<!-- Dominio planificado: actualizar estas URLs si cambia antes del lanzamiento. -->
 <link rel="canonical" href="https://trespalos.com.ar/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_AR">
@@ -19,7 +23,7 @@
 <meta property="og:title" content="Tres Palos — Fútbol Regional">
 <meta
   property="og:description"
-  content="Resultados, posiciones, partidos y estadísticas de la Liga Cañadense en un solo lugar."
+  content="Fixture, resultados, tablas, equipos y playoffs del fútbol regional."
 >
 <meta property="og:url" content="https://trespalos.com.ar/">
 <meta
@@ -34,7 +38,7 @@
 <meta name="twitter:title" content="Tres Palos — Fútbol Regional">
 <meta
   name="twitter:description"
-  content="Resultados, posiciones, partidos y estadísticas de la Liga Cañadense en un solo lugar."
+  content="Fixture, resultados, tablas, equipos y playoffs del fútbol regional."
 >
 <meta
   name="twitter:image"
@@ -50,9 +54,43 @@
 <link rel="icon" type="image/png" sizes="512x512" href="/assets/brand/favicon/favicon-512x512.png">
 <link rel="shortcut icon" href="/assets/brand/favicon/favicon.ico">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/favicon/favicon-180x180.png">
+<link rel="manifest" href="/manifest.webmanifest">
 
-<link rel="stylesheet" href="/styles/main.css?v=50">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://trespalos.com.ar/#website",
+      "url": "https://trespalos.com.ar/",
+      "name": "Tres Palos",
+      "description": "Fixture, resultados, tablas, equipos y playoffs del fútbol regional.",
+      "inLanguage": "es-AR",
+      "publisher": {
+        "@id": "https://trespalos.com.ar/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://trespalos.com.ar/#organization",
+      "url": "https://trespalos.com.ar/",
+      "name": "Tres Palos",
+      "description": "Fixture, resultados, tablas, equipos y playoffs del fútbol regional.",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://trespalos.com.ar/assets/brand/favicon/favicon-512x512.png",
+        "width": 512,
+        "height": 512
+      }
+    }
+  ]
+}
+</script>
+
+<link rel="stylesheet" href="/styles/main.css?v=51">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 
@@ -67,6 +105,8 @@
           class="sb-brand-logo"
           src="/assets/brand/tres-palos-logo-horizontal-fondo-oscuro.svg"
           alt="Tres Palos"
+          width="260"
+          height="68"
         >
       </div>
       <p class="sb-desc">Datos claros del fútbol regional. Hecho por hinchas, para hinchas.</p>
@@ -83,11 +123,11 @@
     </div>
 
     <ul class="sb-links">
-      <li><button class="sb-link on" onclick="switchTab('inicio')">Inicio</button></li>
-      <li><button class="sb-link" onclick="switchTab('partidos')">Partidos</button></li>
-      <li><button class="sb-link" onclick="switchTab('tabla')">Tabla</button></li>
-      <li><button class="sb-link" onclick="switchTab('playoffs')">Playoffs</button></li>
-      <li><button class="sb-link" onclick="switchTab('equipos')">Equipos</button></li>
+      <li><button type="button" class="sb-link on" data-tab="inicio" onclick="switchTab('inicio')" aria-current="page">Inicio</button></li>
+      <li><button type="button" class="sb-link" data-tab="partidos" onclick="switchTab('partidos')">Partidos</button></li>
+      <li><button type="button" class="sb-link" data-tab="tabla" onclick="switchTab('tabla')">Tabla</button></li>
+      <li><button type="button" class="sb-link" data-tab="playoffs" onclick="switchTab('playoffs')">Playoffs</button></li>
+      <li><button type="button" class="sb-link" data-tab="equipos" onclick="switchTab('equipos')">Equipos</button></li>
     </ul>
   </aside>
 
@@ -101,11 +141,13 @@
       </div>
 
       <div class="top-bar">
-        <a href="#" class="logo">
+        <a href="/" class="logo" aria-label="Ir al inicio de Tres Palos">
           <img
             class="header-brand-mark"
             src="/assets/brand/tres-palos-isotipo-sin-curva.svg"
             alt=""
+            width="42"
+            height="38"
           >
           <span class="logo-name">Tres <span>Palos</span></span>
         </a>
@@ -133,12 +175,12 @@
     </section>
 
     <!-- TABS -->
-    <nav class="tab-nav">
-      <div class="tab on" data-tab="inicio">Inicio</div>
-      <div class="tab" data-tab="partidos">Partidos</div>
-      <div class="tab" data-tab="tabla">Tabla</div>
-      <div class="tab" data-tab="playoffs">Playoffs</div>
-      <div class="tab" data-tab="equipos">Equipos</div>
+    <nav class="tab-nav" aria-label="Secciones principales">
+      <button type="button" class="tab on" data-tab="inicio" aria-current="page">Inicio</button>
+      <button type="button" class="tab" data-tab="partidos">Partidos</button>
+      <button type="button" class="tab" data-tab="tabla">Tabla</button>
+      <button type="button" class="tab" data-tab="playoffs">Playoffs</button>
+      <button type="button" class="tab" data-tab="equipos">Equipos</button>
     </nav>
 
     <!-- CONTENT -->
@@ -148,7 +190,7 @@
       <section class="tab-content on" id="tab-inicio">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title" id="homeSectionTitle">Agenda del torneo</div>
+            <h2 class="sec-title" id="homeSectionTitle">Agenda del torneo</h2>
           </div>
         </div>
 
@@ -160,12 +202,12 @@
       <section class="tab-content" id="tab-partidos">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Partidos por fecha y fase</div>
+            <h2 class="sec-title">Partidos por fecha y fase</h2>
           </div>
         </div>
 
         <div class="date-nav">
-          <button class="dn-btn" id="btnPrev" onclick="changeStage(-1)">←</button>
+          <button type="button" class="dn-btn" id="btnPrev" onclick="changeStage(-1)" aria-label="Etapa anterior">←</button>
           <div class="dn-label-wrap">
             <select
               class="dn-select"
@@ -177,7 +219,7 @@
               <option>Cargando fechas...</option>
             </select>
           </div>
-          <button class="dn-btn" id="btnNext" onclick="changeStage(1)">→</button>
+          <button type="button" class="dn-btn" id="btnNext" onclick="changeStage(1)" aria-label="Etapa siguiente">→</button>
         </div>
 
         <div id="matchContent" aria-live="polite"></div>
@@ -187,7 +229,7 @@
       <section class="tab-content" id="tab-tabla">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Tabla de posiciones</div>
+            <h2 class="sec-title">Tabla de posiciones</h2>
           </div>
         </div>
 
@@ -197,10 +239,10 @@
           </button>
         </div>
 
-        <div class="zona-tab-bar">
-          <button class="zt on" data-zona="1"><span class="zt-pip" style="background:var(--zone1)"></span>Zona 1</button>
-          <button class="zt" data-zona="2"><span class="zt-pip" style="background:var(--zone2)"></span>Zona 2</button>
-          <button class="zt" data-zona="3"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
+        <div class="zona-tab-bar" role="group" aria-label="Zona de la tabla">
+          <button type="button" class="zt on" data-zona="1" aria-pressed="true"><span class="zt-pip" style="background:var(--zone1)"></span>Zona 1</button>
+          <button type="button" class="zt" data-zona="2" aria-pressed="false"><span class="zt-pip" style="background:var(--zone2)"></span>Zona 2</button>
+          <button type="button" class="zt" data-zona="3" aria-pressed="false"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
         </div>
 
         <div id="tablaContent" aria-live="polite"></div>
@@ -210,7 +252,7 @@
       <section class="tab-content" id="tab-playoffs">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Playoffs</div>
+            <h2 class="sec-title">Playoffs</h2>
             <span class="sec-link">Fase eliminatoria</span>
           </div>
         </div>
@@ -222,7 +264,7 @@
       <section class="tab-content" id="tab-datos">
         <div class="sec datos-heading">
           <div class="sec-head">
-            <div class="sec-title">Estadísticas del torneo</div>
+            <h2 class="sec-title">Estadísticas del torneo</h2>
             <span class="sec-link">Datos cruzados</span>
           </div>
           <p class="datos-intro">
@@ -237,12 +279,12 @@
       <section class="tab-content" id="tab-equipos">
         <div class="sec">
           <div class="sec-head">
-            <div class="sec-title">Equipos</div>
+            <h2 class="sec-title">Equipos</h2>
             <span class="sec-link">21 clubes</span>
           </div>
         </div>
 
-        <div class="teams-grid" id="teamsContent"></div>
+        <div class="teams-grid" id="teamsContent" aria-live="polite"></div>
       </section>
 
       <!-- DETALLE DE PARTIDO -->
@@ -271,6 +313,8 @@
               class="tp-footer__brand-logo"
               src="/assets/brand/tres-palos-logo-horizontal-fondo-oscuro.svg"
               alt="Tres Palos — Fútbol Regional"
+              width="220"
+              height="58"
             >
             <p class="tp-footer__text">
               Un proyecto para seguir la <strong>Liga Cañadense</strong> en datos.
@@ -387,6 +431,6 @@
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
 <script src="js/analytics.js?v=2"></script>
-<script src="js/app.js?v=59"></script>
+<script src="js/app.js?v=60"></script>
 </body>
 </html>

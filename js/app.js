@@ -4,6 +4,8 @@ let fasePlayoffActiva = null;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
 let cargaPartidosFinalizada = false;
+let errorCargaDatos = false;
+let ultimaCargaDatos = 0;
 let alcanceDatosActual = null;
 let equiposComparadorDatos = {
   equipoA: null,
@@ -17,6 +19,14 @@ const VISTAS_PRINCIPALES = [
   "playoffs",
   "equipos"
 ];
+
+function obtenerVistaDesdeHash() {
+  const id = window.location.hash.slice(1).toLowerCase();
+  return VISTAS_PRINCIPALES.includes(id) ? id : "inicio";
+}
+
+const vistaInicial = obtenerVistaDesdeHash();
+vistaActual = { id: vistaInicial, navId: vistaInicial };
 
 const FASES_PLAYOFF = [
   { valor: "octavos", etiqueta: "Octavos de Final" },
@@ -84,9 +94,10 @@ function mostrarVista(id) {
     !VISTAS_PRINCIPALES.includes(id)
   );
   document.querySelectorAll('.tab-content').forEach(p => p.classList.remove('on'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  document.querySelectorAll('.bn-item').forEach(t => t.classList.remove('on'));
-  document.querySelectorAll('.sb-link').forEach(t => t.classList.remove('on'));
+  document.querySelectorAll('.tab, .bn-item, .sb-link').forEach(t => {
+    t.classList.remove('on');
+    t.removeAttribute('aria-current');
+  });
 
   const target = document.getElementById('tab-' + id);
   if (target) target.classList.add('on');
@@ -98,7 +109,10 @@ function mostrarVista(id) {
   const vistaNavegacion = vistaActual.navId ||
     (VISTAS_PRINCIPALES.includes(id) ? id : null);
 
-  document.querySelectorAll(`[data-tab="${vistaNavegacion}"]`).forEach(t => t.classList.add('on'));
+  document.querySelectorAll(`[data-tab="${vistaNavegacion}"]`).forEach(t => {
+    t.classList.add('on');
+    t.setAttribute('aria-current', 'page');
+  });
   document.querySelectorAll('.bn-item').forEach(t => {
     if (
       vistaNavegacion &&
@@ -106,6 +120,7 @@ function mostrarVista(id) {
       t.getAttribute('onclick').includes(`'${vistaNavegacion}'`)
     ) {
       t.classList.add('on');
+      t.setAttribute('aria-current', 'page');
     }
   });
   document.querySelectorAll('.sb-link').forEach(t => {
@@ -115,10 +130,17 @@ function mostrarVista(id) {
       t.getAttribute('onclick').includes(`'${vistaNavegacion}'`)
     ) {
       t.classList.add('on');
+      t.setAttribute('aria-current', 'page');
     }
   });
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  const reduceMovimiento = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+  window.scrollTo({
+    top: 0,
+    behavior: reduceMovimiento ? "auto" : "smooth"
+  });
 }
 
 function switchTab(id) {
@@ -181,6 +203,10 @@ function volverDetalle() {
 
 function guardarVistaEnHistorial(reemplazar = false) {
   const metodo = reemplazar ? "replaceState" : "pushState";
+  const vistaUrl = VISTAS_PRINCIPALES.includes(vistaActual.id)
+    ? vistaActual.id
+    : vistaActual.navId;
+  const hash = vistaUrl && vistaUrl !== "inicio" ? `#${vistaUrl}` : "";
   window.history[metodo](
     {
       tresPalos: true,
@@ -190,7 +216,7 @@ function guardarVistaEnHistorial(reemplazar = false) {
       }
     },
     "",
-    window.location.href
+    `${window.location.pathname}${window.location.search}${hash}`
   );
 }
 
@@ -263,13 +289,63 @@ document.querySelectorAll('.tab').forEach(t => {
 });
 
 window.addEventListener("popstate", event => {
-  if (!event.state?.tresPalos) return;
-  restaurarVistaDesdeHistorial(event.state.vista);
+  if (event.state?.tresPalos) {
+    restaurarVistaDesdeHistorial(event.state.vista);
+    return;
+  }
+
+  const id = obtenerVistaDesdeHash();
+  vistaActual = { id, navId: id };
+  mostrarVista(id);
+  registrarVistaPestana(id, "historial");
 });
+
+function renderEstadoVista(tipo, titulo, mensaje, reintentar = false) {
+  const cargando = tipo === "cargando";
+  const rol = tipo === "error" ? "alert" : "status";
+
+  return `
+    <div
+      class="view-state view-state-${tipo}"
+      role="${rol}"
+      ${cargando ? 'aria-busy="true"' : ""}
+    >
+      ${cargando ? '<span class="view-state-spinner" aria-hidden="true"></span>' : ""}
+      <strong>${escaparHtml(titulo)}</strong>
+      <p>${escaparHtml(mensaje)}</p>
+      ${reintentar
+        ? '<button type="button" onclick="reintentarCargaDatos()">Reintentar</button>'
+        : ""}
+    </div>
+  `;
+}
+
+function reintentarCargaDatos() {
+  if (actualizandoDatos) return;
+
+  errorCargaDatos = false;
+  cargaPartidosFinalizada = false;
+  renderMatches();
+  renderTabla(zonaActual);
+  renderInicio();
+  renderPlayoffs();
+  renderTeams();
+  obtenerPartidos();
+}
 
 function renderMatches() {
   const cont = document.getElementById("matchContent");
   if (!cont) return;
+
+  if (errorCargaDatos && state.partidos.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos cargar los partidos",
+      "Revisá tu conexión e intentá nuevamente.",
+      true
+    );
+    return;
+  }
 
   if (!cargaPartidosFinalizada) {
     cont.innerHTML = renderSkeletonPartidos();
@@ -281,11 +357,11 @@ function renderMatches() {
   );
 
   if (!etapa) {
-    cont.innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        Sin datos para esta etapa
-      </div>
-    `;
+    cont.innerHTML = renderEstadoVista(
+      "vacio",
+      "Sin partidos",
+      "Todavía no hay partidos disponibles para esta etapa."
+    );
     return;
   }
 
@@ -477,7 +553,11 @@ function renderPartidosRegulares(etapa) {
     html += "</div>";
   });
 
-  cont.innerHTML = html;
+  cont.innerHTML = html || renderEstadoVista(
+    "vacio",
+    "Sin partidos",
+    "Todavía no hay partidos disponibles para esta fecha."
+  );
 }
 
 function obtenerEquipoLibre(zona, partidos) {
@@ -494,7 +574,7 @@ function renderEquipoLibre(equipo) {
   const nombreEquipo = nombre(equipo);
   const escudo = obtenerEscudoEquipo(equipo);
   const escudoEquipo = escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="48" height="48" loading="lazy" decoding="async">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
   return `
@@ -519,11 +599,11 @@ function renderPartidosPlayoff(etapa) {
     .sort(compararPartidosParaListado);
 
   if (partidos.length === 0) {
-    cont.innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        Sin partidos para esta fase
-      </div>
-    `;
+    cont.innerHTML = renderEstadoVista(
+      "vacio",
+      "Sin partidos",
+      "Todavía no hay partidos disponibles para esta fase."
+    );
     return;
   }
 
@@ -613,7 +693,7 @@ function renderPartido(p) {
         true
       )}
 
-      <div class="mr-chev">›</div>
+      <div class="mr-chev" aria-hidden="true">›</div>
     </button>
   `;
 }
@@ -627,7 +707,7 @@ function renderEquipoPartido(
   const nombreEquipo = equipo ? nombre(equipo, clubId) : "Por definir";
   const escudoEquipo = obtenerEscudoEquipo(equipo, clubId);
   const escudo = equipo && escudoEquipo
-    ? `<img src="${escudoEquipo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudoEquipo}" alt="Escudo de ${nombreEquipo}" width="48" height="48" loading="lazy" decoding="async">`
     : `<span>${equipo ? nombreEquipo.slice(0, 2).toUpperCase() : "?"}</span>`;
 
   return `
@@ -2112,6 +2192,17 @@ function renderInicio() {
   const contVivo = document.getElementById("homeLiveContent");
   if (!cont) return;
 
+  if (errorCargaDatos && state.partidos.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos cargar la agenda",
+      "Revisá tu conexión e intentá nuevamente.",
+      true
+    );
+    if (contVivo) contVivo.innerHTML = "";
+    return;
+  }
+
   if (!cargaPartidosFinalizada) {
     cont.innerHTML = renderSkeletonAgenda();
     if (contVivo) contVivo.innerHTML = "";
@@ -2549,7 +2640,7 @@ function renderEscudoInicio(equipo, clubId = null) {
   const nombreEquipo = nombre(equipo, clubId);
   const escudo = obtenerEscudoEquipo(equipo, clubId);
   const contenido = escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="72" height="72" decoding="async">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
   return `<span class="home-shield">${contenido}</span>`;
@@ -3213,7 +3304,7 @@ function renderEscudoPulso(equipo, clubId = null) {
   const nombreEquipo = nombre(equipo, clubId);
   const escudo = obtenerEscudoEquipo(equipo, clubId);
   const contenido = escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="48" height="48" loading="lazy" decoding="async">`
     : `<span>${nombreEquipo.slice(0, 2).toUpperCase()}</span>`;
 
   return `<div class="home-live__shield">${contenido}</div>`;
@@ -3961,6 +4052,16 @@ function renderPlayoffs() {
   const cont = document.getElementById("playoffsContent");
   if (!cont) return;
 
+  if (errorCargaDatos && state.partidos.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos cargar los playoffs",
+      "Revisá tu conexión e intentá nuevamente.",
+      true
+    );
+    return;
+  }
+
   if (!cargaPartidosFinalizada) {
     cont.innerHTML = renderSkeletonPlayoffs();
     return;
@@ -4678,7 +4779,7 @@ function renderEscudoPlayoff(equipo, clase) {
   const nombreEquipo = nombre(equipo);
   const escudo = obtenerEscudoEquipo(equipo);
   const contenido = escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="48" height="48" loading="lazy" decoding="async">`
     : nombreEquipo.slice(0, 2).toUpperCase();
 
   return `<span class="${clase}">${contenido}</span>`;
@@ -4736,6 +4837,17 @@ function etiquetaFaseOrigen(fase) {
 
 function renderTabla(zona) {
   const cont = document.getElementById('tablaContent');
+  if (!cont) return;
+
+  if (errorCargaDatos && state.partidos.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos cargar la tabla",
+      "Revisá tu conexión e intentá nuevamente.",
+      true
+    );
+    return;
+  }
 
   if (!cargaPartidosFinalizada) {
     cont.innerHTML = renderSkeletonTabla();
@@ -4743,11 +4855,11 @@ function renderTabla(zona) {
   }
 
   if (state.partidos.length === 0) {
-    cont.innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        No hay datos de tabla disponibles
-      </div>
-    `;
+    cont.innerHTML = renderEstadoVista(
+      "vacio",
+      "Sin tabla disponible",
+      "Todavía no hay resultados suficientes para calcular posiciones."
+    );
     return;
   }
 
@@ -4789,7 +4901,7 @@ function renderTabla(zona) {
     const nombreEquipo = nombre(t.equipo);
     const escudo = obtenerEscudoEquipo(t.equipo);
     const escudoEquipo = escudo
-      ? `<img src="${escudo}" alt="${nombreEquipo}">`
+      ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="40" height="40" loading="lazy" decoding="async">`
       : nombreEquipo.slice(0, 2).toUpperCase();
     const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
     const clasePosicion = claseClasificacion(
@@ -4866,7 +4978,7 @@ function renderFilaTablaGeneral(t, indice) {
   const nombreEquipo = nombre(t.equipo);
   const escudo = obtenerEscudoEquipo(t.equipo);
   const escudoEquipo = escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="40" height="40" loading="lazy" decoding="async">`
     : nombreEquipo.slice(0, 2).toUpperCase();
   const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
 
@@ -5008,8 +5120,12 @@ function changeStage(dir) {
 
 document.querySelectorAll('.zt').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.zt').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.zt').forEach(x => {
+      x.classList.remove('on');
+      x.setAttribute('aria-pressed', 'false');
+    });
     btn.classList.add('on');
+    btn.setAttribute('aria-pressed', 'true');
     zonaActual = parseInt(btn.dataset.zona, 10);
     renderTabla(zonaActual);
   });
@@ -5413,7 +5529,7 @@ function renderEquipoDetallePartido(equipo, clubId = null) {
   const nombreEquipo = equipo ? nombre(equipo, clubId) : "Por definir";
   const escudo = obtenerEscudoEquipo(equipo, clubId);
   const escudoEquipo = equipo && escudo
-    ? `<img src="${escudo}" alt="${nombreEquipo}">`
+    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="72" height="72" decoding="async">`
     : `<span>${equipo ? nombreEquipo.slice(0, 2).toUpperCase() : "?"}</span>`;
 
   return `
@@ -5765,7 +5881,7 @@ function renderDetalleEquipo(equipo) {
   const ciudad = club?.ciudad?.trim();
   const escudo = obtenerEscudoEquipo(equipo, club?.id);
   const escudoEquipo = escudo
-    ? `<img src="${escudo}" alt="${escaparHtml(nombreOficial)}">`
+    ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreOficial)}" width="96" height="96" decoding="async">`
     : nombreEquipo.slice(0, 2).toUpperCase();
   const estadoPlayoff = obtenerEstadoPlayoffEquipo(equipo);
 
@@ -6854,6 +6970,28 @@ function actualizarEquipoComparadorDatos(lado, equipo) {
 }
 
 function renderTeams() {
+  const cont = document.getElementById('teamsContent');
+  if (!cont) return;
+
+  if (errorCargaDatos && state.partidos.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos cargar los equipos",
+      "Revisá tu conexión e intentá nuevamente.",
+      true
+    );
+    return;
+  }
+
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = renderEstadoVista(
+      "cargando",
+      "Cargando equipos",
+      "Estamos preparando la información de los clubes."
+    );
+    return;
+  }
+
   const equiposLiga = obtenerZonasTorneo()
     .flatMap(zona => {
       const equiposZona = obtenerEquiposZonaTorneo(zona);
@@ -6876,13 +7014,22 @@ function renderTeams() {
       )
     );
 
-  document.getElementById('teamsContent').innerHTML = equiposLiga
+  if (equiposLiga.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "vacio",
+      "Sin equipos",
+      "Todavía no hay clubes disponibles para este torneo."
+    );
+    return;
+  }
+
+  cont.innerHTML = equiposLiga
     .map(({ equipo, zona, stats }) => {
       const nombreEquipo = nombre(equipo);
       const club = obtenerClub(equipo);
       const escudo = obtenerEscudoEquipo(equipo, club?.id);
       const escudoEquipo = escudo
-        ? `<img src="${escudo}" alt="${nombreEquipo}">`
+        ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="72" height="72" loading="lazy" decoding="async">`
         : nombreEquipo.slice(0, 2).toUpperCase();
       const puntos = state.partidos.length > 0
         ? ` · ${stats?.pts || 0} pts`
@@ -6922,8 +7069,9 @@ renderTeams();
 if (window.history.state?.tresPalos) {
   restaurarVistaDesdeHistorial(window.history.state.vista);
 } else {
+  mostrarVista(vistaActual.id);
   guardarVistaEnHistorial(true);
-  registrarVistaPestana("inicio", "carga");
+  registrarVistaPestana(vistaActual.id, "carga");
 }
 
 async function obtenerPartidos() {
@@ -6977,6 +7125,8 @@ async function obtenerPartidos() {
       : state.eventosTodos;
 
     cargaPartidosFinalizada = true;
+    errorCargaDatos = false;
+    ultimaCargaDatos = Date.now();
     state.torneos = Array.isArray(torneos) ? torneos : state.torneos;
     state.torneoVigente = torneoVigente;
     state.partidosTodos = data;
@@ -7026,36 +7176,21 @@ async function obtenerPartidos() {
     }
 
     cargaPartidosFinalizada = true;
+    errorCargaDatos = true;
     state.partidos = [];
     state.partidosTodos = [];
     state.eventos = [];
     state.eventosTodos = [];
     etapaActual = null;
     actualizarNavegacionEtapas();
-    document.getElementById("tablaContent").innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        No se pudo cargar la tabla
-      </div>
-    `;
-    document.getElementById("playoffsContent").innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        No se pudieron cargar los playoffs
-      </div>
-    `;
-    document.getElementById("homeContent").innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        No se pudo cargar la agenda
-      </div>
-    `;
+    renderMatches();
+    renderTabla(zonaActual);
+    renderInicio();
+    renderPlayoffs();
+    renderTeams();
     document.getElementById("datosContent").innerHTML = `
       <div class="datos-empty">
         No se pudieron calcular las estadísticas
-      </div>
-    `;
-
-    document.getElementById("matchContent").innerHTML = `
-      <div style="padding:2rem;text-align:center;color:var(--muted)">
-        No se pudieron cargar los partidos
       </div>
     `;
   } finally {
@@ -7066,6 +7201,8 @@ async function obtenerPartidos() {
 obtenerPartidos();
 
 setInterval(() => {
+  if (document.hidden) return;
+
   if (state.partidos.length > 0) {
     actualizarNavegacionEtapas();
     renderMatches();
@@ -7079,3 +7216,12 @@ setInterval(() => {
 
   obtenerPartidos();
 }, 60000);
+
+document.addEventListener("visibilitychange", () => {
+  if (
+    !document.hidden &&
+    Date.now() - ultimaCargaDatos >= 60000
+  ) {
+    obtenerPartidos();
+  }
+});

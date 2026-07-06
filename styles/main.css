@@ -502,6 +502,9 @@ button {
 }
 
 .tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
   font-family: 'DM Mono', monospace;
   font-size: 0.6rem;
   letter-spacing: 0.1em;
@@ -563,6 +566,8 @@ button {
 }
 
 .sec-title {
+  margin: 0;
+  font-weight: 500;
   font-family: 'DM Mono', monospace;
   font-size: 0.6rem;
   letter-spacing: 0.14em;
@@ -2719,6 +2724,16 @@ button {
   }
 }
 
+/* KEYBOARD ACCESSIBILITY */
+
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
 .po-match {
   width: 100%;
   color: inherit;
@@ -4146,8 +4161,86 @@ body.detail-mode .app-main {
   margin-left: auto;
 }
 
+/* CONTROLLED VIEW STATES */
+
+.view-state {
+  width: calc(100% - 2rem);
+  min-height: 180px;
+  margin: 0 1rem 1.5rem;
+  padding: 30px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  text-align: center;
+}
+
+.teams-grid > .view-state {
+  width: 100%;
+  margin: 0;
+  grid-column: 1 / -1;
+}
+
+.view-state strong {
+  color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.view-state p {
+  max-width: 440px;
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.55;
+}
+
+.view-state button {
+  min-height: 42px;
+  margin-top: 8px;
+  padding: 9px 18px;
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  background: var(--red);
+  color: var(--white);
+  cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.view-state-error {
+  border-color: rgba(255, 48, 69, .35);
+}
+
+.view-state-spinner {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 4px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: view-state-spin .8s linear infinite;
+}
+
+@keyframes view-state-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
+    animation: none;
+  }
+
+  .view-state-spinner {
     animation: none;
   }
 

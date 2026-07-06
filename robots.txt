@@ -1,0 +1,12 @@
+# Dominio planificado: cambiar esta URL si el dominio definitivo fuera otro.
+User-agent: *
+Allow: /
+
+# Rutas privadas o administrativas.
+Disallow: /admin
+Disallow: /panel
+Disallow: /login
+Disallow: /tp-admin-7c9f2026.html
+Disallow: /.netlify/functions/admin-
+
+Sitemap: https://trespalos.com.ar/sitemap.xml
