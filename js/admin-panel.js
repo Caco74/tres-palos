@@ -359,7 +359,18 @@ function mostrarAnaliticaNoDisponible(message) {
 }
 
 async function cargarEtapasAdmin() {
-  const data = await apiRequest("GET", null, STAGES_API_URL);
+  const torneoIds = obtenerTorneoIdsPartidosAdmin();
+  if (torneoIds.length === 0) {
+    throw new Error("No hay partidos con torneo_id para controlar etapas.");
+  }
+
+  const data = await apiRequest(
+    "GET",
+    null,
+    `${STAGES_API_URL}?torneo_id=${torneoIds
+      .map(encodeURIComponent)
+      .join(",")}`
+  );
   etapasEstado = Array.isArray(data.etapas) ? data.etapas : [];
   respaldosEtapa = Array.isArray(data.respaldos) ? data.respaldos : [];
   etapasHabilitadas = true;
@@ -388,37 +399,90 @@ function mostrarEtapasNoDisponibles(message) {
 }
 
 function obtenerEtapasDisponiblesAdmin() {
-  const fechas = [
+  const fechasMap = new Map();
+
+  partidos
+    .filter(partido => partido.tipo === "regular")
+    .forEach(partido => {
+      const torneoId = obtenerTorneoIdPartidoAdmin(partido);
+      const fecha = Number(partido.fecha);
+      if (!torneoId || !Number.isFinite(fecha)) return;
+      const key = `${torneoId}:regular:${fecha}`;
+      fechasMap.set(key, {
+        key,
+        torneoId,
+        sort: fecha,
+        base: `regular:${fecha}`,
+        tipo: "regular",
+        valor: String(fecha),
+        etiquetaBase: `Fecha ${fecha}`
+      });
+    });
+
+  const fechas = [...fechasMap.values()]
+    .sort((a, b) =>
+      Number(a.torneoId) - Number(b.torneoId) ||
+      a.sort - b.sort
+    );
+
+  const fases = [];
+  obtenerTorneoIdsPartidosAdmin().forEach(torneoId => {
+    PLAYOFF_STAGES
+      .filter(fase =>
+        partidos.some(partido =>
+          String(partido.torneo_id) === String(torneoId) &&
+          partido.tipo === "playoff" &&
+          partido.fase === fase.value
+        )
+      )
+      .forEach((fase, index) => {
+        fases.push({
+          key: `${torneoId}:playoff:${fase.value}`,
+          torneoId,
+          sort: index,
+          base: `playoff:${fase.value}`,
+          tipo: "playoff",
+          valor: fase.value,
+          etiquetaBase: fase.label
+        });
+      });
+  });
+
+  const etapas = [...fechas, ...fases];
+  const repeticiones = etapas.reduce((map, etapa) => {
+    map.set(etapa.base, (map.get(etapa.base) || 0) + 1);
+    return map;
+  }, new Map());
+
+  return etapas.map(etapa => {
+    const duplicada = repeticiones.get(etapa.base) > 1;
+    return {
+      key: etapa.key,
+      torneoId: etapa.torneoId,
+      tipo: etapa.tipo,
+      valor: etapa.valor,
+      etiqueta: duplicada
+        ? `${etapa.etiquetaBase} · Torneo #${etapa.torneoId}`
+        : etapa.etiquetaBase
+    };
+  });
+}
+
+function obtenerTorneoIdPartidoAdmin(partido) {
+  const torneoId = Number(partido?.torneo_id);
+  return Number.isInteger(torneoId) && torneoId > 0
+    ? String(torneoId)
+    : null;
+}
+
+function obtenerTorneoIdsPartidosAdmin() {
+  return [
     ...new Set(
       partidos
-        .filter(partido => partido.tipo === "regular")
-        .map(partido => Number(partido.fecha))
-        .filter(Number.isFinite)
+        .map(obtenerTorneoIdPartidoAdmin)
+        .filter(Boolean)
     )
-  ]
-    .sort((a, b) => a - b)
-    .map(fecha => ({
-      key: `regular:${fecha}`,
-      tipo: "regular",
-      valor: String(fecha),
-      etiqueta: `Fecha ${fecha}`
-    }));
-
-  const fases = PLAYOFF_STAGES
-    .filter(fase =>
-      partidos.some(partido =>
-        partido.tipo === "playoff" &&
-        partido.fase === fase.value
-      )
-    )
-    .map(fase => ({
-      key: `playoff:${fase.value}`,
-      tipo: "playoff",
-      valor: fase.value,
-      etiqueta: fase.label
-    }));
-
-  return [...fechas, ...fases];
+  ];
 }
 
 function renderControlEtapas() {
@@ -482,6 +546,7 @@ function obtenerEtapaSeleccionada() {
 function obtenerEstadoEtapa(etapa) {
   if (!etapa) return null;
   return etapasEstado.find(item =>
+    String(item.torneo_id) === String(etapa.torneoId) &&
     item.tipo === etapa.tipo &&
     String(item.valor) === String(etapa.valor)
   ) || null;
@@ -489,6 +554,8 @@ function obtenerEstadoEtapa(etapa) {
 
 function obtenerEtapaPartidoAdmin(partido) {
   if (!partido) return null;
+  const torneoId = obtenerTorneoIdPartidoAdmin(partido);
+  if (!torneoId) return null;
 
   if (
     partido.tipo === "regular" &&
@@ -496,6 +563,8 @@ function obtenerEtapaPartidoAdmin(partido) {
     partido.fecha !== undefined
   ) {
     return {
+      key: `${torneoId}:regular:${partido.fecha}`,
+      torneoId,
       tipo: "regular",
       valor: String(partido.fecha),
       etiqueta: `Fecha ${partido.fecha}`
@@ -507,6 +576,8 @@ function obtenerEtapaPartidoAdmin(partido) {
       item => item.value === partido.fase
     );
     return {
+      key: `${torneoId}:playoff:${partido.fase}`,
+      torneoId,
       tipo: "playoff",
       valor: String(partido.fase),
       etiqueta: fase?.label || "Playoffs"
@@ -561,6 +632,10 @@ function actualizarBloqueoEditor(partido) {
 function obtenerPartidosEtapa(etapa) {
   if (!etapa) return [];
   return partidos.filter(partido => {
+    if (String(partido.torneo_id) !== String(etapa.torneoId)) {
+      return false;
+    }
+
     if (etapa.tipo === "regular") {
       return partido.tipo === "regular" &&
         String(partido.fecha) === String(etapa.valor);
@@ -737,6 +812,7 @@ async function cerrarEtapaSeleccionada() {
       "POST",
       {
         action: "cerrar",
+        torneo_id: etapa.torneoId,
         tipo: etapa.tipo,
         valor: etapa.valor,
         etiqueta: etapa.etiqueta,
@@ -772,6 +848,7 @@ async function reabrirEtapaSeleccionada() {
       "POST",
       {
         action: "reabrir",
+        torneo_id: etapa.torneoId,
         tipo: etapa.tipo,
         valor: etapa.valor,
         etiqueta: etapa.etiqueta
@@ -809,6 +886,7 @@ async function restaurarRespaldo(respaldoId) {
       "POST",
       {
         action: "restaurar",
+        torneo_id: respaldo.torneo_id,
         respaldo_id: respaldo.id
       },
       STAGES_API_URL
@@ -832,7 +910,8 @@ async function descargarRespaldo(respaldoId) {
   const data = await apiRequest(
     "GET",
     null,
-    `${STAGES_API_URL}?respaldo_id=${encodeURIComponent(respaldo.id)}`
+    `${STAGES_API_URL}?respaldo_id=${encodeURIComponent(respaldo.id)}` +
+      `&torneo_id=${encodeURIComponent(respaldo.torneo_id)}`
   );
   const blob = new Blob(
     [JSON.stringify(data, null, 2)],
@@ -840,7 +919,7 @@ async function descargarRespaldo(respaldoId) {
   );
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  const etapa = `${respaldo.tipo}-${respaldo.valor}`
+  const etapa = `torneo-${respaldo.torneo_id}-${respaldo.tipo}-${respaldo.valor}`
     .replace(/[^a-z0-9-]+/gi, "-")
     .toLowerCase();
 

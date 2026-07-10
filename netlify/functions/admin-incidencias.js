@@ -609,11 +609,19 @@ async function findEnrollment(playerId, clubId, tournamentId) {
 async function assertStageOpen(match) {
   const stage = getMatchStage(match);
   if (!stage) return;
+  if (!match.torneo_id) {
+    const error = new Error(
+      "El partido no tiene torneo_id; no se puede validar su etapa."
+    );
+    error.code = "VALIDATION";
+    throw error;
+  }
 
   try {
     const response = await supabaseFetch(
       "/rest/v1/etapas_estado" +
       "?select=estado,etiqueta" +
+      `&torneo_id=eq.${encodeURIComponent(match.torneo_id)}` +
       `&tipo=eq.${encodeURIComponent(stage.tipo)}` +
       `&valor=eq.${encodeURIComponent(stage.valor)}` +
       "&estado=eq.cerrada&limit=1"

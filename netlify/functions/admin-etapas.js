@@ -19,9 +19,9 @@ exports.handler = async event => {
         event.queryStringParameters?.respaldo_id || 0
       );
       if (backupId) {
-        return await getBackupExport(backupId);
+        return await getBackupExport(event, backupId);
       }
-      return await listStageData();
+      return await listStageData(event);
     }
 
     if (event.httpMethod === "POST") {
@@ -30,7 +30,12 @@ exports.handler = async event => {
 
     return json(405, { error: "Metodo no permitido." });
   } catch (error) {
-    const statusCode = error.code === "P0001" ? 409 : 500;
+    const statusCode =
+      error.code === "VALIDATION"
+        ? 400
+        : error.code === "P0001"
+          ? 409
+          : 500;
     return json(statusCode, {
       error: error.message || "Error interno.",
       code: error.code || null
@@ -53,18 +58,22 @@ function isAuthorized(event) {
   return password && password === process.env.ADMIN_PASSWORD;
 }
 
-async function listStageData() {
+async function listStageData(event) {
+  const tournamentIds = getTournamentIds(event.queryStringParameters);
+  const tournamentFilter = `&torneo_id=in.(${tournamentIds.join(",")})`;
   const [statesResponse, backupsResponse] = await Promise.all([
     supabaseFetch(
       "/rest/v1/etapas_estado" +
-      "?select=tipo,valor,etiqueta,estado,respaldo_cierre_id," +
+      "?select=torneo_id,tipo,valor,etiqueta,estado,respaldo_cierre_id," +
       "cerrada_en,reabierta_en,actualizado_en" +
+      tournamentFilter +
       "&order=actualizado_en.desc"
     ),
     supabaseFetch(
       "/rest/v1/respaldos_etapa" +
-      "?select=id,tipo,valor,etiqueta,version,motivo,nota," +
+      "?select=id,torneo_id,tipo,valor,etiqueta,version,motivo,nota," +
       "cantidad_partidos,creado_en" +
+      tournamentFilter +
       "&order=creado_en.desc&limit=30"
     )
   ]);
@@ -77,15 +86,19 @@ async function listStageData() {
   return json(200, { etapas, respaldos });
 }
 
-async function getBackupExport(backupId) {
+async function getBackupExport(event, backupId) {
   if (!Number.isInteger(backupId) || backupId <= 0) {
     return json(400, { error: "Respaldo invalido." });
   }
+  const tournamentId = getTournamentId(
+    event.queryStringParameters?.torneo_id
+  );
 
   const response = await supabaseFetch(
     "/rest/v1/respaldos_etapa" +
     "?select=*" +
     `&id=eq.${backupId}` +
+    `&torneo_id=eq.${tournamentId}` +
     "&limit=1"
   );
   const rows = await parseSupabaseResponse(response);
@@ -96,7 +109,7 @@ async function getBackupExport(backupId) {
   }
 
   return json(200, {
-    formato: "tres-palos-respaldo-etapa-v1",
+    formato: "tres-palos-respaldo-etapa-v2",
     exportado_en: new Date().toISOString(),
     respaldo
   });
@@ -112,13 +125,17 @@ async function runStageAction(event) {
 
   if (action === "restaurar") {
     const backupId = Number(body.respaldo_id);
+    const tournamentId = getTournamentId(body.torneo_id);
     if (!Number.isInteger(backupId) || backupId <= 0) {
       return json(400, { error: "Respaldo invalido." });
     }
 
     const result = await callRpc(
       "tp_restaurar_respaldo",
-      { p_respaldo_id: backupId }
+      {
+        p_torneo_id: tournamentId,
+        p_respaldo_id: backupId
+      }
     );
     return json(200, { resultado: result });
   }
@@ -128,6 +145,7 @@ async function runStageAction(event) {
     ? "tp_cerrar_etapa"
     : "tp_reabrir_etapa";
   const parameters = {
+    p_torneo_id: stage.torneoId,
     p_tipo: stage.tipo,
     p_valor: stage.valor,
     p_etiqueta: stage.etiqueta
@@ -142,29 +160,59 @@ async function runStageAction(event) {
 }
 
 function sanitizeStage(body) {
+  const torneoId = getTournamentId(body.torneo_id);
   const tipo = String(body.tipo || "").trim();
   const valor = String(body.valor || "").trim();
   const etiqueta = String(body.etiqueta || "").trim();
 
   if (!VALID_STAGE_TYPES.has(tipo)) {
-    throw new Error("Tipo de etapa invalido.");
+    throw validationError("Tipo de etapa invalido.");
   }
   if (!valor || valor.length > 60) {
-    throw new Error("Identificador de etapa invalido.");
+    throw validationError("Identificador de etapa invalido.");
   }
   if (!etiqueta || etiqueta.length > 100) {
-    throw new Error("Nombre de etapa invalido.");
+    throw validationError("Nombre de etapa invalido.");
   }
 
-  return { tipo, valor, etiqueta };
+  return { torneoId, tipo, valor, etiqueta };
+}
+
+function getTournamentId(value) {
+  const tournamentId = Number(value);
+  if (!Number.isInteger(tournamentId) || tournamentId <= 0) {
+    throw validationError("Falta torneo_id valido.");
+  }
+  return tournamentId;
+}
+
+function getTournamentIds(query = {}) {
+  const raw = String(query?.torneo_id || "").trim();
+  const ids = raw
+    .split(",")
+    .map(value => Number(value))
+    .filter(value => Number.isInteger(value) && value > 0);
+  const uniqueIds = [...new Set(ids)];
+
+  if (uniqueIds.length === 0) {
+    throw validationError("Falta torneo_id valido.");
+  }
+
+  return uniqueIds;
 }
 
 function sanitizeNote(note) {
   const value = String(note || "").trim();
   if (value.length > 500) {
-    throw new Error("La nota no puede superar los 500 caracteres.");
+    throw validationError("La nota no puede superar los 500 caracteres.");
   }
   return value || null;
+}
+
+function validationError(message) {
+  const error = new Error(message);
+  error.code = "VALIDATION";
+  return error;
 }
 
 async function callRpc(name, parameters) {
