@@ -4,6 +4,8 @@ const state = {
   playoffs: [],
   eventos: [],
   eventosTodos: [],
+  goleadoresOficiales: [],
+  goleadoresOficialesTodos: [],
   clubes: [],
   torneos: [],
   torneoActivo: null,

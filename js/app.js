@@ -1077,6 +1077,21 @@ function filtrarPartidosPorTorneo(partidos, torneo) {
   );
 }
 
+function filtrarGoleadoresPorTorneo(goleadores, torneo) {
+  if (!Array.isArray(goleadores)) return [];
+  if (!torneo?.id) return goleadores;
+
+  return goleadores
+    .filter(
+      goleador => String(goleador.torneo_id) === String(torneo.id)
+    )
+    .sort(
+      (a, b) =>
+        Number(a.posicion || 0) - Number(b.posicion || 0) ||
+        Number(b.goles || 0) - Number(a.goles || 0)
+    );
+}
+
 function obtenerTorneoSeleccionado(torneos, torneoVigente) {
   const lista = Array.isArray(torneos) ? torneos : [];
   const seleccionado = state.torneoSeleccionadoId
@@ -1103,6 +1118,10 @@ function aplicarDatosTorneo(torneo, renderizar = false) {
   state.eventos = filtrarEventosPorPartidos(
     state.eventosTodos,
     state.partidos
+  );
+  state.goleadoresOficiales = filtrarGoleadoresPorTorneo(
+    state.goleadoresOficialesTodos,
+    torneo
   );
   vincularClubesPartidos();
 
@@ -2650,6 +2669,7 @@ function renderPulsoInicio() {
   const cont = document.getElementById("homeLiveContent");
   if (!cont) return;
 
+  const goleadores = renderGoleadoresOficialesInicio();
   const campeon = obtenerResultadoSerieFinal().ganador;
   const faseActual = campeon
     ? "final"
@@ -2672,7 +2692,9 @@ function renderPulsoInicio() {
     );
 
   if (!fase || partidosFase.length === 0) {
-    cont.innerHTML = "";
+    cont.innerHTML = goleadores
+      ? `<div class="home-live">${goleadores}</div>`
+      : "";
     return;
   }
 
@@ -2693,6 +2715,7 @@ function renderPulsoInicio() {
     cont.innerHTML = `
       <div class="home-live">
         ${ultimosResultados}
+        ${goleadores}
       </div>
     `;
     return;
@@ -2712,6 +2735,58 @@ function renderPulsoInicio() {
           faseActual
         )
       )}
+      ${goleadores}
+    </div>
+  `;
+}
+
+function renderGoleadoresOficialesInicio() {
+  const goleadores = obtenerGoleadoresOficialesPublicables();
+  if (goleadores.length === 0) return "";
+
+  return renderSeccionPulso(
+    "Goleadores",
+    "Top oficial visible",
+    `
+      <div class="home-live__scorers">
+        ${goleadores.map(renderGoleadorOficialInicio).join("")}
+      </div>
+    `
+  );
+}
+
+function obtenerGoleadoresOficialesPublicables() {
+  return (Array.isArray(state.goleadoresOficiales)
+    ? state.goleadoresOficiales
+    : []
+  )
+    .filter(goleador => Number(goleador.goles) > 0)
+    .sort(
+      (a, b) =>
+        Number(a.posicion || 0) - Number(b.posicion || 0) ||
+        Number(b.goles || 0) - Number(a.goles || 0)
+    );
+}
+
+function renderGoleadorOficialInicio(goleador) {
+  const posicion = Number(goleador.posicion || 0);
+  const goles = Number(goleador.goles || 0);
+  const equipo = goleador.equipo_id
+    ? nombre(goleador.equipo_nombre, goleador.equipo_id)
+    : goleador.equipo_nombre;
+
+  return `
+    <div class="home-live__scorer">
+      <span class="${posicion <= 3 ? "top" : ""}">
+        ${posicion || "-"}
+      </span>
+      <div>
+        <strong>${escaparHtml(goleador.jugador_nombre || "Jugador")}</strong>
+        <small>${escaparHtml(equipo || "Equipo")}</small>
+      </div>
+      <b class="${posicion === 1 ? "leader" : ""}">
+        ${goles}<small>${goles === 1 ? "gol" : "goles"}</small>
+      </b>
     </div>
   `;
 }
@@ -7083,7 +7158,13 @@ async function obtenerPartidos() {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`
     };
-    const [res, resEventos, resClubes, resTorneos] = await Promise.all([
+    const [
+      res,
+      resEventos,
+      resClubes,
+      resTorneos,
+      resGoleadores
+    ] = await Promise.all([
       fetch(
         `${SUPABASE_URL}/rest/v1/partidos?select=*&order=id.asc`,
         { headers }
@@ -7098,6 +7179,10 @@ async function obtenerPartidos() {
       ),
       fetch(
         `${SUPABASE_URL}/rest/v1/torneos?select=*&order=anio.desc,tipo.desc`,
+        { headers }
+      ),
+      fetch(
+        `${SUPABASE_URL}/rest/v1/goleadores_oficiales?select=*&order=torneo_id.asc,posicion.asc`,
         { headers }
       )
     ]);
@@ -7123,6 +7208,9 @@ async function obtenerPartidos() {
     const eventos = resEventos.ok
       ? await resEventos.json()
       : state.eventosTodos;
+    const goleadores = resGoleadores.ok
+      ? await resGoleadores.json()
+      : state.goleadoresOficialesTodos;
 
     cargaPartidosFinalizada = true;
     errorCargaDatos = false;
@@ -7131,6 +7219,9 @@ async function obtenerPartidos() {
     state.torneoVigente = torneoVigente;
     state.partidosTodos = data;
     state.eventosTodos = Array.isArray(eventos) ? eventos : [];
+    state.goleadoresOficialesTodos = Array.isArray(goleadores)
+      ? goleadores
+      : [];
     aplicarDatosTorneo(torneoSeleccionado);
     if (resClubes.ok) {
       aplicarClubes(await resClubes.json());
@@ -7151,6 +7242,11 @@ async function obtenerPartidos() {
       console.warn(
         `No se pudieron cargar los torneos: ${resTorneos.status}. ` +
         "Se muestran todos los partidos."
+      );
+    }
+    if (!resGoleadores.ok) {
+      console.warn(
+        `No se pudieron cargar los goleadores oficiales: ${resGoleadores.status}.`
       );
     }
 
@@ -7181,6 +7277,8 @@ async function obtenerPartidos() {
     state.partidosTodos = [];
     state.eventos = [];
     state.eventosTodos = [];
+    state.goleadoresOficiales = [];
+    state.goleadoresOficialesTodos = [];
     etapaActual = null;
     actualizarNavegacionEtapas();
     renderMatches();
