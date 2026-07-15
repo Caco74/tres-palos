@@ -88,7 +88,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="/styles/main.css?v=53">
+<link rel="stylesheet" href="/styles/main.css?v=54">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -233,16 +233,20 @@
           </div>
         </div>
 
-        <div class="cat-row">
-          <button type="button" class="cp on" aria-current="true">
-            Primera Div.
+        <div class="cat-row tabla-main-tabs" role="tablist" aria-label="Contenido de tabla">
+          <button type="button" class="cp on" data-tabla-vista="posiciones" role="tab" aria-selected="true">
+            Posiciones
+          </button>
+          <button type="button" class="cp" data-tabla-vista="goleadores" role="tab" aria-selected="false">
+            Goleadores
           </button>
         </div>
 
-        <div class="zona-tab-bar" role="group" aria-label="Zona de la tabla">
-          <button type="button" class="zt on" data-zona="1" aria-pressed="true"><span class="zt-pip" style="background:var(--zone1)"></span>Zona 1</button>
-          <button type="button" class="zt" data-zona="2" aria-pressed="false"><span class="zt-pip" style="background:var(--zone2)"></span>Zona 2</button>
-          <button type="button" class="zt" data-zona="3" aria-pressed="false"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
+        <div id="tablaPosicionesTabs" class="zona-tab-bar" role="tablist" aria-label="Posiciones por zona o general">
+          <button type="button" class="zt on" data-tabla-posiciones="1" role="tab" aria-selected="true"><span class="zt-pip" style="background:var(--zone1)"></span>Zona 1</button>
+          <button type="button" class="zt" data-tabla-posiciones="2" role="tab" aria-selected="false"><span class="zt-pip" style="background:var(--zone2)"></span>Zona 2</button>
+          <button type="button" class="zt" data-tabla-posiciones="3" role="tab" aria-selected="false"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
+          <button type="button" class="zt" data-tabla-posiciones="general" role="tab" aria-selected="false"><span class="zt-pip zt-pip-general"></span>General</button>
         </div>
 
         <div id="tablaContent" aria-live="polite"></div>
@@ -434,6 +438,6 @@
 <script src="js/api.js"></script>
 <script src="js/router.js"></script>
 <script src="js/analytics.js?v=2"></script>
-<script src="js/app.js?v=61"></script>
+<script src="js/app.js?v=62"></script>
 </body>
 </html>

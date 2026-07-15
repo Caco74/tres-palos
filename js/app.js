@@ -1,5 +1,7 @@
 let etapaActual = null;
 let zonaActual = 1;
+let tablaVistaActual = "posiciones";
+let tablaPosicionesActual = "1";
 let fasePlayoffActiva = null;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
@@ -46,7 +48,9 @@ const ESTADOS_DATO = {
 function activarPistasScrollHorizontal(root, animar = false) {
   if (!root) return;
 
-  const desplazables = root.querySelectorAll(".cat-row, .tabla-wrap");
+  const desplazables = root.querySelectorAll(
+    ".cat-row, .zona-tab-bar, .tabla-wrap"
+  );
 
   desplazables.forEach(elemento => {
     const actualizarEstado = () => {
@@ -2669,7 +2673,6 @@ function renderPulsoInicio() {
   const cont = document.getElementById("homeLiveContent");
   if (!cont) return;
 
-  const goleadores = renderGoleadoresOficialesInicio();
   const campeon = obtenerResultadoSerieFinal().ganador;
   const faseActual = campeon
     ? "final"
@@ -2692,9 +2695,7 @@ function renderPulsoInicio() {
     );
 
   if (!fase || partidosFase.length === 0) {
-    cont.innerHTML = goleadores
-      ? `<div class="home-live">${goleadores}</div>`
-      : "";
+    cont.innerHTML = "";
     return;
   }
 
@@ -2715,7 +2716,6 @@ function renderPulsoInicio() {
     cont.innerHTML = `
       <div class="home-live">
         ${ultimosResultados}
-        ${goleadores}
       </div>
     `;
     return;
@@ -2735,24 +2735,8 @@ function renderPulsoInicio() {
           faseActual
         )
       )}
-      ${goleadores}
     </div>
   `;
-}
-
-function renderGoleadoresOficialesInicio() {
-  const goleadores = obtenerGoleadoresOficialesPublicables();
-  if (goleadores.length === 0) return "";
-
-  return renderSeccionPulso(
-    "Goleadores",
-    "Top oficial visible",
-    `
-      <div class="home-live__scorers">
-        ${goleadores.map(renderGoleadorOficialInicio).join("")}
-      </div>
-    `
-  );
 }
 
 function obtenerGoleadoresOficialesPublicables() {
@@ -2763,28 +2747,29 @@ function obtenerGoleadoresOficialesPublicables() {
     .filter(goleador => Number(goleador.goles) > 0)
     .sort(
       (a, b) =>
+        Number(b.goles || 0) - Number(a.goles || 0) ||
         Number(a.posicion || 0) - Number(b.posicion || 0) ||
-        Number(b.goles || 0) - Number(a.goles || 0)
+        String(a.jugador_nombre || "").localeCompare(
+          String(b.jugador_nombre || ""),
+          "es",
+          { sensitivity: "base" }
+        )
     );
 }
 
-function renderGoleadorOficialInicio(goleador) {
-  const posicion = Number(goleador.posicion || 0);
+function renderFilaGoleadorTabla(goleador, indice) {
   const goles = Number(goleador.goles || 0);
   const equipo = goleador.equipo_id
     ? nombre(goleador.equipo_nombre, goleador.equipo_id)
     : goleador.equipo_nombre;
 
   return `
-    <div class="home-live__scorer">
-      <span class="${posicion <= 3 ? "top" : ""}">
-        ${posicion || "-"}
-      </span>
-      <div>
+    <div class="tabla-scorer">
+      <div class="tabla-scorer-player">
         <strong>${escaparHtml(goleador.jugador_nombre || "Jugador")}</strong>
         <small>${escaparHtml(equipo || "Equipo")}</small>
       </div>
-      <b class="${posicion === 1 ? "leader" : ""}">
+      <b class="${indice === 0 ? "leader" : ""}">
         ${goles}<small>${goles === 1 ? "gol" : "goles"}</small>
       </b>
     </div>
@@ -4910,10 +4895,21 @@ function etiquetaFaseOrigen(fase) {
   }[fase] || etiquetaFase(fase);
 }
 
-function renderTabla(zona) {
+function renderTabla() {
   const cont = document.getElementById('tablaContent');
   if (!cont) return;
 
+  actualizarNavegacionTabla();
+
+  if (tablaVistaActual === "goleadores") {
+    renderTablaGoleadores(cont);
+    return;
+  }
+
+  renderTablaPosiciones(cont);
+}
+
+function renderTablaPosiciones(cont) {
   if (errorCargaDatos && state.partidos.length === 0) {
     cont.innerHTML = renderEstadoVista(
       "error",
@@ -4938,6 +4934,14 @@ function renderTabla(zona) {
     return;
   }
 
+  if (tablaPosicionesActual === "general") {
+    cont.innerHTML = renderTablaGeneral(true);
+    activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
+    return;
+  }
+
+  const zona = Number(tablaPosicionesActual) || zonaActual || 1;
+  zonaActual = zona;
   const data = calcularTablaZona(zona);
   const clasificados = calcularClasificados();
   let html = `
@@ -5004,16 +5008,63 @@ function renderTabla(zona) {
     `;
   });
 
-  html += `</tbody></table></div>${renderTablaGeneral()}`;
+  html += `</tbody></table></div>`;
   cont.innerHTML = html;
   activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
 }
 
-function renderTablaGeneral() {
+function renderTablaGoleadores(cont) {
+  if (errorCargaDatos && state.goleadoresOficiales.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos cargar goleadores",
+      "Revisá tu conexión e intentá nuevamente.",
+      true
+    );
+    return;
+  }
+
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = renderSkeletonTabla();
+    return;
+  }
+
+  const goleadores = obtenerGoleadoresOficialesPublicables();
+  const nombreTorneo = obtenerNombreTorneoActivo();
+
+  if (goleadores.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "vacio",
+      "Sin goleadores cargados",
+      `Todavía no hay snapshot de goleadores para ${nombreTorneo}.`
+    );
+    return;
+  }
+
+  cont.innerHTML = `
+    <div class="tabla-general tabla-general--standalone tabla-scorers">
+      <div class="tabla-general-head">
+        <div>
+          <div class="tabla-general-kicker">${escaparHtml(nombreTorneo)}</div>
+          <h3>Goleadores destacados</h3>
+        </div>
+        <span>${goleadores.length} jugadores</span>
+      </div>
+      <div class="tabla-scorers-list">
+        ${goleadores.map(renderFilaGoleadorTabla).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderTablaGeneral(standalone = false) {
   const data = calcularTablaGeneral();
+  const clases = standalone
+    ? "tabla-general tabla-general--standalone"
+    : "tabla-general";
 
   return `
-    <div class="tabla-general">
+    <div class="${clases}">
       <div class="tabla-general-head">
         <div>
           <div class="tabla-general-kicker">General</div>
@@ -5193,16 +5244,43 @@ function changeStage(dir) {
   renderMatches();
 }
 
-document.querySelectorAll('.zt').forEach(btn => {
+function actualizarNavegacionTabla() {
+  document.querySelectorAll("[data-tabla-vista]").forEach(btn => {
+    const activa = btn.dataset.tablaVista === tablaVistaActual;
+    btn.classList.toggle("on", activa);
+    btn.setAttribute("aria-selected", activa ? "true" : "false");
+  });
+
+  const tabsPosiciones = document.getElementById("tablaPosicionesTabs");
+  if (tabsPosiciones) {
+    tabsPosiciones.hidden = tablaVistaActual !== "posiciones";
+  }
+
+  document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
+    const activa = btn.dataset.tablaPosiciones === tablaPosicionesActual;
+    btn.classList.toggle("on", activa);
+    btn.setAttribute("aria-selected", activa ? "true" : "false");
+  });
+}
+
+document.querySelectorAll("[data-tabla-vista]").forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.zt').forEach(x => {
-      x.classList.remove('on');
-      x.setAttribute('aria-pressed', 'false');
-    });
-    btn.classList.add('on');
-    btn.setAttribute('aria-pressed', 'true');
-    zonaActual = parseInt(btn.dataset.zona, 10);
-    renderTabla(zonaActual);
+    const vista = btn.dataset.tablaVista;
+    if (!["posiciones", "goleadores"].includes(vista)) return;
+
+    tablaVistaActual = vista;
+    renderTabla();
+  });
+});
+
+document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
+  btn.addEventListener('click', () => {
+    const valor = btn.dataset.tablaPosiciones;
+    if (!["1", "2", "3", "general"].includes(valor)) return;
+
+    tablaPosicionesActual = valor;
+    if (valor !== "general") zonaActual = Number(valor);
+    renderTabla();
   });
 });
 

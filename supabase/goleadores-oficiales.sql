@@ -72,7 +72,21 @@ begin
 end;
 $$;
 
-insert into public.goleadores_oficiales (
+drop table if exists pg_temp.tmp_goleadores_apertura_2026;
+
+create temporary table tmp_goleadores_apertura_2026 (
+  torneo_id bigint not null,
+  posicion integer not null,
+  equipo_id bigint null,
+  equipo_nombre text not null,
+  jugador_nombre text not null,
+  goles integer not null,
+  fuente text not null,
+  fecha_fuente date null,
+  observaciones text null
+) on commit drop;
+
+insert into tmp_goleadores_apertura_2026 (
   torneo_id,
   posicion,
   equipo_id,
@@ -91,9 +105,9 @@ values
     'SPORT C. CAÑADENSE',
     'TOMBOLINI CARLOS DAMIAN',
     13,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
+    'Tres Palos - selección verificada Apertura 2026',
     null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
+    'Goleador destacado conservado por validación manual. No representa tabla completa.'
   ),
   (
     1,
@@ -102,9 +116,9 @@ values
     'SPORT C. CAÑADENSE',
     'CARRIZO LAUREANO JOAQUIN',
     9,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
+    'Tres Palos - selección verificada Apertura 2026',
     null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
+    'Goleador destacado conservado por validación manual. No representa tabla completa.'
   ),
   (
     1,
@@ -113,153 +127,47 @@ values
     'SPORTIVO A. CLUB',
     'MARTINEZ BRIAN ALEJANDRO',
     9,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
+    'Tres Palos - selección verificada Apertura 2026',
     null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
+    'Goleador destacado conservado por validación manual. No representa tabla completa.'
   ),
   (
     1,
     4,
-    54,
-    'DEF. SPORTSMAN',
-    'ZABALA MAURICIO',
-    9,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    5,
     46,
-    'AD.EVERTON/OLIMPIA',
+    'AD. EVERTON/OLIMPIA',
     'BORINI JULIO CESAR',
     7,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
+    'Tres Palos - selección verificada Apertura 2026',
     null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    6,
-    45,
-    'C.A. EL PORVENIR DEL NORTE',
-    'BENITEZ CRISTIAN ALFREDO',
-    6,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    7,
-    49,
-    'C.A. COSMOPOLITA',
-    'CANAL AXEL JOEL',
-    6,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    8,
-    60,
-    'C.A. SAN JERONIMO',
-    'CANTIANI JUAN BAUTISTA',
-    6,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    9,
-    44,
-    'C.A. DEFENSORES',
-    'JARA AGUSTIN NAHUEL',
-    6,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    10,
-    58,
-    'C.A. AMERICA',
-    'JOMINY FRANCO MARCELO',
-    6,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    11,
-    50,
-    'C.A. ALMAFUERTE',
-    'MOLINA JOAQUIN',
-    6,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    12,
-    57,
-    'C.A. CARCARAÑÁ',
-    'BOCCHIETTI MAXIMILIANO CARLOS',
-    5,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    13,
-    53,
-    'C.A. CORREA',
-    'CAVALLIN SEBASTIAN',
-    5,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    14,
-    59,
-    'NEWELLS OLD BOYS',
-    'MARTINEZ VALENTIN ANGEL',
-    5,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    15,
-    59,
-    'C.A. N.O. BOYS',
-    'SANTILLAN ARIEL JULIAN',
-    5,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  ),
-  (
-    1,
-    16,
-    44,
-    'C.A. DEFENSORES',
-    'ARBALLO BRUNO EMANUEL',
-    4,
-    'Liga Cañadense - tabla oficial de goleadores Apertura 2026',
-    null,
-    'Top visible cargado manualmente desde fuente oficial. Fecha exacta de fuente no informada.'
-  )
+    'Goleador destacado conservado por validación manual. No representa tabla completa.'
+  );
+
+delete from public.goleadores_oficiales
+where torneo_id = 1;
+
+insert into public.goleadores_oficiales (
+  torneo_id,
+  posicion,
+  equipo_id,
+  equipo_nombre,
+  jugador_nombre,
+  goles,
+  fuente,
+  fecha_fuente,
+  observaciones
+)
+select
+  torneo_id,
+  posicion,
+  equipo_id,
+  equipo_nombre,
+  jugador_nombre,
+  goles,
+  fuente,
+  fecha_fuente,
+  observaciones
+from tmp_goleadores_apertura_2026
 on conflict (torneo_id, posicion) do update
 set
   equipo_id = excluded.equipo_id,
@@ -270,8 +178,10 @@ set
   fecha_fuente = excluded.fecha_fuente,
   observaciones = excluded.observaciones;
 
+drop table if exists pg_temp.tmp_goleadores_apertura_2026;
+
 comment on table public.goleadores_oficiales is
-  'Snapshot manual de tablas oficiales de goleadores por torneo. No reemplaza eventos_partido ni futuras vistas calculadas.';
+  'Snapshot manual de goleadores destacados por torneo. No reemplaza eventos_partido ni futuras vistas calculadas.';
 
 comment on column public.goleadores_oficiales.equipo_nombre is
   'Nombre del equipo tal como figura en la fuente oficial visible.';

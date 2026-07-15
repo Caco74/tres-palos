@@ -1918,6 +1918,10 @@ button {
   padding-bottom: 0;
 }
 
+.tabla-main-tabs {
+  padding-bottom: .55rem;
+}
+
 .cp,
 .zt {
   font-family: 'DM Mono', monospace;
@@ -1961,6 +1965,10 @@ button {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+}
+
+.zt-pip-general {
+  background: var(--muted);
 }
 
 .tabla-wrap {
@@ -2104,6 +2112,11 @@ button {
   border-top: 1px solid var(--border);
 }
 
+.tabla-general--standalone {
+  margin-top: 0;
+  border-top: 0;
+}
+
 .tabla-general-head {
   display: flex;
   align-items: flex-end;
@@ -2145,6 +2158,109 @@ button {
 
 .tabla-general-table th:nth-child(4) {
   color: rgba(255, 101, 117, .82);
+}
+
+.tabla-scorers {
+  padding-bottom: 1.6rem;
+}
+
+.tabla-scorers-list {
+  margin: 0 1rem;
+  overflow: hidden;
+  background: rgba(18, 18, 21, .78);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.tabla-scorer {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(40,40,46,0.75);
+}
+
+.tabla-scorer:last-child {
+  border-bottom: 0;
+}
+
+.tabla-scorer-player {
+  min-width: 0;
+}
+
+.tabla-scorer-player strong,
+.tabla-scorer-player small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tabla-scorer-player strong {
+  color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .98rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.tabla-scorer-player small {
+  margin-top: 1px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .52rem;
+  letter-spacing: .08em;
+}
+
+.tabla-scorer > b {
+  color: var(--white);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.42rem;
+  font-weight: 400;
+  letter-spacing: .04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tabla-scorer > b.leader {
+  color: var(--red);
+  font-size: 1.56rem;
+}
+
+.tabla-scorer > b small {
+  margin-left: 3px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .5rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 420px) {
+  .tabla-scorers-list {
+    margin-inline: .75rem;
+  }
+
+  .tabla-scorer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .tabla-scorer-player strong {
+    font-size: .9rem;
+  }
+
+  .tabla-scorer > b {
+    font-size: 1.22rem;
+  }
+
+  .tabla-scorer > b.leader {
+    font-size: 1.34rem;
+  }
 }
 
 .t-dg {
