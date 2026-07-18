@@ -13,6 +13,7 @@ let equiposComparadorDatos = {
   equipoA: null,
   equipoB: null
 };
+let torneoTemporalDetalleEquipo = false;
 
 const VISTAS_PRINCIPALES = [
   "inicio",
@@ -27,8 +28,100 @@ function obtenerVistaDesdeHash() {
   return VISTAS_PRINCIPALES.includes(id) ? id : "inicio";
 }
 
-const vistaInicial = obtenerVistaDesdeHash();
-vistaActual = { id: vistaInicial, navId: vistaInicial };
+function normalizarSegmentoRuta(valor) {
+  if (typeof normalizarSegmentoGoogle === "function") {
+    return normalizarSegmentoGoogle(valor);
+  }
+
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function obtenerParametroTorneoDetalleEquipo() {
+  return new URLSearchParams(window.location.search).get("torneo");
+}
+
+function obtenerSegmentoEquipoRuta() {
+  const partes = window.location.pathname
+    .split("/")
+    .map(parte => parte.trim())
+    .filter(Boolean);
+
+  if (partes[0] !== "equipos" || !partes[1]) return null;
+
+  try {
+    return decodeURIComponent(partes[1]);
+  } catch (error) {
+    return partes[1];
+  }
+}
+
+function crearCandidatosEquiposRuta() {
+  const candidatos = new Map();
+  const agregar = (equipo, etiquetas = []) => {
+    if (!equipo) return;
+
+    [
+      equipo,
+      nombre(equipo),
+      nombresCortos[equipo],
+      ...etiquetas
+    ].filter(Boolean).forEach(etiqueta => {
+      const slug = normalizarSegmentoRuta(etiqueta);
+      if (slug && !candidatos.has(slug)) {
+        candidatos.set(slug, equipo);
+      }
+    });
+  };
+
+  Object.keys(nombresCortos).forEach(equipo => {
+    agregar(equipo, [nombresCortos[equipo]]);
+  });
+  Object.values(equiposPorZona).flat().forEach(equipo => agregar(equipo));
+  state.clubes.forEach(club => {
+    agregar(club.nombre_oficial, [
+      club.nombre_corto,
+      ...(Array.isArray(club.aliases) ? club.aliases : [])
+    ]);
+  });
+  state.partidosTodos.forEach(partido => {
+    agregar(partido.local);
+    agregar(partido.visitante);
+  });
+
+  return candidatos;
+}
+
+function resolverEquipoDesdeSegmentoRuta(segmento) {
+  const slug = normalizarSegmentoRuta(segmento);
+  if (!slug) return null;
+
+  return crearCandidatosEquiposRuta().get(slug) || null;
+}
+
+function obtenerVistaInicialDesdeUrl() {
+  const segmentoEquipo = obtenerSegmentoEquipoRuta();
+
+  if (segmentoEquipo) {
+    return {
+      id: "equipo",
+      equipo: resolverEquipoDesdeSegmentoRuta(segmentoEquipo),
+      equipoSlug: segmentoEquipo,
+      navId: "equipos",
+      torneoEquipoClave: obtenerParametroTorneoDetalleEquipo()
+    };
+  }
+
+  const id = obtenerVistaDesdeHash();
+  return { id, navId: id };
+}
+
+vistaActual = obtenerVistaInicialDesdeUrl();
 
 const FASES_PLAYOFF = [
   { valor: "octavos", etiqueta: "Octavos de Final" },
@@ -152,9 +245,16 @@ function switchTab(id) {
     id = "inicio";
   }
 
-  if (id !== "playoffs" && state.torneoSeleccionadoId) {
+  if (
+    state.torneoSeleccionadoId &&
+    (
+      id !== "playoffs" ||
+      torneoTemporalDetalleEquipo
+    )
+  ) {
     restaurarTorneoVigente();
   }
+  torneoTemporalDetalleEquipo = false;
 
   vistaActual = { id, navId: id };
   mostrarVista(id);
@@ -163,16 +263,40 @@ function switchTab(id) {
 }
 
 function abrirPartido(id) {
-  const partido = state.partidos.find(
+  let partido = state.partidos.find(
     item => String(item.id) === String(id)
   );
+
+  if (!partido) {
+    const partidoTodos = state.partidosTodos.find(
+      item => String(item.id) === String(id)
+    );
+    const torneoPartido = partidoTodos
+      ? state.torneos.find(
+          torneo => String(torneo.id) === String(partidoTodos.torneo_id)
+        )
+      : null;
+
+    if (torneoPartido) {
+      torneoTemporalDetalleEquipo = vistaActual.id === "equipo";
+      state.torneoSeleccionadoId = torneoPartido.activo
+        ? null
+        : String(torneoPartido.id);
+      aplicarDatosTorneo(torneoPartido, false);
+      partido = state.partidos.find(
+        item => String(item.id) === String(id)
+      );
+    }
+  }
+
   if (!partido) return;
   const origen = vistaActual.navId || "partidos";
 
   vistaActual = {
     id: "partido",
     partidoId: partido.id,
-    navId: origen
+    navId: origen,
+    torneoId: state.torneoActivo?.id || null
   };
   renderDetallePartido(partido.id);
   mostrarVista("partido");
@@ -184,11 +308,18 @@ function abrirEquipo(equipo) {
   if (!equipo) return;
 
   const origen = vistaActual.navId || "equipos";
+  torneoTemporalDetalleEquipo = false;
+
+  if (state.torneoSeleccionadoId && state.torneoVigente) {
+    state.torneoSeleccionadoId = null;
+    aplicarDatosTorneo(state.torneoVigente, false);
+  }
 
   vistaActual = {
     id: "equipo",
     equipo,
-    navId: origen
+    navId: origen,
+    torneoEquipoId: state.torneoVigente?.id || null
   };
   renderDetalleEquipo(equipo);
   mostrarVista("equipo");
@@ -207,10 +338,6 @@ function volverDetalle() {
 
 function guardarVistaEnHistorial(reemplazar = false) {
   const metodo = reemplazar ? "replaceState" : "pushState";
-  const vistaUrl = VISTAS_PRINCIPALES.includes(vistaActual.id)
-    ? vistaActual.id
-    : vistaActual.navId;
-  const hash = vistaUrl && vistaUrl !== "inicio" ? `#${vistaUrl}` : "";
   window.history[metodo](
     {
       tresPalos: true,
@@ -220,8 +347,76 @@ function guardarVistaEnHistorial(reemplazar = false) {
       }
     },
     "",
-    `${window.location.pathname}${window.location.search}${hash}`
+    construirUrlVistaActual()
   );
+}
+
+function construirUrlVistaActual() {
+  if (vistaActual.id === "equipo" && vistaActual.equipo) {
+    const slug = obtenerSlugEquipoUrl(vistaActual.equipo);
+    const torneo = obtenerTorneoVistaDetalleEquipo();
+    const params = new URLSearchParams();
+
+    if (torneo && !esTorneoVigente(torneo)) {
+      params.set("torneo", crearClaveTorneoUrl(torneo));
+    }
+
+    const search = params.toString();
+    return `/equipos/${slug}${search ? `?${search}` : ""}`;
+  }
+
+  const vistaUrl = VISTAS_PRINCIPALES.includes(vistaActual.id)
+    ? vistaActual.id
+    : vistaActual.navId;
+  const hash = vistaUrl && vistaUrl !== "inicio" ? `#${vistaUrl}` : "";
+  return `/${hash}`;
+}
+
+function obtenerSlugEquipoUrl(equipo) {
+  const club = obtenerClub(equipo);
+  return normalizarSegmentoRuta(
+    club?.nombre_corto ||
+    nombresCortos[equipo] ||
+    nombre(equipo) ||
+    equipo
+  ) || "equipo";
+}
+
+function crearClaveTorneoUrl(torneo) {
+  if (torneo?.tipo && torneo?.anio) {
+    return `${normalizarSegmentoRuta(torneo.tipo)}-${torneo.anio}`;
+  }
+
+  return String(torneo?.id || "");
+}
+
+function buscarTorneoPorClaveUrl(clave, torneos = state.torneos) {
+  const valor = String(clave || "").trim();
+  if (!valor) return null;
+  const normalizado = normalizarSegmentoRuta(valor);
+
+  return torneos.find(torneo =>
+    String(torneo.id) === valor ||
+    crearClaveTorneoUrl(torneo) === normalizado ||
+    normalizarSegmentoRuta(torneo.nombre) === normalizado
+  ) || null;
+}
+
+function esTorneoVigente(torneo) {
+  if (!torneo) return false;
+  if (state.torneoVigente?.id) {
+    return String(torneo.id) === String(state.torneoVigente.id);
+  }
+  return Boolean(torneo.activo);
+}
+
+function obtenerTorneoVistaDetalleEquipo() {
+  const torneoId = vistaActual.torneoEquipoId;
+  if (!torneoId) return null;
+
+  return state.torneos.find(
+    torneo => String(torneo.id) === String(torneoId)
+  ) || null;
 }
 
 function restaurarVistaDesdeHistorial(vista) {
@@ -234,13 +429,24 @@ function restaurarVistaDesdeHistorial(vista) {
     vista = { id: "inicio", navId: "inicio" };
   }
 
+  if (vista.id === "equipo" && !vista.equipo && vista.equipoSlug) {
+    vista.equipo = resolverEquipoDesdeSegmentoRuta(vista.equipoSlug);
+  }
+
   const conservaContextoPlayoff =
     vista.id === "playoffs" ||
     vista.navId === "playoffs";
+  const conservaContextoPartido =
+    vista.id === "partido" &&
+    vista.torneoId;
   const torneoVista = conservaContextoPlayoff && vista.torneoId
     ? state.torneos.find(
         torneo => String(torneo.id) === String(vista.torneoId)
       )
+    : conservaContextoPartido
+      ? state.torneos.find(
+          torneo => String(torneo.id) === String(vista.torneoId)
+        )
     : null;
 
   if (torneoVista) {
@@ -5980,54 +6186,987 @@ function formatearFechaCompleta(fecha) {
   ].join("/");
 }
 
+function obtenerPartidosTorneoHistorial(torneo) {
+  if (!torneo?.id) return [];
+
+  return state.partidosTodos.filter(
+    partido => String(partido.torneo_id) === String(torneo.id)
+  );
+}
+
+function crearResolutorPlayoffHistorial(partidosReferencia) {
+  const porId = new Map(
+    partidosReferencia.map(partido => [String(partido.id), partido])
+  );
+  const cache = new Map();
+
+  const buscarDesdeSource = source => {
+    if (source === null || source === undefined || source === "") return null;
+
+    const valor = String(source).trim();
+    if (/^\d+$/.test(valor)) return porId.get(valor) || null;
+
+    const normalizado = valor
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    const fase = [
+      ["octavos", "octavos"],
+      ["cuartos", "cuartos"],
+      ["semifinal", "semifinal"],
+      ["semis", "semifinal"],
+      ["final", "final"]
+    ].find(([texto]) => normalizado.includes(texto))?.[1];
+    const numero = Number(normalizado.match(/\d+/)?.[0]);
+
+    if (!fase || !Number.isFinite(numero)) return null;
+
+    return partidosReferencia.find(
+      item =>
+        item.tipo === "playoff" &&
+        item.fase === fase &&
+        Number(item.numero_playoff) === numero
+    ) || null;
+  };
+
+  const buscarOrigenPorLlave = (partido, lado) => {
+    const numero = Number(partido.numero_playoff || 1);
+    let faseAnterior = null;
+    let numeroAnterior = null;
+
+    if (partido.fase === "semifinal") {
+      faseAnterior = "cuartos";
+      numeroAnterior = lado === "local" ? numero * 2 - 1 : numero * 2;
+    }
+
+    if (partido.fase === "final") {
+      faseAnterior = "semifinal";
+      numeroAnterior = lado === "local" ? 1 : 2;
+    }
+
+    if (!faseAnterior || !numeroAnterior) return null;
+
+    return partidosReferencia.find(
+      item =>
+        item.tipo === "playoff" &&
+        item.fase === faseAnterior &&
+        Number(item.numero_playoff) === numeroAnterior
+    ) || null;
+  };
+
+  const resolver = partido => {
+    if (!partido || partido.tipo !== "playoff") return partido;
+
+    const clave = String(partido.id);
+    if (cache.has(clave)) return cache.get(clave);
+
+    cache.set(clave, { ...partido });
+
+    const resolverEquipo = lado => {
+      if (partido[lado]) {
+        return obtenerNombreOficialEquipo(
+          partido[lado],
+          partido[`${lado}_id`]
+        );
+      }
+
+      const source = lado === "local"
+        ? partido.source_local
+        : partido.source_visitante;
+      const origen =
+        buscarDesdeSource(source) ||
+        buscarOrigenPorLlave(partido, lado);
+      if (!origen) return null;
+
+      const origenResuelto = resolver(origen);
+      const ladoGanador = obtenerGanadorPlayoff(origenResuelto);
+      return ladoGanador ? origenResuelto[ladoGanador] : null;
+    };
+
+    const local = resolverEquipo("local");
+    const visitante = resolverEquipo("visitante");
+    const clubLocal = obtenerClub(local, partido.local_id);
+    const clubVisitante = obtenerClub(visitante, partido.visitante_id);
+    const resuelto = {
+      ...partido,
+      local: clubLocal?.nombre_oficial || local,
+      visitante: clubVisitante?.nombre_oficial || visitante,
+      local_id: clubLocal?.id || partido.local_id || null,
+      visitante_id: clubVisitante?.id || partido.visitante_id || null,
+      localia_pendiente:
+        partido.fase === "final" &&
+        !Boolean(partido.local && partido.visitante)
+    };
+
+    cache.set(clave, resuelto);
+    return resuelto;
+  };
+
+  return resolver;
+}
+
+function obtenerPartidosResueltosTorneoHistorial(torneo) {
+  const partidos = obtenerPartidosTorneoHistorial(torneo);
+  const resolver = crearResolutorPlayoffHistorial(partidos);
+  return partidos.map(partido => resolver(partido));
+}
+
+function equipoCoincideConLado(partido, lado, equipo) {
+  if (!partido || !equipo) return false;
+
+  const clubEquipo = obtenerClub(equipo);
+  const ladoId = partido[`${lado}_id`];
+
+  if (
+    clubEquipo?.id &&
+    ladoId !== null &&
+    ladoId !== undefined &&
+    String(ladoId) === String(clubEquipo.id)
+  ) {
+    return true;
+  }
+
+  const clubLado = obtenerClub(partido[lado], ladoId);
+  const candidatosEquipo = [
+    equipo,
+    clubEquipo?.nombre_oficial,
+    clubEquipo?.nombre_corto,
+    nombre(equipo, clubEquipo?.id)
+  ].map(normalizarNombreClub).filter(Boolean);
+  const candidatosLado = [
+    partido[lado],
+    clubLado?.nombre_oficial,
+    clubLado?.nombre_corto,
+    nombre(partido[lado], ladoId)
+  ].map(normalizarNombreClub).filter(Boolean);
+
+  return candidatosEquipo.some(valor => candidatosLado.includes(valor));
+}
+
+function obtenerLadoEquipoPartido(partido, equipo) {
+  if (equipoCoincideConLado(partido, "local", equipo)) return "local";
+  if (equipoCoincideConLado(partido, "visitante", equipo)) return "visitante";
+  return null;
+}
+
+function equipoParticipaEnPartido(partido, equipo) {
+  return Boolean(obtenerLadoEquipoPartido(partido, equipo));
+}
+
+function obtenerPartidosEquipoTorneo(equipo, torneo) {
+  if (!equipo || !torneo?.id) return [];
+
+  return obtenerPartidosResueltosTorneoHistorial(torneo)
+    .filter(partido => equipoParticipaEnPartido(partido, equipo))
+    .sort(ordenarPartidosCronologicamente);
+}
+
+function compararTorneosHistorialEquipo(a, b) {
+  return Number(esTorneoVigente(b)) - Number(esTorneoVigente(a)) ||
+    Number(b.anio || 0) - Number(a.anio || 0) ||
+    String(b.fecha_inicio || "").localeCompare(String(a.fecha_inicio || "")) ||
+    String(b.tipo || "").localeCompare(String(a.tipo || ""));
+}
+
+function obtenerTorneosDisponiblesEquipo(equipo) {
+  if (!equipo || !Array.isArray(state.torneos)) return [];
+
+  return state.torneos
+    .filter(torneo => obtenerPartidosEquipoTorneo(equipo, torneo).length > 0)
+    .sort(compararTorneosHistorialEquipo);
+}
+
+function resolverSeleccionTorneoDetalleEquipo(torneosEquipo) {
+  const torneoVista = torneosEquipo.find(
+    torneo => String(torneo.id) === String(vistaActual.torneoEquipoId)
+  );
+  const claveUrl =
+    vistaActual.torneoEquipoClave ||
+    obtenerParametroTorneoDetalleEquipo();
+  const torneoUrl = !torneoVista
+    ? buscarTorneoPorClaveUrl(claveUrl, torneosEquipo)
+    : null;
+  const torneoVigenteEquipo = torneosEquipo.find(esTorneoVigente);
+  const torneo = torneoVista || torneoUrl || torneoVigenteEquipo ||
+    torneosEquipo[0] || null;
+
+  if (torneo) vistaActual.torneoEquipoId = torneo.id;
+  vistaActual.torneoEquipoClave = null;
+
+  return {
+    torneo,
+    fallbackAplicado: Boolean(claveUrl && !torneoUrl && !torneoVista),
+    desdeUrl: Boolean(claveUrl && torneoUrl && !torneoVista)
+  };
+}
+
+function seleccionarTorneoDetalleEquipo(claveTorneo) {
+  if (vistaActual.id !== "equipo" || !vistaActual.equipo) return;
+
+  const torneosEquipo = obtenerTorneosDisponiblesEquipo(vistaActual.equipo);
+  const torneo = buscarTorneoPorClaveUrl(claveTorneo, torneosEquipo);
+  if (!torneo) return;
+
+  vistaActual.torneoEquipoId = torneo.id;
+  vistaActual.torneoEquipoClave = null;
+  renderDetalleEquipo(vistaActual.equipo);
+  guardarVistaEnHistorial();
+}
+
+function renderSelectorTorneosDetalleEquipo(torneosEquipo, torneoActivo) {
+  if (!torneoActivo) return "";
+
+  return `
+    <label class="team-season-switch">
+      <span>Historial por campeonato</span>
+      <select
+        aria-label="Seleccionar campeonato del equipo"
+        onchange="seleccionarTorneoDetalleEquipo(this.value)"
+        ${torneosEquipo.length <= 1 ? "disabled" : ""}
+      >
+        ${torneosEquipo.map(torneo => `
+          <option
+            value="${escaparHtml(crearClaveTorneoUrl(torneo))}"
+            ${String(torneo.id) === String(torneoActivo.id) ? "selected" : ""}
+          >
+            ${escaparHtml(torneo.nombre)}${esTorneoVigente(torneo)
+              ? " &middot; Actual"
+              : ""}
+          </option>
+        `).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function partidoFinalizadoParaRendimiento(partido) {
+  const estadoManual = obtenerEstadoManualPartido(partido);
+  if (
+    estadoManual &&
+    ["suspendido", "postergado"].includes(estadoManual.tipo)
+  ) {
+    return false;
+  }
+
+  return partidoTieneResultado(partido) &&
+    Number.isFinite(Number(partido.goles_local)) &&
+    Number.isFinite(Number(partido.goles_visitante));
+}
+
+function crearStatsRendimientoEquipo() {
+  return {
+    pj: 0,
+    pg: 0,
+    pe: 0,
+    pp: 0,
+    gf: 0,
+    gc: 0,
+    dg: 0,
+    pts: 0,
+    efectividad: 0,
+    promedioGf: 0,
+    vallasInvictas: 0,
+    local: { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 },
+    visitante: { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0 }
+  };
+}
+
+function acumularResultadoRendimiento(stats, favor, contra, condicion) {
+  stats.pj++;
+  stats.gf += favor;
+  stats.gc += contra;
+  stats.dg = stats.gf - stats.gc;
+  if (contra === 0) stats.vallasInvictas++;
+
+  const parcial = stats[condicion];
+  parcial.pj++;
+  parcial.gf += favor;
+  parcial.gc += contra;
+
+  if (favor > contra) {
+    stats.pg++;
+    stats.pts += 3;
+    parcial.pg++;
+    parcial.pts += 3;
+  } else if (favor < contra) {
+    stats.pp++;
+    parcial.pp++;
+  } else {
+    stats.pe++;
+    stats.pts++;
+    parcial.pe++;
+    parcial.pts++;
+  }
+}
+
+function completarDerivadosRendimiento(stats) {
+  stats.efectividad = stats.pj > 0
+    ? Math.round((stats.pts / (stats.pj * 3)) * 100)
+    : 0;
+  stats.promedioGf = stats.pj > 0 ? stats.gf / stats.pj : 0;
+  return stats;
+}
+
+function calcularRendimientoEquipoTorneo(partidosEquipo, equipo) {
+  const stats = crearStatsRendimientoEquipo();
+
+  partidosEquipo
+    .filter(partidoFinalizadoParaRendimiento)
+    .forEach(partido => {
+      const lado = obtenerLadoEquipoPartido(partido, equipo);
+      if (!lado) return;
+
+      const esLocal = lado === "local";
+      const favor = Number(esLocal
+        ? partido.goles_local
+        : partido.goles_visitante);
+      const contra = Number(esLocal
+        ? partido.goles_visitante
+        : partido.goles_local);
+
+      acumularResultadoRendimiento(
+        stats,
+        favor,
+        contra,
+        esLocal ? "local" : "visitante"
+      );
+    });
+
+  return completarDerivadosRendimiento(stats);
+}
+
+function obtenerZonaEquipoTorneo(equipo, partidosTorneo) {
+  const partidoRegular = partidosTorneo.find(
+    partido =>
+      partido.tipo === "regular" &&
+      equipoParticipaEnPartido(partido, equipo) &&
+      Number.isFinite(Number(partido.zona))
+  );
+
+  return partidoRegular ? Number(partidoRegular.zona) : obtenerZonaEquipo(equipo);
+}
+
+function calcularTablaZonaHistorial(partidosTorneo, zona) {
+  const equipos = new Set();
+
+  partidosTorneo
+    .filter(
+      partido =>
+        partido.tipo === "regular" &&
+        Number(partido.zona) === Number(zona)
+    )
+    .forEach(partido => {
+      const local = obtenerNombreOficialEquipo(partido.local, partido.local_id);
+      const visitante = obtenerNombreOficialEquipo(
+        partido.visitante,
+        partido.visitante_id
+      );
+      if (local) equipos.add(local);
+      if (visitante) equipos.add(visitante);
+    });
+
+  const tabla = Object.fromEntries(
+    [...equipos].map(equipo => [equipo, crearFilaTabla(equipo)])
+  );
+
+  partidosTorneo
+    .filter(
+      partido =>
+        partido.tipo === "regular" &&
+        Number(partido.zona) === Number(zona) &&
+        partidoFinalizadoParaRendimiento(partido)
+    )
+    .forEach(partido => {
+      const localNombre = obtenerNombreOficialEquipo(
+        partido.local,
+        partido.local_id
+      );
+      const visitanteNombre = obtenerNombreOficialEquipo(
+        partido.visitante,
+        partido.visitante_id
+      );
+      if (!localNombre || !visitanteNombre) return;
+
+      if (!tabla[localNombre]) tabla[localNombre] = crearFilaTabla(localNombre);
+      if (!tabla[visitanteNombre]) {
+        tabla[visitanteNombre] = crearFilaTabla(visitanteNombre);
+      }
+
+      const golesLocal = Number(partido.goles_local);
+      const golesVisitante = Number(partido.goles_visitante);
+      const local = tabla[localNombre];
+      const visitante = tabla[visitanteNombre];
+
+      local.pj++;
+      visitante.pj++;
+      local.gf += golesLocal;
+      local.gc += golesVisitante;
+      visitante.gf += golesVisitante;
+      visitante.gc += golesLocal;
+
+      if (golesLocal > golesVisitante) {
+        local.pg++;
+        local.pts += 3;
+        visitante.pp++;
+      } else if (golesLocal < golesVisitante) {
+        visitante.pg++;
+        visitante.pts += 3;
+        local.pp++;
+      } else {
+        local.pe++;
+        visitante.pe++;
+        local.pts++;
+        visitante.pts++;
+      }
+
+      local.dg = local.gf - local.gc;
+      visitante.dg = visitante.gf - visitante.gc;
+    });
+
+  return Object.values(tabla).sort(
+    (a, b) =>
+      b.pts - a.pts ||
+      b.dg - a.dg ||
+      b.gf - a.gf ||
+      nombre(a.equipo).localeCompare(nombre(b.equipo), "es")
+  );
+}
+
+function obtenerDatosTablaEquipoTorneo(equipo, partidosTorneo) {
+  const zona = obtenerZonaEquipoTorneo(equipo, partidosTorneo);
+  const tablaZona = zona ? calcularTablaZonaHistorial(partidosTorneo, zona) : [];
+  const indice = tablaZona.findIndex(fila =>
+    equipoCoincideConNombre(fila.equipo, equipo)
+  );
+
+  return {
+    zona,
+    posicionZona: indice >= 0 ? indice + 1 : null
+  };
+}
+
+function obtenerResultadoSerieFinalHistorial(partidosTorneo) {
+  const partidos = partidosTorneo
+    .filter(partido => partido.tipo === "playoff" && partido.fase === "final")
+    .sort(
+      (a, b) =>
+        Number(a.numero_playoff || 0) - Number(b.numero_playoff || 0) ||
+        compararFechaPartido(a, b)
+    );
+  const jugados = partidos.filter(partidoFinalizadoParaRendimiento);
+  const equipos = [
+    ...new Set(
+      partidos.flatMap(partido => [partido.local, partido.visitante])
+        .filter(Boolean)
+    )
+  ];
+  const completa =
+    partidos.length > 0 &&
+    jugados.length === partidos.length &&
+    equipos.length === 2;
+  const goles = new Map(equipos.map(equipo => [equipo, 0]));
+
+  jugados.forEach(partido => {
+    goles.set(
+      partido.local,
+      (goles.get(partido.local) || 0) + Number(partido.goles_local)
+    );
+    goles.set(
+      partido.visitante,
+      (goles.get(partido.visitante) || 0) +
+        Number(partido.goles_visitante)
+    );
+  });
+
+  let ganador = null;
+  if (completa) {
+    const [equipoA, equipoB] = equipos;
+    const golesA = goles.get(equipoA) || 0;
+    const golesB = goles.get(equipoB) || 0;
+
+    if (golesA > golesB) ganador = equipoA;
+    if (golesB > golesA) ganador = equipoB;
+
+    if (!ganador) {
+      const definicion = [...partidos].reverse().find(
+        partido =>
+          partido.penales_local !== null &&
+          partido.penales_visitante !== null
+      );
+      if (definicion) {
+        if (definicion.penales_local > definicion.penales_visitante) {
+          ganador = definicion.local;
+        }
+        if (definicion.penales_visitante > definicion.penales_local) {
+          ganador = definicion.visitante;
+        }
+      }
+    }
+  }
+
+  return {
+    partidos,
+    equipos,
+    completa,
+    ganador,
+    definicionPendiente: completa && !ganador
+  };
+}
+
+function equipoCoincideConNombre(a, b) {
+  return normalizarNombreClub(a) === normalizarNombreClub(b);
+}
+
+function obtenerEstadoEquipoTorneoHistorial(equipo, partidosTorneo) {
+  const serieFinal = obtenerResultadoSerieFinalHistorial(partidosTorneo);
+
+  if (serieFinal.equipos.some(item => equipoCoincideConNombre(item, equipo))) {
+    if (serieFinal.ganador) {
+      const campeon = equipoCoincideConNombre(serieFinal.ganador, equipo);
+      return {
+        texto: campeon ? "Campeon" : "Subcampeon",
+        clase: campeon ? "champion" : "runner-up"
+      };
+    }
+    if (serieFinal.definicionPendiente) {
+      return { texto: "Definicion pendiente", clase: "pending" };
+    }
+    return { texto: "Clasificado a la final", clase: "final" };
+  }
+
+  const fases = [
+    ["semifinal", "Clasificado a semifinales", "Eliminado en semifinales"],
+    ["cuartos", "Clasificado a cuartos", "Eliminado en cuartos"],
+    ["octavos", "Clasificado a octavos", "Eliminado en octavos"]
+  ];
+
+  for (const [fase, pendiente, eliminado] of fases) {
+    const partido = partidosTorneo.find(
+      item =>
+        item.tipo === "playoff" &&
+        item.fase === fase &&
+        equipoParticipaEnPartido(item, equipo)
+    );
+
+    if (!partido) continue;
+
+    const ladoGanador = obtenerGanadorPlayoff(partido);
+    const ganador = ladoGanador ? partido[ladoGanador] : null;
+    const jugado = partidoFinalizadoParaRendimiento(partido);
+
+    if (ganador && !equipoCoincideConNombre(ganador, equipo)) {
+      return { texto: eliminado, clase: "eliminated" };
+    }
+    if (jugado && !ganador) {
+      return { texto: "Definicion pendiente", clase: "pending" };
+    }
+
+    return { texto: pendiente, clase: fase };
+  }
+
+  return partidosTorneo.some(partido => partido.tipo === "playoff")
+    ? { texto: "No clasifico a playoffs", clase: "not-qualified" }
+    : null;
+}
+
+function formatearDiferenciaGoles(valor) {
+  return valor > 0 ? `+${valor}` : String(valor);
+}
+
+function formatearDecimalLocal(valor) {
+  return Number(valor || 0).toFixed(2).replace(".", ",");
+}
+
+function obtenerEventosPartidosHistorial(partidos) {
+  const ids = new Set(partidos.map(partido => String(partido.id)));
+  return state.eventosTodos.filter(
+    evento => ids.has(String(evento.partido_id))
+  );
+}
+
+function esEventoPublicableHistorial(evento) {
+  return !Object.prototype.hasOwnProperty.call(evento, "estado_dato") ||
+    evento.estado_dato === null ||
+    evento.estado_dato === undefined ||
+    esEventoPublicable(evento);
+}
+
+function resolverEquipoEventoHistorial(evento, partido) {
+  if (String(evento.equipo_id) === String(partido.local_id)) {
+    return partido.local;
+  }
+  if (String(evento.equipo_id) === String(partido.visitante_id)) {
+    return partido.visitante;
+  }
+  if (evento.equipo) {
+    if (equipoCoincideConNombre(evento.equipo, partido.local)) {
+      return partido.local;
+    }
+    if (equipoCoincideConNombre(evento.equipo, partido.visitante)) {
+      return partido.visitante;
+    }
+  }
+
+  return resolverEquipoEvento(evento, partido);
+}
+
+function calcularMaximosGoleadoresEquipo(equipo, partidosEquipo, eventos) {
+  const partidosPorId = new Map(
+    partidosEquipo.map(partido => [String(partido.id), partido])
+  );
+  const goles = new Map();
+
+  eventos
+    .filter(esEventoPublicableHistorial)
+    .forEach(evento => {
+      const partido = partidosPorId.get(String(evento.partido_id));
+      if (!partido) return;
+
+      const tipo = normalizarTipoEvento(evento.tipo);
+      if (!["gol", "gol-penal"].includes(tipo)) return;
+
+      const equipoEvento = resolverEquipoEventoHistorial(evento, partido);
+      if (!equipoCoincideConNombre(equipoEvento, equipo)) return;
+
+      const jugador = limpiarNombreJugador(evento.jugador);
+      if (!jugador) return;
+
+      const clave = normalizarClaveGoleador(jugador);
+      const actual = goles.get(clave) || { jugador, goles: 0 };
+      actual.goles++;
+      goles.set(clave, actual);
+    });
+
+  const ordenados = [...goles.values()].sort(
+    (a, b) =>
+      b.goles - a.goles ||
+      a.jugador.localeCompare(b.jugador, "es", { sensitivity: "base" })
+  );
+  const maximo = ordenados[0]?.goles || 0;
+
+  return {
+    goles: maximo,
+    jugadores: ordenados.filter(item => item.goles === maximo)
+  };
+}
+
+function describirPartidoDesdeEquipo(partido, equipo) {
+  const lado = obtenerLadoEquipoPartido(partido, equipo);
+  const rival = lado === "local" ? partido.visitante : partido.local;
+  const favor = lado === "local" ? partido.goles_local : partido.goles_visitante;
+  const contra = lado === "local" ? partido.goles_visitante : partido.goles_local;
+  const contexto = partido.tipo === "playoff"
+    ? etiquetaFase(partido.fase)
+    : `Fecha ${partido.fecha || "-"}`;
+
+  return {
+    titulo: `${favor}-${contra} vs ${nombre(rival)}`,
+    detalle: contexto
+  };
+}
+
+function calcularDestacadosEquipoTorneo(equipo, partidosEquipo, eventos) {
+  const jugados = partidosEquipo.filter(partidoFinalizadoParaRendimiento);
+  let mayorMargen = 0;
+  let mayorTotal = 0;
+  const mayoresVictorias = [];
+  const partidosMasGoles = [];
+
+  jugados.forEach(partido => {
+    const lado = obtenerLadoEquipoPartido(partido, equipo);
+    if (!lado) return;
+
+    const favor = Number(lado === "local"
+      ? partido.goles_local
+      : partido.goles_visitante);
+    const contra = Number(lado === "local"
+      ? partido.goles_visitante
+      : partido.goles_local);
+    const margen = favor - contra;
+    const total = favor + contra;
+
+    if (margen > 0 && margen > mayorMargen) {
+      mayorMargen = margen;
+      mayoresVictorias.length = 0;
+      mayoresVictorias.push(partido);
+    } else if (margen > 0 && margen === mayorMargen) {
+      mayoresVictorias.push(partido);
+    }
+
+    if (total > mayorTotal) {
+      mayorTotal = total;
+      partidosMasGoles.length = 0;
+      partidosMasGoles.push(partido);
+    } else if (total === mayorTotal && total > 0) {
+      partidosMasGoles.push(partido);
+    }
+  });
+
+  return {
+    mayorMargen,
+    mayorTotal,
+    mayoresVictorias,
+    partidosMasGoles,
+    goleadores: calcularMaximosGoleadoresEquipo(equipo, partidosEquipo, eventos)
+  };
+}
+
+function renderItemPartidosDestacados(partidos, equipo, tituloEmpate) {
+  if (partidos.length === 0) return "";
+
+  const descripcion = partidos
+    .slice(0, 2)
+    .map(partido => describirPartidoDesdeEquipo(partido, equipo))
+    .map(item => `${escaparHtml(item.titulo)} (${escaparHtml(item.detalle)})`)
+    .join(" / ");
+  const extras = partidos.length > 2 ? ` +${partidos.length - 2}` : "";
+
+  return `
+    <strong>${partidos.length > 1 ? tituloEmpate : descripcion}</strong>
+    ${partidos.length > 1
+      ? `<small>${descripcion}${extras}</small>`
+      : ""}
+  `;
+}
+
+function renderDestacadosEquipoTorneo(destacados, equipo) {
+  const items = [];
+
+  if (destacados.mayoresVictorias.length > 0) {
+    items.push(`
+      <div>
+        <span>Mayor victoria</span>
+        ${renderItemPartidosDestacados(
+          destacados.mayoresVictorias,
+          equipo,
+          `${destacados.mayoresVictorias.length} partidos`
+        )}
+        <small>${destacados.mayorMargen} goles de margen</small>
+      </div>
+    `);
+  }
+
+  if (destacados.partidosMasGoles.length > 0) {
+    items.push(`
+      <div>
+        <span>Partido con mas goles</span>
+        ${renderItemPartidosDestacados(
+          destacados.partidosMasGoles,
+          equipo,
+          `${destacados.partidosMasGoles.length} partidos`
+        )}
+        <small>${destacados.mayorTotal} goles totales</small>
+      </div>
+    `);
+  }
+
+  if (destacados.goleadores.jugadores.length > 0) {
+    const nombresGoleadores = destacados.goleadores.jugadores
+      .map(item => escaparHtml(item.jugador))
+      .join(" / ");
+    items.push(`
+      <div>
+        <span>Maximo goleador</span>
+        <strong>${nombresGoleadores}</strong>
+        <small>${destacados.goleadores.goles} goles</small>
+      </div>
+    `);
+  }
+
+  if (items.length === 0) return "";
+
+  return `
+    <section class="detail-section">
+      <div class="detail-section-head">
+        <h2>Datos destacados</h2>
+      </div>
+      <div class="team-highlights">
+        ${items.join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderMetricasComplementariasEquipo(stats) {
+  if (stats.pj === 0) return "";
+
+  return `
+    <div class="team-season-extra">
+      <div>
+        <span>Local</span>
+        <strong>${stats.local.pg}G ${stats.local.pe}E ${stats.local.pp}P</strong>
+      </div>
+      <div>
+        <span>Visitante</span>
+        <strong>${stats.visitante.pg}G ${stats.visitante.pe}E ${stats.visitante.pp}P</strong>
+      </div>
+      <div>
+        <span>Prom. GF</span>
+        <strong>${formatearDecimalLocal(stats.promedioGf)}</strong>
+      </div>
+      <div>
+        <span>Arco en cero</span>
+        <strong>${stats.vallasInvictas}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function renderResumenTablaEquipo(datosTabla, torneo) {
+  if (!datosTabla.zona || !datosTabla.posicionZona) return "";
+
+  return `
+    <div class="team-season-position">
+      <span>${esTorneoVigente(torneo) ? "Posicion actual" : "Posicion en zona"}</span>
+      <strong>Zona ${datosTabla.zona} #${datosTabla.posicionZona}</strong>
+    </div>
+  `;
+}
+
+function agruparPartidosEquipoPorFase(partidosEquipo) {
+  const grupos = new Map();
+  const orden = [
+    ["regular", "Fase regular"],
+    ["octavos", "Octavos"],
+    ["cuartos", "Cuartos"],
+    ["semifinal", "Semifinales"],
+    ["final", "Final"]
+  ];
+
+  partidosEquipo.forEach(partido => {
+    const clave = partido.tipo === "regular"
+      ? "regular"
+      : partido.fase || "playoffs";
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(partido);
+  });
+
+  return [
+    ...orden
+      .filter(([clave]) => grupos.has(clave))
+      .map(([clave, titulo]) => ({
+        clave,
+        titulo,
+        partidos: grupos.get(clave).sort(ordenarPartidosCronologicamente)
+      })),
+    ...[...grupos.entries()]
+      .filter(([clave]) => !orden.some(([item]) => item === clave))
+      .map(([clave, partidos]) => ({
+        clave,
+        titulo: clave === "playoffs" ? "Playoffs" : clave,
+        partidos: partidos.sort(ordenarPartidosCronologicamente)
+      }))
+  ];
+}
+
+function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
+  if (partidosEquipo.length === 0) {
+    return `
+      <section class="detail-section">
+        <div class="detail-section-head">
+          <h2>Partidos del campeonato</h2>
+        </div>
+        <div class="detail-empty">
+          No hay partidos registrados para este equipo en el campeonato seleccionado.
+        </div>
+      </section>
+    `;
+  }
+
+  return agruparPartidosEquipoPorFase(partidosEquipo)
+    .map(grupo => `
+      <section class="detail-section team-season-matches">
+        <div class="detail-section-head">
+          <h2>${escaparHtml(grupo.titulo)}</h2>
+          <span>${grupo.partidos.length} ${grupo.partidos.length === 1 ? "partido" : "partidos"}</span>
+        </div>
+        <div class="team-match-list">
+          ${grupo.partidos.map(partido =>
+            renderMiniPartido(partido, equipo)
+          ).join("")}
+        </div>
+      </section>
+    `)
+    .join("");
+}
+
 function renderDetalleEquipo(equipo) {
   const cont = document.getElementById("teamDetail");
-  const zona = obtenerZonaEquipo(equipo);
-  const club = obtenerClub(equipo);
+  if (!cont) return;
 
-  if (!zona) {
+  if (!equipo && vistaActual.equipoSlug && !cargaPartidosFinalizada) {
+    cont.innerHTML = renderDetalleVacio("Cargando equipo...");
+    return;
+  }
+
+  if (!equipo && vistaActual.equipoSlug) {
+    equipo = resolverEquipoDesdeSegmentoRuta(vistaActual.equipoSlug);
+    vistaActual.equipo = equipo;
+  }
+
+  if (!equipo) {
     cont.innerHTML = renderDetalleVacio("Equipo no encontrado");
     return;
   }
 
-  const stats = calcularTablaZona(zona).find(
-    fila => fila.equipo === equipo
-  ) || {
-    pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0, pts: 0, forma: []
-  };
-  const partidosEquipo = state.partidos
-    .map(resolverPartidoPlayoff)
-    .filter(
-      partido =>
-        partido.local === equipo ||
-        partido.visitante === equipo
-    );
-  const partidosJugados = partidosEquipo
-    .filter(
-      partido =>
-        partido.goles_local !== null &&
-        partido.goles_visitante !== null
-    )
-    .sort(ordenarPartidosRecientes);
-  const jugados = partidosJugados.slice(0, 5);
-  const actividadReciente = [
-    ...partidosJugados,
-    ...obtenerFechasLibresEquipo(equipo, zona)
-  ]
-    .sort(ordenarActividadReciente)
-    .slice(0, 6);
-  const proximo = partidosEquipo
-    .filter(
-      partido =>
-        partido.goles_local === null ||
-        partido.goles_visitante === null
-    )
-    .filter(
-      partido =>
-        !partido.fecha_partido ||
-        diferenciaDiasConHoy(partido.fecha_partido) >= 0
-    )
-    .sort(ordenarPartidosProximos)[0];
+  if (errorCargaDatos && state.partidosTodos.length === 0) {
+    cont.innerHTML = `
+      <div class="detail-topbar">
+        <button type="button" class="detail-back" onclick="volverDetalle()">
+          ← Volver
+        </button>
+        <span class="detail-context">Detalle del equipo</span>
+      </div>
+      ${renderEstadoVista(
+        "error",
+        "No pudimos cargar el equipo",
+        "Revisa tu conexion e intenta nuevamente.",
+        true
+      )}
+    `;
+    return;
+  }
+
+  if (!cargaPartidosFinalizada) {
+    cont.innerHTML = `
+      <div class="detail-topbar">
+        <button type="button" class="detail-back" onclick="volverDetalle()">
+          ← Volver
+        </button>
+        <span class="detail-context">Detalle del equipo</span>
+      </div>
+      ${renderEstadoVista(
+        "cargando",
+        "Cargando equipo",
+        "Estamos preparando el historial del club."
+      )}
+    `;
+    return;
+  }
+
+  const club = obtenerClub(equipo);
+  const torneosEquipo = obtenerTorneosDisponiblesEquipo(equipo);
+  const seleccion = resolverSeleccionTorneoDetalleEquipo(torneosEquipo);
+  const torneoSeleccionado = seleccion.torneo;
+  const partidosTorneo = torneoSeleccionado
+    ? obtenerPartidosResueltosTorneoHistorial(torneoSeleccionado)
+    : [];
+  const partidosEquipo = torneoSeleccionado
+    ? partidosTorneo
+        .filter(partido => equipoParticipaEnPartido(partido, equipo))
+        .sort(ordenarPartidosCronologicamente)
+    : [];
+  const stats = calcularRendimientoEquipoTorneo(partidosEquipo, equipo);
+  const datosTabla = obtenerDatosTablaEquipoTorneo(equipo, partidosTorneo);
+  const eventosEquipo = obtenerEventosPartidosHistorial(partidosEquipo);
+  const destacados = calcularDestacadosEquipoTorneo(
+    equipo,
+    partidosEquipo,
+    eventosEquipo
+  );
+  const estadoTorneoEquipo = torneoSeleccionado
+    ? obtenerEstadoEquipoTorneoHistorial(equipo, partidosTorneo)
+    : null;
   const nombreEquipo = nombre(equipo);
   const nombreOficial = club?.nombre_oficial || equipo || nombreEquipo;
   const apodo = club?.apodo?.trim();
@@ -6036,8 +7175,88 @@ function renderDetalleEquipo(equipo) {
   const escudoEquipo = escudo
     ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreOficial)}" width="96" height="96" decoding="async">`
     : nombreEquipo.slice(0, 2).toUpperCase();
-  const estadoPlayoff = obtenerEstadoPlayoffEquipo(equipo);
 
+  if (
+    (seleccion.fallbackAplicado || seleccion.desdeUrl) &&
+    vistaActual.id === "equipo"
+  ) {
+    guardarVistaEnHistorial(true);
+  }
+
+  cont.innerHTML = `
+    <div class="detail-topbar">
+      <button type="button" class="detail-back" onclick="volverDetalle()">
+        ← Volver
+      </button>
+      <span class="detail-context">Detalle del equipo</span>
+    </div>
+
+    <article class="team-detail-card">
+      <div class="team-detail-head">
+        <div class="team-detail-shield">${escudoEquipo}</div>
+        <div>
+          <span>
+            ${datosTabla.zona ? `Zona ${datosTabla.zona}` : "Equipo"}
+            ${torneoSeleccionado
+              ? ` · ${escaparHtml(torneoSeleccionado.nombre)}`
+              : ""}
+            ${torneoSeleccionado && esTorneoVigente(torneoSeleccionado)
+              ? " · Actual"
+              : ""}
+          </span>
+          <h1>${escaparHtml(nombreOficial)}</h1>
+          ${apodo
+            ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
+            : ""}
+          ${ciudad
+            ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
+            : ""}
+          ${estadoTorneoEquipo
+            ? `<div class="team-stage-badge ${estadoTorneoEquipo.clase}">
+                ${escaparHtml(estadoTorneoEquipo.texto)}
+              </div>`
+            : ""}
+        </div>
+      </div>
+
+      ${renderSelectorTorneosDetalleEquipo(torneosEquipo, torneoSeleccionado)}
+      ${renderResumenTablaEquipo(datosTabla, torneoSeleccionado)}
+      <div class="team-stats-caption">
+        <span>Rendimiento</span>
+        <strong>Partidos finalizados</strong>
+      </div>
+      <div class="team-detail-stats">
+        ${renderStatEquipo("PJ", stats.pj)}
+        ${renderStatEquipo("PG", stats.pg)}
+        ${renderStatEquipo("PE", stats.pe)}
+        ${renderStatEquipo("PP", stats.pp)}
+        ${renderStatEquipo("GF", stats.gf)}
+        ${renderStatEquipo("GC", stats.gc)}
+        ${renderStatEquipo("DG", formatearDiferenciaGoles(stats.dg))}
+        ${renderStatEquipo("PTS", stats.pts)}
+        ${renderStatEquipo("EFE", `${stats.efectividad}%`)}
+      </div>
+      ${renderMetricasComplementariasEquipo(stats)}
+    </article>
+
+    ${torneosEquipo.length === 0
+      ? `
+        <section class="detail-section">
+          <div class="detail-empty">
+            No hay campeonatos con partidos registrados para este equipo.
+          </div>
+        </section>
+      `
+      : `
+        ${renderDestacadosEquipoTorneo(destacados, equipo)}
+        ${renderPartidosEquipoPorFase(partidosEquipo, equipo)}
+      `}
+  `;
+  return;
+}
+
+function renderDetalleEquipoLegacyInactivo() {
+  /*
   cont.innerHTML = `
     <div class="detail-topbar">
       <button type="button" class="detail-back" onclick="volverDetalle()">
@@ -6105,6 +7324,7 @@ function renderDetalleEquipo(equipo) {
       }
     </section>
   `;
+  */
 }
 
 function renderStatEquipo(etiqueta, valor) {

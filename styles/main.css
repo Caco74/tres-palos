@@ -3877,6 +3877,57 @@ body.detail-mode .app-main {
   color: var(--blue);
 }
 
+.team-season-switch {
+  min-height: 48px;
+  padding: 8px 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-season-switch > span,
+.team-season-position span,
+.team-season-extra span,
+.team-highlights span {
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.team-season-switch select {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  padding: 0 30px 0 10px;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+}
+
+.team-season-switch select:disabled {
+  color: var(--muted);
+}
+
+.team-season-position {
+  padding: 9px 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-season-position strong {
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
 .team-stats-caption {
   padding: 9px 1rem;
   border-top: 1px solid var(--border);
@@ -3897,7 +3948,7 @@ body.detail-mode .app-main {
 
 .team-detail-stats {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(9, 1fr);
   border-top: 1px solid rgba(58, 58, 66, .65);
 }
 
@@ -3918,6 +3969,49 @@ body.detail-mode .app-main {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.35rem;
   line-height: 1;
+}
+
+.team-season-extra,
+.team-highlights {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border);
+}
+
+.team-season-extra > div,
+.team-highlights > div {
+  min-width: 0;
+  padding: 11px 10px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+
+.team-season-extra > div:last-child,
+.team-highlights > div:last-child {
+  border-right: 0;
+}
+
+.team-season-extra strong,
+.team-highlights strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--white);
+  font-size: 0.8rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.team-highlights {
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 0;
+}
+
+.team-highlights small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.35;
 }
 
 .team-form {
@@ -6488,6 +6582,32 @@ body.detail-mode .app-main {
     grid-template-columns: repeat(3, 1fr);
   }
 
+  .team-season-switch,
+  .team-season-position {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .team-season-switch select {
+    width: 100%;
+  }
+
+  .team-season-extra,
+  .team-highlights {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .team-season-extra > div:nth-child(2n),
+  .team-highlights > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .team-season-extra > div:nth-child(n + 3),
+  .team-highlights > div:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
+  }
+
   .team-next-meta {
     grid-template-columns: 1fr 1fr;
   }
@@ -6501,11 +6621,11 @@ body.detail-mode .app-main {
     border-top: 1px solid var(--border);
   }
 
-  .team-detail-stats > div:nth-child(3) {
+  .team-detail-stats > div:nth-child(3n) {
     border-right: 0;
   }
 
-  .team-detail-stats > div:nth-child(-n+3) {
+  .team-detail-stats > div:nth-child(-n+6) {
     border-bottom: 1px solid var(--border);
   }
 

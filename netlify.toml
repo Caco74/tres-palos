@@ -5,6 +5,11 @@
 [functions]
   directory = "netlify/functions"
 
+[[redirects]]
+  from = "/equipos/*"
+  to = "/index.html"
+  status = 200
+
 [[headers]]
   for = "/tp-admin-7c9f2026.html"
   [headers.values]
