@@ -3428,8 +3428,7 @@ body.detail-mode .app-main {
 }
 
 .match-detail-meta span,
-.team-detail-head span,
-.team-detail-stats span {
+.team-detail-head span {
   display: block;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
@@ -3878,22 +3877,19 @@ body.detail-mode .app-main {
 }
 
 .team-season-switch {
-  min-height: 48px;
-  padding: 8px 1rem;
+  min-height: 44px;
+  padding: 7px 1rem 8px;
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.team-season-switch > span,
-.team-season-position span,
-.team-season-extra span,
-.team-highlights span {
+.team-season-switch > span {
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: 0.58rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -3914,101 +3910,87 @@ body.detail-mode .app-main {
   color: var(--muted);
 }
 
-.team-season-position {
-  padding: 9px 1rem;
-  border-top: 1px solid var(--border);
+.team-season-outcome {
+  padding: 0 1rem 10px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.team-season-outcome span {
+  color: var(--text);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.team-season-campaign {
+  margin: 2px 1rem 0;
+  padding: 12px 0 10px;
+  border-top: 1px solid rgba(58, 58, 66, .65);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
-.team-season-position strong {
-  color: var(--text);
-  font-size: 0.78rem;
+.team-season-campaign > div,
+.team-season-note {
+  min-width: 0;
 }
 
-.team-stats-caption {
-  padding: 9px 1rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.team-season-campaign span,
+.team-season-note span {
+  display: block;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.58rem;
+  letter-spacing: 0;
 }
 
-.team-stats-caption strong {
-  color: var(--text);
-  font-weight: 500;
-}
-
-.team-detail-stats {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  border-top: 1px solid rgba(58, 58, 66, .65);
-}
-
-.team-detail-stats > div {
-  padding: 11px 5px;
-  text-align: center;
-  border-right: 1px solid var(--border);
-}
-
-.team-detail-stats > div:last-child {
-  border-right: 0;
-}
-
-.team-detail-stats strong {
-  display: block;
-  margin-top: 3px;
-  color: var(--white);
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.35rem;
-  line-height: 1;
-}
-
-.team-season-extra,
-.team-highlights {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--border);
-}
-
-.team-season-extra > div,
-.team-highlights > div {
-  min-width: 0;
-  padding: 11px 10px;
-  border-right: 1px solid var(--border);
-  text-align: center;
-}
-
-.team-season-extra > div:last-child,
-.team-highlights > div:last-child {
-  border-right: 0;
-}
-
-.team-season-extra strong,
-.team-highlights strong {
+.team-season-campaign strong {
   display: block;
   margin-top: 4px;
   color: var(--white);
+  font-size: 0.95rem;
+  line-height: 1.15;
+}
+
+.team-season-campaign small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.team-season-notes {
+  margin: 0 1rem;
+  padding: 10px 0 4px;
+  border-top: 1px solid rgba(58, 58, 66, .45);
+  display: grid;
+  gap: 9px;
+}
+
+.team-season-note {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  gap: 2px 12px;
+  align-items: baseline;
+}
+
+.team-season-note span {
+  grid-row: 1 / span 2;
+}
+
+.team-season-note strong {
+  color: var(--white);
   font-size: 0.8rem;
+  font-weight: 600;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.team-highlights {
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 0;
-}
-
-.team-highlights small {
+.team-season-note small {
   display: block;
-  margin-top: 4px;
   color: var(--muted);
   font-size: 0.64rem;
   line-height: 1.35;
@@ -6578,12 +6560,7 @@ body.detail-mode .app-main {
     height: 66px;
   }
 
-  .team-detail-stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .team-season-switch,
-  .team-season-position {
+  .team-season-switch {
     align-items: stretch;
     flex-direction: column;
     gap: 7px;
@@ -6593,19 +6570,26 @@ body.detail-mode .app-main {
     width: 100%;
   }
 
-  .team-season-extra,
-  .team-highlights {
-    grid-template-columns: 1fr 1fr;
+  .team-season-campaign {
+    grid-template-columns: .7fr 1.35fr 1fr;
+    gap: 8px;
   }
 
-  .team-season-extra > div:nth-child(2n),
-  .team-highlights > div:nth-child(2n) {
-    border-right: 0;
+  .team-season-campaign strong {
+    font-size: 0.84rem;
   }
 
-  .team-season-extra > div:nth-child(n + 3),
-  .team-highlights > div:nth-child(n + 3) {
-    border-top: 1px solid var(--border);
+  .team-season-campaign small {
+    font-size: 0.58rem;
+  }
+
+  .team-season-note {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .team-season-note span {
+    grid-row: auto;
   }
 
   .team-next-meta {
@@ -6619,14 +6603,6 @@ body.detail-mode .app-main {
   .team-next-meta > div:last-child {
     grid-column: 1 / -1;
     border-top: 1px solid var(--border);
-  }
-
-  .team-detail-stats > div:nth-child(3n) {
-    border-right: 0;
-  }
-
-  .team-detail-stats > div:nth-child(-n+6) {
-    border-bottom: 1px solid var(--border);
   }
 
   .match-row {

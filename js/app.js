@@ -6769,14 +6769,6 @@ function obtenerEstadoEquipoTorneoHistorial(equipo, partidosTorneo) {
     : null;
 }
 
-function formatearDiferenciaGoles(valor) {
-  return valor > 0 ? `+${valor}` : String(valor);
-}
-
-function formatearDecimalLocal(valor) {
-  return Number(valor || 0).toFixed(2).replace(".", ",");
-}
-
 function obtenerEventosPartidosHistorial(partidos) {
   const ids = new Set(partidos.map(partido => String(partido.id)));
   return state.eventosTodos.filter(
@@ -6858,9 +6850,13 @@ function describirPartidoDesdeEquipo(partido, equipo) {
   const contexto = partido.tipo === "playoff"
     ? etiquetaFase(partido.fase)
     : `Fecha ${partido.fecha || "-"}`;
+  const marcador = `${favor}-${contra}`;
+  const rivalNombre = nombre(rival);
 
   return {
-    titulo: `${favor}-${contra} vs ${nombre(rival)}`,
+    marcador,
+    rival: rivalNombre,
+    titulo: `${marcador} ante ${rivalNombre}`,
     detalle: contexto
   };
 }
@@ -6911,64 +6907,62 @@ function calcularDestacadosEquipoTorneo(equipo, partidosEquipo, eventos) {
   };
 }
 
-function renderItemPartidosDestacados(partidos, equipo, tituloEmpate) {
-  if (partidos.length === 0) return "";
-
-  const descripcion = partidos
-    .slice(0, 2)
-    .map(partido => describirPartidoDesdeEquipo(partido, equipo))
-    .map(item => `${escaparHtml(item.titulo)} (${escaparHtml(item.detalle)})`)
-    .join(" / ");
-  const extras = partidos.length > 2 ? ` +${partidos.length - 2}` : "";
-
+function renderCampaniaEquipo(stats) {
   return `
-    <strong>${partidos.length > 1 ? tituloEmpate : descripcion}</strong>
-    ${partidos.length > 1
-      ? `<small>${descripcion}${extras}</small>`
-      : ""}
+    <div class="team-season-campaign" aria-label="Resumen de campania">
+      <div>
+        <span>Partidos</span>
+        <strong>${stats.pj}</strong>
+      </div>
+      <div>
+        <span>Campa&ntilde;a</span>
+        <strong>${stats.pg}G · ${stats.pe}E · ${stats.pp}P</strong>
+      </div>
+      <div>
+        <span>Goles</span>
+        <strong>${stats.gf}-${stats.gc}</strong>
+        <small>a favor / en contra</small>
+      </div>
+    </div>
   `;
 }
 
 function renderDestacadosEquipoTorneo(destacados, equipo) {
   const items = [];
 
-  if (destacados.mayoresVictorias.length > 0) {
-    items.push(`
-      <div>
-        <span>Mayor victoria</span>
-        ${renderItemPartidosDestacados(
-          destacados.mayoresVictorias,
-          equipo,
-          `${destacados.mayoresVictorias.length} partidos`
-        )}
-        <small>${destacados.mayorMargen} goles de margen</small>
-      </div>
-    `);
-  }
-
-  if (destacados.partidosMasGoles.length > 0) {
-    items.push(`
-      <div>
-        <span>Partido con mas goles</span>
-        ${renderItemPartidosDestacados(
-          destacados.partidosMasGoles,
-          equipo,
-          `${destacados.partidosMasGoles.length} partidos`
-        )}
-        <small>${destacados.mayorTotal} goles totales</small>
-      </div>
-    `);
-  }
-
   if (destacados.goleadores.jugadores.length > 0) {
     const nombresGoleadores = destacados.goleadores.jugadores
       .map(item => escaparHtml(item.jugador))
-      .join(" / ");
+      .join(" · ");
+    const goles = destacados.goleadores.goles;
+    const textoGoles = `${goles} ${goles === 1 ? "gol" : "goles"}`;
     items.push(`
-      <div>
-        <span>Maximo goleador</span>
+      <div class="team-season-note">
+        <span>Goleador</span>
         <strong>${nombresGoleadores}</strong>
-        <small>${destacados.goleadores.goles} goles</small>
+        <small>
+          ${destacados.goleadores.jugadores.length > 1
+            ? `comparten el primer lugar · ${textoGoles}`
+            : textoGoles}
+        </small>
+      </div>
+    `);
+  }
+
+  if (destacados.mayoresVictorias.length > 0) {
+    const partido = destacados.mayoresVictorias[0];
+    const descripcion = describirPartidoDesdeEquipo(partido, equipo);
+    items.push(`
+      <div class="team-season-note">
+        <span>Mayor victoria</span>
+        <strong>
+          ${escaparHtml(descripcion.marcador)}
+          ante ${escaparHtml(descripcion.rival)}
+        </strong>
+        <small>
+          ${escaparHtml(descripcion.detalle)}
+          ${destacados.mayoresVictorias.length > 1 ? " · compartida" : ""}
+        </small>
       </div>
     `);
   }
@@ -6976,49 +6970,30 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
   if (items.length === 0) return "";
 
   return `
-    <section class="detail-section">
-      <div class="detail-section-head">
-        <h2>Datos destacados</h2>
-      </div>
-      <div class="team-highlights">
-        ${items.join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderMetricasComplementariasEquipo(stats) {
-  if (stats.pj === 0) return "";
-
-  return `
-    <div class="team-season-extra">
-      <div>
-        <span>Local</span>
-        <strong>${stats.local.pg}G ${stats.local.pe}E ${stats.local.pp}P</strong>
-      </div>
-      <div>
-        <span>Visitante</span>
-        <strong>${stats.visitante.pg}G ${stats.visitante.pe}E ${stats.visitante.pp}P</strong>
-      </div>
-      <div>
-        <span>Prom. GF</span>
-        <strong>${formatearDecimalLocal(stats.promedioGf)}</strong>
-      </div>
-      <div>
-        <span>Arco en cero</span>
-        <strong>${stats.vallasInvictas}</strong>
-      </div>
+    <div class="team-season-notes">
+      ${items.join("")}
     </div>
   `;
 }
 
-function renderResumenTablaEquipo(datosTabla, torneo) {
-  if (!datosTabla.zona || !datosTabla.posicionZona) return "";
+function renderResumenTablaEquipo(datosTabla, estadoTorneoEquipo) {
+  const lineas = [];
+
+  if (datosTabla.zona && datosTabla.posicionZona) {
+    lineas.push(
+      `${datosTabla.posicionZona}.&ordm; en Zona ${datosTabla.zona}`
+    );
+  }
+
+  if (estadoTorneoEquipo?.texto) {
+    lineas.push(escaparHtml(estadoTorneoEquipo.texto));
+  }
+
+  if (lineas.length === 0) return "";
 
   return `
-    <div class="team-season-position">
-      <span>${esTorneoVigente(torneo) ? "Posicion actual" : "Posicion en zona"}</span>
-      <strong>Zona ${datosTabla.zona} #${datosTabla.posicionZona}</strong>
+    <div class="team-season-outcome">
+      ${lineas.map(linea => `<span>${linea}</span>`).join("")}
     </div>
   `;
 }
@@ -7211,32 +7186,16 @@ function renderDetalleEquipo(equipo) {
           ${ciudad
             ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
             : ""}
-          ${estadoTorneoEquipo
-            ? `<div class="team-stage-badge ${estadoTorneoEquipo.clase}">
-                ${escaparHtml(estadoTorneoEquipo.texto)}
-              </div>`
-            : ""}
         </div>
       </div>
 
       ${renderSelectorTorneosDetalleEquipo(torneosEquipo, torneoSeleccionado)}
-      ${renderResumenTablaEquipo(datosTabla, torneoSeleccionado)}
-      <div class="team-stats-caption">
-        <span>Rendimiento</span>
-        <strong>Partidos finalizados</strong>
-      </div>
-      <div class="team-detail-stats">
-        ${renderStatEquipo("PJ", stats.pj)}
-        ${renderStatEquipo("PG", stats.pg)}
-        ${renderStatEquipo("PE", stats.pe)}
-        ${renderStatEquipo("PP", stats.pp)}
-        ${renderStatEquipo("GF", stats.gf)}
-        ${renderStatEquipo("GC", stats.gc)}
-        ${renderStatEquipo("DG", formatearDiferenciaGoles(stats.dg))}
-        ${renderStatEquipo("PTS", stats.pts)}
-        ${renderStatEquipo("EFE", `${stats.efectividad}%`)}
-      </div>
-      ${renderMetricasComplementariasEquipo(stats)}
+      ${renderResumenTablaEquipo(
+        datosTabla,
+        estadoTorneoEquipo
+      )}
+      ${renderCampaniaEquipo(stats)}
+      ${renderDestacadosEquipoTorneo(destacados, equipo)}
     </article>
 
     ${torneosEquipo.length === 0
@@ -7248,92 +7207,10 @@ function renderDetalleEquipo(equipo) {
         </section>
       `
       : `
-        ${renderDestacadosEquipoTorneo(destacados, equipo)}
         ${renderPartidosEquipoPorFase(partidosEquipo, equipo)}
       `}
   `;
   return;
-}
-
-function renderDetalleEquipoLegacyInactivo() {
-  /*
-  cont.innerHTML = `
-    <div class="detail-topbar">
-      <button type="button" class="detail-back" onclick="volverDetalle()">
-        ← Volver
-      </button>
-      <span class="detail-context">Detalle del equipo</span>
-    </div>
-
-    <article class="team-detail-card">
-      <div class="team-detail-head">
-        <div class="team-detail-shield">${escudoEquipo}</div>
-        <div>
-          <span>Zona ${zona} · ${stats.pts} puntos</span>
-          <h1>${escaparHtml(nombreOficial)}</h1>
-          ${apodo
-            ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
-            : ""}
-          ${ciudad
-            ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
-            : ""}
-          ${estadoPlayoff
-            ? `<div class="team-stage-badge ${estadoPlayoff.clase}">
-                ${estadoPlayoff.texto}
-              </div>`
-            : ""}
-        </div>
-      </div>
-
-      <div class="team-stats-caption">
-        <span>Estadísticas</span>
-        <strong>Fase regular</strong>
-      </div>
-      <div class="team-detail-stats">
-        ${renderStatEquipo("PJ", stats.pj)}
-        ${renderStatEquipo("PG", stats.pg)}
-        ${renderStatEquipo("PE", stats.pe)}
-        ${renderStatEquipo("PP", stats.pp)}
-        ${renderStatEquipo("GF", stats.gf)}
-        ${renderStatEquipo("GC", stats.gc)}
-      </div>
-    </article>
-
-    <section class="detail-section">
-      <div class="detail-section-head">
-        <h2>Actividad reciente</h2>
-        ${renderFormaEquipo(jugados, equipo)}
-      </div>
-      ${actividadReciente.length > 0
-        ? `<div class="team-match-list">${actividadReciente.map(actividad =>
-            actividad.tipoActividad === "libre"
-              ? renderActividadLibre(actividad, equipo)
-              : renderMiniPartido(actividad, equipo)
-          ).join("")}</div>`
-        : `<div class="detail-empty">Sin datos de actividad cargados.</div>`
-      }
-    </section>
-
-    <section class="detail-section">
-      <div class="detail-section-head">
-        <h2>Próximo partido</h2>
-      </div>
-      ${proximo
-        ? renderProximoPartidoEquipo(proximo, equipo)
-        : `<div class="detail-empty">Próximo partido: ${ESTADOS_DATO.confirmar}.</div>`
-      }
-    </section>
-  `;
-  */
-}
-
-function renderStatEquipo(etiqueta, valor) {
-  return `
-    <div>
-      <span>${etiqueta}</span>
-      <strong>${valor}</strong>
-    </div>
-  `;
 }
 
 function renderFormaEquipo(partidos, equipo) {
