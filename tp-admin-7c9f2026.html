@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=9">
+  <link rel="stylesheet" href="styles/admin.css?v=10">
 </head>
 <body>
   <main class="admin-shell">
@@ -37,6 +37,37 @@
     </section>
 
     <section class="admin-app hidden" id="adminApp">
+      <section class="admin-card tournament-panel">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">Contexto obligatorio</span>
+            <h2>Torneo de trabajo</h2>
+          </div>
+          <span class="tournament-state" id="workTournamentState">
+            Sin seleccionar
+          </span>
+        </div>
+
+        <p class="stage-intro">
+          Elegi el torneo antes de cargar, corregir o eliminar datos del panel.
+          Las operaciones de partidos e incidencias quedan limitadas a este
+          torneo.
+        </p>
+
+        <div class="work-tournament-controls">
+          <label>
+            Torneo
+            <select id="workTournamentSelect" required>
+              <option value="">Cargando torneos...</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-feedback" id="workTournamentFeedback">
+          Selecciona un torneo para habilitar partidos e incidencias.
+        </div>
+      </section>
+
       <div class="toolbar">
         <div>
           <label for="typeFilter">Tipo</label>
@@ -815,6 +846,6 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=19"></script>
+  <script src="js/admin-panel.js?v=20"></script>
 </body>
 </html>

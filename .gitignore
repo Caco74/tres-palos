@@ -22,3 +22,4 @@ Thumbs.db
 
 # Artefactos temporales y respaldos locales
 .tmp/
+respaldos/*.json

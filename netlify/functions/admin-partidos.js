@@ -44,7 +44,10 @@ exports.handler = async event => {
 
   try {
     if (event.httpMethod === "GET") {
-      return await listMatches();
+      if (event.queryStringParameters?.scope === "torneos") {
+        return await listTournaments();
+      }
+      return await listMatches(event);
     }
 
     if (event.httpMethod === "PATCH") {
@@ -53,9 +56,16 @@ exports.handler = async event => {
 
     return json(405, { error: "Metodo no permitido." });
   } catch (error) {
-    const statusCode = error.code === "VALIDATION" ? 400 : 500;
+    const statusCode = getErrorStatus(error);
+    console.error("admin-partidos error", {
+      statusCode,
+      code: error.code || null,
+      message: error.message
+    });
     return json(statusCode, {
-      error: error.message || "Error interno.",
+      error: error.expose === false
+        ? "Error interno."
+        : error.message || "Error interno.",
       code: error.code || null
     });
   }
@@ -76,25 +86,109 @@ function isAuthorized(event) {
   return password && password === process.env.ADMIN_PASSWORD;
 }
 
-async function listMatches() {
+function getErrorStatus(error) {
+  if (Number.isInteger(error.statusCode)) return error.statusCode;
+  if (error.code === "VALIDATION") return 400;
+  if (error.code === "FORBIDDEN") return 403;
+  if (error.code === "NOT_FOUND") return 404;
+  if (["P0001", "23505", "CONFLICT"].includes(error.code)) return 409;
+  return 500;
+}
+
+function httpError(statusCode, code, message, expose = true) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  error.expose = expose;
+  return error;
+}
+
+function validationError(message) {
+  return httpError(400, "VALIDATION", message);
+}
+
+function parseBody(event) {
+  try {
+    return JSON.parse(event.body || "{}");
+  } catch (error) {
+    throw validationError("JSON invalido.");
+  }
+}
+
+function getTournamentId(value) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw validationError("Falta torneo_id valido.");
+  }
+  return id;
+}
+
+async function getTournament(id) {
   const response = await supabaseFetch(
-    "/rest/v1/partidos?select=*&order=id.asc"
+    "/rest/v1/torneos" +
+    "?select=id,anio,tipo,nombre,activo,fecha_inicio,fecha_fin" +
+    `&id=eq.${encodeURIComponent(id)}` +
+    "&limit=1"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+function assertMatchTournament(match, tournamentId) {
+  if (!match?.torneo_id) {
+    throw validationError("El partido no tiene torneo_id asignado.");
+  }
+  if (String(match.torneo_id) !== String(tournamentId)) {
+    throw httpError(
+      403,
+      "FORBIDDEN",
+      "El partido pertenece a otro torneo."
+    );
+  }
+}
+
+async function listTournaments() {
+  const response = await supabaseFetch(
+    "/rest/v1/torneos" +
+    "?select=id,anio,tipo,nombre,activo,fecha_inicio,fecha_fin" +
+    "&order=anio.desc,tipo.asc"
+  );
+  const torneos = await parseSupabaseResponse(response);
+  return json(200, { torneos });
+}
+
+async function listMatches(event) {
+  const torneoId = getTournamentId(
+    event.queryStringParameters?.torneo_id
+  );
+  const torneo = await getTournament(torneoId);
+  if (!torneo) throw httpError(404, "NOT_FOUND", "Torneo no encontrado.");
+
+  const response = await supabaseFetch(
+    "/rest/v1/partidos" +
+    "?select=*" +
+    `&torneo_id=eq.${encodeURIComponent(torneoId)}` +
+    "&order=id.asc"
   );
   const partidos = await parseSupabaseResponse(response);
-  return json(200, { partidos });
+  return json(200, { partidos, torneo });
 }
 
 async function updateMatch(event) {
-  const body = JSON.parse(event.body || "{}");
+  const body = parseBody(event);
   const id = Number(body.id);
+  const torneoId = getTournamentId(body.torneo_id);
 
   if (!Number.isInteger(id) || id <= 0) {
     return json(400, { error: "ID de partido invalido." });
   }
 
   const patch = sanitizePatch(body.patch || {});
+  const torneo = await getTournament(torneoId);
+  if (!torneo) throw httpError(404, "NOT_FOUND", "Torneo no encontrado.");
   const { existing, columns } = await getExistingMatch(id);
-  if (!existing) return json(404, { error: "Partido no encontrado." });
+  if (!existing) throw httpError(404, "NOT_FOUND", "Partido no encontrado.");
+  assertMatchTournament(existing, torneoId);
 
   const closedStage = await getClosedStage(existing);
   if (closedStage) {
@@ -130,7 +224,8 @@ async function updateMatch(event) {
   }
 
   const response = await supabaseFetch(
-    `/rest/v1/partidos?id=eq.${id}&select=*`,
+    `/rest/v1/partidos?id=eq.${id}` +
+      `&torneo_id=eq.${encodeURIComponent(torneoId)}&select=*`,
     {
       method: "PATCH",
       headers: {
@@ -140,9 +235,18 @@ async function updateMatch(event) {
     }
   );
   const updated = await parseSupabaseResponse(response);
+  const partidoActualizado = Array.isArray(updated) ? updated[0] : updated;
+  if (!partidoActualizado) {
+    throw httpError(
+      404,
+      "NOT_FOUND",
+      "Partido no encontrado para el torneo indicado."
+    );
+  }
 
   return json(200, {
-    partido: Array.isArray(updated) ? updated[0] : updated,
+    partido: partidoActualizado,
+    torneo,
     ignoredFields,
     savedFields: Object.keys(filtered)
   });
@@ -243,7 +347,7 @@ function sanitizePatch(patch) {
     if (NUMBER_FIELDS.has(key)) {
       const number = Number(raw);
       if (!Number.isInteger(number) || number < 0) {
-        throw new Error(`Valor numerico invalido para ${key}.`);
+        throw validationError(`Valor numerico invalido para ${key}.`);
       }
       output[key] = number;
       return;
@@ -252,7 +356,7 @@ function sanitizePatch(patch) {
     if (key === "estado") {
       const estado = String(raw).trim();
       if (!VALID_STATES.has(estado)) {
-        throw new Error("Estado invalido.");
+        throw validationError("Estado invalido.");
       }
       output[key] = estado;
       return;
@@ -261,7 +365,7 @@ function sanitizePatch(patch) {
     if (key === "fecha_partido") {
       const fecha = String(raw).trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-        throw new Error("Fecha invalida.");
+        throw validationError("Fecha invalida.");
       }
       output[key] = fecha;
       return;
@@ -270,7 +374,7 @@ function sanitizePatch(patch) {
     if (key === "hora") {
       const hora = String(raw).trim();
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
-        throw new Error("Hora invalida.");
+        throw validationError("Hora invalida.");
       }
       output[key] = hora;
       return;
@@ -363,6 +467,8 @@ async function parseSupabaseResponse(response) {
       data?.message || data?.error || "Error de Supabase."
     );
     error.code = data?.code || null;
+    error.statusCode = 500;
+    error.expose = false;
     throw error;
   }
 
