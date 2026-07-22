@@ -30,13 +30,24 @@ const VALID_STATES = new Set([
   "pendiente_resultado"
 ]);
 
+const TOURNAMENT_SELECT = "id,anio,tipo,nombre,activo";
+
 exports.handler = async event => {
   if (event.httpMethod === "OPTIONS") {
     return json(204, {});
   }
 
   const envError = getEnvError();
-  if (envError) return json(500, { error: envError });
+  if (envError) {
+    logSafeError({
+      operation: "handler",
+      stage: "validate_environment",
+      statusCode: 500,
+      code: "ENV_MISSING",
+      message: envError
+    });
+    return json(500, { error: envError, code: "ENV_MISSING" });
+  }
 
   if (!isAuthorized(event)) {
     return json(401, { error: "No autorizado." });
@@ -57,16 +68,17 @@ exports.handler = async event => {
     return json(405, { error: "Metodo no permitido." });
   } catch (error) {
     const statusCode = getErrorStatus(error);
-    console.error("admin-partidos error", {
+    logSafeError({
+      operation: error.operation || "handler",
+      stage: error.stage || "unknown",
       statusCode,
-      code: error.code || null,
-      message: error.message
+      error
     });
     return json(statusCode, {
       error: error.expose === false
         ? "Error interno."
         : error.message || "Error interno.",
-      code: error.code || null
+      code: getPublicErrorCode(error)
     });
   }
 };
@@ -107,6 +119,47 @@ function validationError(message) {
   return httpError(400, "VALIDATION", message);
 }
 
+function annotateError(error, context = {}) {
+  error.operation = error.operation || context.operation || null;
+  error.stage = error.stage || context.stage || null;
+  error.publicCode = error.publicCode || context.publicCode || null;
+  return error;
+}
+
+function getPublicErrorCode(error) {
+  return error.publicCode || error.code || null;
+}
+
+function sanitizeLogText(value) {
+  if (value === null || value === undefined) return null;
+  return String(value)
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [redacted]")
+    .replace(/(apikey|authorization)\s*[:=]\s*[^,\s}]+/gi, "$1=[redacted]")
+    .slice(0, 500);
+}
+
+function logSafeError({
+  operation,
+  stage,
+  statusCode,
+  error = null,
+  code = null,
+  message = null
+}) {
+  console.error("admin-partidos safe error", {
+    function: "admin-partidos",
+    operation,
+    stage,
+    statusCode,
+    code: code || error?.code || null,
+    message: sanitizeLogText(message || error?.message),
+    supabaseStatus: error?.supabaseStatus || null,
+    supabaseStatusText: sanitizeLogText(error?.supabaseStatusText),
+    supabaseCode: sanitizeLogText(error?.supabaseCode),
+    supabaseMessage: sanitizeLogText(error?.supabaseMessage)
+  });
+}
+
 function parseBody(event) {
   try {
     return JSON.parse(event.body || "{}");
@@ -124,14 +177,27 @@ function getTournamentId(value) {
 }
 
 async function getTournament(id) {
-  const response = await supabaseFetch(
-    "/rest/v1/torneos" +
-    "?select=id,anio,tipo,nombre,activo,fecha_inicio,fecha_fin" +
-    `&id=eq.${encodeURIComponent(id)}` +
-    "&limit=1"
-  );
-  const rows = await parseSupabaseResponse(response);
-  return Array.isArray(rows) ? rows[0] || null : null;
+  const operation = "getTournament";
+  try {
+    const response = await supabaseFetch(
+      "/rest/v1/torneos" +
+      `?select=${TOURNAMENT_SELECT}` +
+      `&id=eq.${encodeURIComponent(id)}` +
+      "&limit=1"
+    );
+    const rows = await parseSupabaseResponse(response, {
+      operation,
+      stage: "query_torneo",
+      publicCode: "TORNEO_QUERY_FAILED"
+    });
+    return Array.isArray(rows) ? rows[0] || null : null;
+  } catch (error) {
+    throw annotateError(error, {
+      operation,
+      stage: error.stage || "query_torneo",
+      publicCode: "TORNEO_QUERY_FAILED"
+    });
+  }
 }
 
 function assertMatchTournament(match, tournamentId) {
@@ -148,13 +214,26 @@ function assertMatchTournament(match, tournamentId) {
 }
 
 async function listTournaments() {
-  const response = await supabaseFetch(
-    "/rest/v1/torneos" +
-    "?select=id,anio,tipo,nombre,activo,fecha_inicio,fecha_fin" +
-    "&order=anio.desc,tipo.asc"
-  );
-  const torneos = await parseSupabaseResponse(response);
-  return json(200, { torneos });
+  const operation = "listTournaments";
+  try {
+    const response = await supabaseFetch(
+      "/rest/v1/torneos" +
+      `?select=${TOURNAMENT_SELECT}` +
+      "&order=anio.desc,tipo.asc"
+    );
+    const torneos = await parseSupabaseResponse(response, {
+      operation,
+      stage: "query_torneos",
+      publicCode: "TORNEOS_QUERY_FAILED"
+    });
+    return json(200, { torneos });
+  } catch (error) {
+    throw annotateError(error, {
+      operation,
+      stage: error.stage || "query_torneos",
+      publicCode: "TORNEOS_QUERY_FAILED"
+    });
+  }
 }
 
 async function listMatches(event) {
@@ -458,18 +537,37 @@ async function supabaseFetch(path, options = {}) {
   });
 }
 
-async function parseSupabaseResponse(response) {
+async function parseSupabaseResponse(response, context = {}) {
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (parseError) {
+    const error = httpError(
+      500,
+      context.publicCode || "SUPABASE_RESPONSE_INVALID",
+      "Respuesta invalida de Supabase.",
+      false
+    );
+    error.supabaseStatus = response.status || null;
+    error.supabaseStatusText = response.statusText || null;
+    error.supabaseMessage = sanitizeLogText(text);
+    throw annotateError(error, context);
+  }
 
   if (!response.ok) {
-    const error = new Error(
-      data?.message || data?.error || "Error de Supabase."
+    const error = httpError(
+      500,
+      context.publicCode || "SUPABASE_REQUEST_FAILED",
+      "Error de Supabase.",
+      false
     );
-    error.code = data?.code || null;
-    error.statusCode = 500;
-    error.expose = false;
-    throw error;
+    error.supabaseStatus = response.status || null;
+    error.supabaseStatusText = response.statusText || null;
+    error.supabaseCode = data?.code || null;
+    error.supabaseMessage =
+      data?.message || data?.error || data?.details || null;
+    throw annotateError(error, context);
   }
 
   return data;

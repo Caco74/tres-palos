@@ -18,6 +18,8 @@ const PERIODS = new Set([
   "segundo_tiempo"
 ]);
 
+const TOURNAMENT_SELECT = "id,anio,tipo,nombre,activo";
+
 exports.handler = async event => {
   if (event.httpMethod === "OPTIONS") {
     return json(204, {});
@@ -119,7 +121,7 @@ function getTournamentId(value) {
 async function getTournament(id) {
   const response = await supabaseFetch(
     "/rest/v1/torneos" +
-    "?select=id,anio,tipo,nombre,activo,fecha_inicio,fecha_fin" +
+    `?select=${TOURNAMENT_SELECT}` +
     `&id=eq.${encodeURIComponent(id)}` +
     "&limit=1"
   );
