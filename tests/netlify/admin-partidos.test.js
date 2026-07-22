@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { handler } = require("./admin-partidos");
+const { handler } = require("../../netlify/functions/admin-partidos");
 
 const DEFAULT_ENV = {
   SUPABASE_URL: "https://supabase.test",
