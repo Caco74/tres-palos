@@ -18,6 +18,8 @@ const PERIODS = new Set([
   "segundo_tiempo"
 ]);
 
+const TOURNAMENT_SELECT = "id,anio,tipo,nombre,activo";
+
 exports.handler = async event => {
   if (event.httpMethod === "OPTIONS") {
     return json(204, {});
@@ -32,11 +34,11 @@ exports.handler = async event => {
 
   try {
     if (event.httpMethod === "GET") {
-      return await listEvents();
+      return await listEvents(event);
     }
 
     if (["POST", "PATCH"].includes(event.httpMethod)) {
-      const body = JSON.parse(event.body || "{}");
+      const body = parseBody(event);
       if (
         event.httpMethod === "PATCH" &&
         body.action === "reordenar"
@@ -52,17 +54,17 @@ exports.handler = async event => {
 
     return json(405, { error: "Metodo no permitido." });
   } catch (error) {
-    const statusCode =
-      error.code === "VALIDATION"
-        ? 400
-        : error.code === "P0001"
-          ? 409
-        : error.code === "23505"
-          ? 409
-          : 500;
+    const statusCode = getErrorStatus(error);
+    console.error("admin-incidencias error", {
+      statusCode,
+      code: error.code || null,
+      message: error.message
+    });
 
     return json(statusCode, {
-      error: error.message || "Error interno.",
+      error: error.expose === false
+        ? "Error interno."
+        : error.message || "Error interno.",
       code: error.code || null
     });
   }
@@ -83,23 +85,112 @@ function isAuthorized(event) {
   return password && password === process.env.ADMIN_PASSWORD;
 }
 
-async function listEvents() {
+function getErrorStatus(error) {
+  if (Number.isInteger(error.statusCode)) return error.statusCode;
+  if (error.code === "VALIDATION") return 400;
+  if (error.code === "FORBIDDEN") return 403;
+  if (error.code === "NOT_FOUND") return 404;
+  if (["P0001", "23505", "CONFLICT"].includes(error.code)) return 409;
+  return 500;
+}
+
+function httpError(statusCode, code, message, expose = true) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  error.expose = expose;
+  return error;
+}
+
+function parseBody(event) {
+  try {
+    return JSON.parse(event.body || "{}");
+  } catch (error) {
+    throw validationError("JSON invalido.");
+  }
+}
+
+function getTournamentId(value) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw validationError("Falta torneo_id valido.");
+  }
+  return id;
+}
+
+async function getTournament(id) {
+  const response = await supabaseFetch(
+    "/rest/v1/torneos" +
+    `?select=${TOURNAMENT_SELECT}` +
+    `&id=eq.${encodeURIComponent(id)}` +
+    "&limit=1"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+async function assertTournamentExists(tournamentId) {
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) {
+    throw httpError(404, "NOT_FOUND", "Torneo no encontrado.");
+  }
+  return tournament;
+}
+
+function assertMatchTournament(match, tournamentId) {
+  if (!match?.torneo_id) {
+    throw validationError("El partido no tiene torneo_id asignado.");
+  }
+  if (String(match.torneo_id) !== String(tournamentId)) {
+    throw httpError(
+      403,
+      "FORBIDDEN",
+      "El recurso pertenece a otro torneo."
+    );
+  }
+}
+
+async function listEvents(event) {
+  const tournamentId = getTournamentId(
+    event.queryStringParameters?.torneo_id
+  );
+  const tournament = await assertTournamentExists(tournamentId);
+  const matchIds = await getTournamentMatchIds(tournamentId);
+  if (matchIds.length === 0) {
+    return json(200, { incidencias: [], torneo: tournament });
+  }
+
   const response = await supabaseFetch(
     "/rest/v1/eventos_partido" +
     "?select=*" +
+    `&partido_id=in.(${matchIds.map(encodeURIComponent).join(",")})` +
     "&order=partido_id.desc,orden.asc,id.asc"
   );
   const incidencias = await parseSupabaseResponse(response);
-  return json(200, { incidencias });
+  return json(200, { incidencias, torneo: tournament });
 }
 
 async function saveEvent(event) {
-  const body = JSON.parse(event.body || "{}");
+  const body = parseBody(event);
+  const tournamentId = getTournamentId(body.torneo_id);
+  await assertTournamentExists(tournamentId);
   const eventId = optionalId(body.id);
   const existing = eventId ? await getEvent(eventId) : null;
 
   if (event.httpMethod === "PATCH" && !existing) {
-    return json(404, { error: "Incidencia no encontrada." });
+    throw httpError(404, "NOT_FOUND", "Incidencia no encontrada.");
+  }
+
+  if (existing) {
+    const currentMatch = await getMatch(existing.partido_id);
+    if (!currentMatch) {
+      throw httpError(
+        404,
+        "NOT_FOUND",
+        "Partido de la incidencia no encontrado."
+      );
+    }
+    assertMatchTournament(currentMatch, tournamentId);
   }
 
   const matchId = requiredId(
@@ -107,7 +198,8 @@ async function saveEvent(event) {
     "Partido invalido."
   );
   const match = await getMatch(matchId);
-  if (!match) return json(404, { error: "Partido no encontrado." });
+  if (!match) throw httpError(404, "NOT_FOUND", "Partido no encontrado.");
+  assertMatchTournament(match, tournamentId);
 
   await assertStageOpen(match);
 
@@ -164,13 +256,22 @@ async function saveEvent(event) {
 
   const method = eventId ? "PATCH" : "POST";
   const path = eventId
-    ? `/rest/v1/eventos_partido?id=eq.${eventId}&select=*`
+    ? `/rest/v1/eventos_partido?id=eq.${eventId}` +
+      `&partido_id=eq.${encodeURIComponent(existing.partido_id)}` +
+      "&select=*"
     : "/rest/v1/eventos_partido?select=*";
   const {
     rows,
     periodoOmitido
   } = await persistEvent(path, method, input);
   const incidencia = Array.isArray(rows) ? rows[0] : rows;
+  if (!incidencia) {
+    throw httpError(
+      404,
+      "NOT_FOUND",
+      "Incidencia no encontrada para el torneo indicado."
+    );
+  }
 
   return json(eventId ? 200 : 201, {
     incidencia,
@@ -220,27 +321,50 @@ async function persistEvent(path, method, input) {
 }
 
 async function deleteEvent(event) {
-  const body = JSON.parse(event.body || "{}");
+  const body = parseBody(event);
+  const tournamentId = getTournamentId(body.torneo_id);
+  await assertTournamentExists(tournamentId);
   const eventId = requiredId(body.id, "Incidencia invalida.");
   const existing = await getEvent(eventId);
 
   if (!existing) {
-    return json(404, { error: "Incidencia no encontrada." });
+    throw httpError(404, "NOT_FOUND", "Incidencia no encontrada.");
   }
 
   const match = await getMatch(existing.partido_id);
-  if (match) await assertStageOpen(match);
+  if (!match) {
+    throw httpError(
+      404,
+      "NOT_FOUND",
+      "Partido de la incidencia no encontrado."
+    );
+  }
+  assertMatchTournament(match, tournamentId);
+  await assertStageOpen(match);
 
   const response = await supabaseFetch(
-    `/rest/v1/eventos_partido?id=eq.${eventId}`,
-    { method: "DELETE" }
+    `/rest/v1/eventos_partido?id=eq.${eventId}` +
+      `&partido_id=eq.${encodeURIComponent(existing.partido_id)}`,
+    {
+      method: "DELETE",
+      headers: { Prefer: "return=representation" }
+    }
   );
-  await parseSupabaseResponse(response);
+  const deleted = await parseSupabaseResponse(response);
+  if (Array.isArray(deleted) && deleted.length === 0) {
+    throw httpError(
+      404,
+      "NOT_FOUND",
+      "Incidencia no encontrada para el torneo indicado."
+    );
+  }
 
   return json(200, { eliminado: eventId });
 }
 
 async function reorderEvents(body) {
+  const tournamentId = getTournamentId(body.torneo_id);
+  await assertTournamentExists(tournamentId);
   const matchId = requiredId(
     body.partido_id,
     "Partido invalido."
@@ -256,7 +380,8 @@ async function reorderEvents(body) {
   }
 
   const match = await getMatch(matchId);
-  if (!match) return json(404, { error: "Partido no encontrado." });
+  if (!match) throw httpError(404, "NOT_FOUND", "Partido no encontrado.");
+  assertMatchTournament(match, tournamentId);
   await assertStageOpen(match);
 
   const existing = await getMatchEvents(matchId);
@@ -277,15 +402,15 @@ async function reorderEvents(body) {
 
   try {
     for (let index = 0; index < ids.length; index += 1) {
-      await patchEventOrder(ids[index], 100000 + index);
+      await patchEventOrder(ids[index], 100000 + index, matchId);
     }
     for (let index = 0; index < ids.length; index += 1) {
-      await patchEventOrder(ids[index], index + 1);
+      await patchEventOrder(ids[index], index + 1, matchId);
     }
   } catch (error) {
     for (const [id, order] of original.entries()) {
       try {
-        await patchEventOrder(id, order);
+        await patchEventOrder(id, order, matchId);
       } catch (rollbackError) {
         console.error(
           "No se pudo restaurar el orden de incidencia:",
@@ -313,18 +438,27 @@ async function getMatchEvents(matchId) {
   return Array.isArray(rows) ? rows : [];
 }
 
-async function patchEventOrder(id, order) {
+async function patchEventOrder(id, order, matchId) {
   const response = await supabaseFetch(
-    `/rest/v1/eventos_partido?id=eq.${id}`,
+    `/rest/v1/eventos_partido?id=eq.${id}` +
+      `&partido_id=eq.${encodeURIComponent(matchId)}`,
     {
       method: "PATCH",
+      headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         orden: order,
         actualizado_en: new Date().toISOString()
       })
     }
   );
-  await parseSupabaseResponse(response);
+  const updated = await parseSupabaseResponse(response);
+  if (Array.isArray(updated) && updated.length === 0) {
+    throw httpError(
+      404,
+      "NOT_FOUND",
+      "Incidencia no encontrada para el partido indicado."
+    );
+  }
 }
 
 function sanitizeInput(body, match) {
@@ -464,6 +598,19 @@ async function getMatch(id) {
   const rows = await parseSupabaseResponse(response);
   const match = Array.isArray(rows) ? rows[0] || null : null;
   return match ? await resolveMatchClubIds(match) : null;
+}
+
+async function getTournamentMatchIds(tournamentId) {
+  const response = await supabaseFetch(
+    "/rest/v1/partidos" +
+    "?select=id" +
+    `&torneo_id=eq.${encodeURIComponent(tournamentId)}` +
+    "&order=id.asc"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return (Array.isArray(rows) ? rows : [])
+    .map(match => Number(match.id))
+    .filter(id => Number.isInteger(id) && id > 0);
 }
 
 async function resolveMatchClubIds(match) {
@@ -712,6 +859,8 @@ async function parseSupabaseResponse(response) {
       data?.message || data?.error || "Error de Supabase."
     );
     error.code = data?.code || null;
+    error.statusCode = 500;
+    error.expose = false;
     throw error;
   }
 

@@ -180,6 +180,35 @@ p {
   align-items: end;
 }
 
+.work-tournament-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 420px);
+  gap: 10px;
+}
+
+.tournament-state {
+  padding: 7px 10px;
+  color: var(--yellow);
+  background: rgba(244, 185, 66, .08);
+  border: 1px solid rgba(244, 185, 66, .25);
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tournament-state[data-state="ok"] {
+  color: var(--green);
+  background: rgba(53, 199, 122, .08);
+  border-color: rgba(53, 199, 122, .25);
+}
+
+.tournament-state[data-state="error"] {
+  color: var(--red);
+  background: rgba(255, 48, 69, .08);
+  border-color: rgba(255, 48, 69, .25);
+}
+
 .status {
   margin: 0;
   position: sticky;
@@ -1262,6 +1291,7 @@ body.live-picker-open {
 @media (max-width: 760px) {
   .auth-form,
   .toolbar,
+  .work-tournament-controls,
   .admin-grid,
   .analytics-grid,
   .stage-controls,

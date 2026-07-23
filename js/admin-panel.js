@@ -5,6 +5,7 @@ const CLUBS_API_URL = "/.netlify/functions/admin-clubes";
 const ROSTERS_API_URL = "/.netlify/functions/admin-planteles";
 const EVENTS_API_URL = "/.netlify/functions/admin-incidencias";
 const PASSWORD_KEY = "tp_admin_password";
+const WORK_TOURNAMENT_KEY = "tp_admin_work_tournament_id";
 const PLAYOFF_STAGES = [
   { value: "octavos", label: "Octavos de Final" },
   { value: "cuartos", label: "Cuartos de Final" },
@@ -17,6 +18,11 @@ const authForm = document.getElementById("authForm");
 const adminPassword = document.getElementById("adminPassword");
 const adminApp = document.getElementById("adminApp");
 const statusBox = document.getElementById("statusBox");
+const workTournamentSelect = document.getElementById("workTournamentSelect");
+const workTournamentState = document.getElementById("workTournamentState");
+const workTournamentFeedback = document.getElementById(
+  "workTournamentFeedback"
+);
 const matchList = document.getElementById("matchList");
 const matchForm = document.getElementById("matchForm");
 const emptyEditor = document.getElementById("emptyEditor");
@@ -163,9 +169,12 @@ const eventFields = {
 let partidos = [];
 let clubes = [];
 let torneos = [];
+let torneosTrabajo = [];
 let jugadores = [];
 let inscripcionesJugadores = [];
 let incidencias = [];
+let torneoTrabajoId = null;
+let torneoTrabajoCargando = false;
 let seleccionadoId = null;
 let partidoOriginal = null;
 let clubSeleccionadoId = null;
@@ -197,7 +206,11 @@ function setSaveFeedback(message, type = "info") {
 }
 
 function setSaving(isSaving) {
-  saveBtn.disabled = isSaving || partidoSeleccionadoCerrado();
+  saveBtn.disabled =
+    isSaving ||
+    !torneoTrabajoValido() ||
+    !partidoPerteneceTorneoTrabajo(partidoOriginal) ||
+    partidoSeleccionadoCerrado();
   saveBtn.textContent = isSaving ? "Guardando..." : "Guardar cambios";
 }
 
@@ -227,8 +240,16 @@ function setRosterFeedback(message, type = "info") {
 }
 
 function setEventSaving(isSaving) {
-  saveEventBtn.disabled = isSaving;
-  deleteEventBtn.disabled = isSaving;
+  const partido = partidoIncidenciasSeleccionado();
+  const etapa = obtenerEtapaPartidoAdmin(partido);
+  const etapaCerrada =
+    obtenerEstadoEtapa(etapa)?.estado === "cerrada";
+  const bloqueado =
+    !torneoTrabajoValido() ||
+    !partidoPerteneceTorneoTrabajo(partido) ||
+    etapaCerrada;
+  saveEventBtn.disabled = isSaving || bloqueado;
+  deleteEventBtn.disabled = isSaving || bloqueado || !eventFields.id.value;
   saveEventBtn.textContent = isSaving
     ? "Guardando..."
     : "Guardar incidencia";
@@ -263,6 +284,269 @@ function showAuth() {
   adminApp.classList.add("hidden");
   authCard.classList.remove("hidden");
   adminPassword.focus();
+}
+
+function idTorneoDesdeSesion() {
+  return sessionStorage.getItem(WORK_TOURNAMENT_KEY) || "";
+}
+
+function torneoTrabajoActual() {
+  return torneosTrabajo.find(
+    torneo => String(torneo.id) === String(torneoTrabajoId)
+  ) || null;
+}
+
+function torneoTrabajoValido() {
+  return Boolean(torneoTrabajoActual());
+}
+
+function etiquetaTorneoTrabajo(torneo = torneoTrabajoActual()) {
+  if (!torneo) return "Sin torneo";
+  return [
+    torneo.nombre || `Torneo #${torneo.id}`,
+    torneo.temporada || torneo.anio,
+    torneo.estado || (torneo.activo ? "vigente" : "historico")
+  ].filter(Boolean).join(" - ");
+}
+
+function partidoPerteneceTorneoTrabajo(partido) {
+  return Boolean(
+    partido &&
+    torneoTrabajoValido() &&
+    String(partido.torneo_id) === String(torneoTrabajoId)
+  );
+}
+
+function requerirTorneoTrabajoId() {
+  if (!torneoTrabajoValido()) {
+    throw new Error("Selecciona un torneo de trabajo valido.");
+  }
+  return Number(torneoTrabajoId);
+}
+
+function setWorkTournamentFeedback(message, type = "info") {
+  workTournamentFeedback.textContent = message;
+  workTournamentFeedback.dataset.type = type;
+}
+
+function setWorkTournamentState(message, type = "") {
+  workTournamentState.textContent = message;
+  workTournamentState.dataset.state = type;
+}
+
+function renderSelectorTorneoTrabajo() {
+  if (torneoTrabajoCargando && torneosTrabajo.length === 0) {
+    workTournamentSelect.innerHTML =
+      `<option value="">Cargando torneos...</option>`;
+    workTournamentSelect.disabled = true;
+    return;
+  }
+
+  if (torneosTrabajo.length === 0) {
+    workTournamentSelect.innerHTML =
+      `<option value="">No hay torneos disponibles</option>`;
+    workTournamentSelect.disabled = true;
+    setWorkTournamentState("No disponible", "error");
+    setWorkTournamentFeedback(
+      "No se pudieron cargar torneos desde Supabase.",
+      "error"
+    );
+    return;
+  }
+
+  const valorActual = torneoTrabajoValido()
+    ? String(torneoTrabajoId)
+    : "";
+  workTournamentSelect.innerHTML = `
+    <option value="">Seleccionar torneo...</option>
+    ${torneosTrabajo.map(torneo => `
+      <option value="${torneo.id}">
+        ${escapeHtml(etiquetaTorneoTrabajo(torneo))}
+      </option>
+    `).join("")}
+  `;
+  workTournamentSelect.value = valorActual;
+  workTournamentSelect.disabled = torneoTrabajoCargando;
+}
+
+function actualizarBloqueoPorTorneo() {
+  const bloqueado = !torneoTrabajoValido() || torneoTrabajoCargando;
+  typeFilter.disabled = bloqueado;
+  searchInput.disabled = bloqueado;
+  stageAdminSelect.disabled = bloqueado || etapasDisponibles.length === 0;
+  stageNote.disabled = bloqueado || etapasDisponibles.length === 0;
+  eventMatch.disabled = bloqueado || partidos.length === 0;
+  liveMatch.disabled = bloqueado || partidos.length === 0 || liveBusy;
+
+  newEventBtn.disabled =
+    bloqueado || !partidoIncidenciasSeleccionado();
+  clearScoreBtn.disabled =
+    bloqueado || !partidoPerteneceTorneoTrabajo(partidoOriginal);
+  saveBtn.disabled =
+    bloqueado ||
+    !partidoPerteneceTorneoTrabajo(partidoOriginal) ||
+    partidoSeleccionadoCerrado();
+  closeStageBtn.disabled = bloqueado || closeStageBtn.disabled;
+  reopenStageBtn.disabled = bloqueado || reopenStageBtn.disabled;
+  liveUndoBtn.disabled = bloqueado || liveUndoBtn.disabled;
+  liveFinishBtn.disabled = bloqueado || liveFinishBtn.disabled;
+  saveEventBtn.disabled = bloqueado || saveEventBtn.disabled;
+  deleteEventBtn.disabled = bloqueado || deleteEventBtn.disabled;
+}
+
+function limpiarContextoTorneo(message) {
+  partidos = [];
+  incidencias = [];
+  seleccionadoId = null;
+  partidoOriginal = null;
+  incidenciaSeleccionadaId = null;
+  etapasEstado = [];
+  respaldosEtapa = [];
+  etapasDisponibles = [];
+  etapasHabilitadas = false;
+  etapaProcesando = false;
+  eventReordering = false;
+  liveAction = null;
+  liveChangeOutId = null;
+
+  cerrarSelectorModo();
+  matchForm.reset();
+  matchForm.classList.add("hidden");
+  emptyEditor.classList.remove("hidden");
+  eventForm.reset();
+  eventForm.classList.add("hidden");
+  emptyEventEditor.classList.remove("hidden");
+
+  matchList.innerHTML = `
+    <div class="empty-list">
+      ${escapeHtml(message || "Selecciona un torneo para listar partidos.")}
+    </div>
+  `;
+  eventsTotal.textContent = "0 incidencias";
+  eventMatch.innerHTML = `<option value="">Selecciona un torneo</option>`;
+  liveMatch.innerHTML = `<option value="">Selecciona un torneo</option>`;
+  eventList.innerHTML = `
+    <div class="analytics-empty">
+      ${escapeHtml(message || "Selecciona un torneo para listar incidencias.")}
+    </div>
+  `;
+  newEventBtn.disabled = true;
+
+  stageAdminSelect.innerHTML =
+    `<option value="">Selecciona un torneo</option>`;
+  stageAdminSelect.disabled = true;
+  stageState.textContent = "Sin torneo";
+  stageState.dataset.state = "";
+  stageMatchesTotal.textContent = "0";
+  stageMatchesReady.textContent = "0";
+  stageMatchesPending.textContent = "0";
+  stageValidation.textContent =
+    message || "Selecciona un torneo para controlar etapas.";
+  stageValidation.dataset.type = "warn";
+  closeStageBtn.disabled = true;
+  reopenStageBtn.disabled = true;
+  backupCount.textContent = "0 copias";
+  backupList.innerHTML = `
+    <div class="analytics-empty">
+      ${escapeHtml(message || "Selecciona un torneo para ver respaldos.")}
+    </div>
+  `;
+
+  liveLocalName.textContent = "Por definir";
+  liveAwayName.textContent = "Por definir";
+  liveScore.textContent = "- - -";
+  liveGoalProgress.textContent =
+    "Selecciona un torneo y un partido para identificar goles.";
+  liveGoalProgress.className = "live-goal-progress pending";
+  liveConsistencyState.textContent = "Sin revisar";
+  liveConsistencyState.dataset.state = "";
+  liveConsistencyList.className = "";
+  liveConsistencyList.textContent =
+    "Selecciona un torneo y un partido para revisar sus incidencias.";
+  liveLocalActions.innerHTML = "";
+  liveAwayActions.innerHTML = "";
+  liveEventCount.textContent = "0 incidencias";
+  liveTimeline.textContent = "Selecciona un torneo para comenzar.";
+  liveUndoBtn.disabled = true;
+  liveFinishBtn.disabled = true;
+
+  setSaveFeedback("Selecciona un torneo para habilitar la edicion.", "warn");
+  setEventFeedback("Selecciona un torneo para habilitar incidencias.", "warn");
+  actualizarBloqueoPorTorneo();
+}
+
+function mostrarEstadoSinTorneo(message) {
+  torneoTrabajoId = null;
+  sessionStorage.removeItem(WORK_TOURNAMENT_KEY);
+  renderSelectorTorneoTrabajo();
+  setWorkTournamentState("Sin seleccionar", "");
+  setWorkTournamentFeedback(
+    message || "Selecciona un torneo para habilitar partidos e incidencias.",
+    "warn"
+  );
+  limpiarContextoTorneo(message);
+}
+
+async function cargarTorneosTrabajo() {
+  torneoTrabajoCargando = true;
+  renderSelectorTorneoTrabajo();
+  setWorkTournamentState("Cargando", "");
+  setWorkTournamentFeedback("Cargando torneos desde Supabase...");
+
+  try {
+    const data = await apiRequest(
+      "GET",
+      null,
+      `${API_URL}?scope=torneos`
+    );
+    torneosTrabajo = Array.isArray(data.torneos) ? data.torneos : [];
+    renderSelectorTorneoTrabajo();
+    return torneosTrabajo;
+  } catch (error) {
+    torneosTrabajo = [];
+    mostrarEstadoSinTorneo(
+      `No se pudieron cargar torneos: ${error.message}`
+    );
+    throw error;
+  } finally {
+    torneoTrabajoCargando = false;
+    renderSelectorTorneoTrabajo();
+  }
+}
+
+async function activarTorneoTrabajo(id, options = {}) {
+  const torneo = torneosTrabajo.find(
+    item => String(item.id) === String(id)
+  );
+  if (!torneo) {
+    mostrarEstadoSinTorneo("El torneo seleccionado ya no existe.");
+    throw new Error("Torneo de trabajo no encontrado.");
+  }
+
+  torneoTrabajoId = String(torneo.id);
+  sessionStorage.setItem(WORK_TOURNAMENT_KEY, torneoTrabajoId);
+  workTournamentSelect.value = torneoTrabajoId;
+  setWorkTournamentState("Seleccionado", "ok");
+  setWorkTournamentFeedback(
+    `${etiquetaTorneoTrabajo(torneo)} queda como torneo de trabajo.`,
+    "ok"
+  );
+  limpiarContextoTorneo(
+    `Cargando datos de ${etiquetaTorneoTrabajo(torneo)}...`
+  );
+  setStatus(`Cargando ${etiquetaTorneoTrabajo(torneo)}...`);
+
+  await cargarPartidos();
+  await cargarEtapasAdmin().catch(error =>
+    mostrarEtapasNoDisponibles(error.message)
+  );
+  await cargarIncidenciasAdmin().catch(error =>
+    mostrarIncidenciasNoDisponibles(error.message)
+  );
+
+  if (!options.desdeSesion) {
+    setStatus(`Torneo de trabajo: ${etiquetaTorneoTrabajo(torneo)}.`, "ok");
+  }
 }
 
 async function apiRequest(method, body, url = API_URL) {
@@ -359,17 +643,12 @@ function mostrarAnaliticaNoDisponible(message) {
 }
 
 async function cargarEtapasAdmin() {
-  const torneoIds = obtenerTorneoIdsPartidosAdmin();
-  if (torneoIds.length === 0) {
-    throw new Error("No hay partidos con torneo_id para controlar etapas.");
-  }
+  const torneoId = requerirTorneoTrabajoId();
 
   const data = await apiRequest(
     "GET",
     null,
-    `${STAGES_API_URL}?torneo_id=${torneoIds
-      .map(encodeURIComponent)
-      .join(",")}`
+    `${STAGES_API_URL}?torneo_id=${encodeURIComponent(torneoId)}`
   );
   etapasEstado = Array.isArray(data.etapas) ? data.etapas : [];
   respaldosEtapa = Array.isArray(data.respaldos) ? data.respaldos : [];
@@ -381,9 +660,11 @@ function mostrarEtapasNoDisponibles(message) {
   etapasHabilitadas = false;
   etapasEstado = [];
   respaldosEtapa = [];
+  etapasDisponibles = [];
   stageAdminSelect.innerHTML =
     `<option>Configuración pendiente</option>`;
   stageAdminSelect.disabled = true;
+  stageNote.disabled = true;
   closeStageBtn.disabled = true;
   reopenStageBtn.disabled = true;
   stageState.textContent = "No disponible";
@@ -492,6 +773,7 @@ function renderControlEtapas() {
   if (etapasDisponibles.length === 0) {
     stageAdminSelect.innerHTML = `<option>Sin etapas disponibles</option>`;
     stageAdminSelect.disabled = true;
+    stageNote.disabled = true;
     closeStageBtn.disabled = true;
     reopenStageBtn.disabled = true;
     stageState.textContent = "Sin datos";
@@ -500,6 +782,7 @@ function renderControlEtapas() {
       "No hay fechas ni fases cargadas para controlar.";
     stageValidation.dataset.type = "warn";
     renderRespaldos();
+    actualizarBloqueoPorTorneo();
     return;
   }
 
@@ -509,6 +792,7 @@ function renderControlEtapas() {
     )
     .join("");
   stageAdminSelect.disabled = false;
+  stageNote.disabled = false;
 
   const seleccionExiste = etapasDisponibles.some(
     etapa => etapa.key === seleccionAnterior
@@ -599,10 +883,15 @@ function actualizarBloqueoEditor(partido) {
   const seleccionado = partido || partidos.find(
     item => String(item.id) === String(seleccionadoId)
   );
-  if (!seleccionado || matchForm.classList.contains("hidden")) return;
+  if (!seleccionado || matchForm.classList.contains("hidden")) {
+    actualizarBloqueoPorTorneo();
+    return;
+  }
 
   const etapa = obtenerEtapaPartidoAdmin(seleccionado);
   const cerrada = obtenerEstadoEtapa(etapa)?.estado === "cerrada";
+  const fueraDeTorneo = !partidoPerteneceTorneoTrabajo(seleccionado);
+  const bloqueado = cerrada || fueraDeTorneo || !torneoTrabajoValido();
   [
     fields.local,
     fields.visitante,
@@ -616,10 +905,28 @@ function actualizarBloqueoEditor(partido) {
     fields.penalesLocal,
     fields.penalesVisitante
   ].forEach(control => {
-    control.disabled = cerrada;
+    control.disabled = bloqueado;
   });
-  clearScoreBtn.disabled = cerrada;
-  saveBtn.disabled = cerrada;
+  clearScoreBtn.disabled = bloqueado;
+  saveBtn.disabled = bloqueado;
+
+  if (fueraDeTorneo) {
+    setSaveFeedback(
+      "Este partido no pertenece al torneo de trabajo.",
+      "error"
+    );
+    actualizarBloqueoPorTorneo();
+    return;
+  }
+
+  if (!torneoTrabajoValido()) {
+    setSaveFeedback(
+      "Selecciona un torneo para habilitar la edicion.",
+      "warn"
+    );
+    actualizarBloqueoPorTorneo();
+    return;
+  }
 
   if (cerrada) {
     setSaveFeedback(
@@ -627,6 +934,7 @@ function actualizarBloqueoEditor(partido) {
       "warn"
     );
   }
+  actualizarBloqueoPorTorneo();
 }
 
 function obtenerPartidosEtapa(etapa) {
@@ -670,6 +978,23 @@ function partidoListoParaCierre(partido) {
 
 function renderEtapaSeleccionada() {
   const etapa = obtenerEtapaSeleccionada();
+  if (!etapa) {
+    stageMatchesTotal.textContent = "0";
+    stageMatchesReady.textContent = "0";
+    stageMatchesPending.textContent = "0";
+    stageState.textContent = torneoTrabajoValido()
+      ? "Sin etapa"
+      : "Sin torneo";
+    stageState.dataset.state = "";
+    stageValidation.textContent = torneoTrabajoValido()
+      ? "No hay etapas disponibles para el torneo seleccionado."
+      : "Selecciona un torneo para controlar etapas.";
+    stageValidation.dataset.type = "warn";
+    closeStageBtn.disabled = true;
+    reopenStageBtn.disabled = true;
+    actualizarBloqueoPorTorneo();
+    return;
+  }
   const estado = obtenerEstadoEtapa(etapa);
   const partidosEtapa = obtenerPartidosEtapa(etapa);
   const completos = partidosEtapa.filter(partidoListoParaCierre);
@@ -1539,12 +1864,27 @@ async function cambiarEstadoInscripcionJugador() {
 }
 
 async function cargarIncidenciasAdmin() {
+  const torneoId = requerirTorneoTrabajoId();
   const partidoPrevio = eventMatch.value;
   const partidoRapidoPrevio = liveMatch.value;
-  const data = await apiRequest("GET", null, EVENTS_API_URL);
+  const data = await apiRequest(
+    "GET",
+    null,
+    `${EVENTS_API_URL}?torneo_id=${encodeURIComponent(torneoId)}`
+  );
   incidencias = Array.isArray(data.incidencias)
     ? data.incidencias
     : [];
+  const partidosValidos = new Set(partidos.map(partido => String(partido.id)));
+  const incidenciaFueraDeTorneo = incidencias.find(
+    evento => !partidosValidos.has(String(evento.partido_id))
+  );
+  if (incidenciaFueraDeTorneo) {
+    incidencias = [];
+    throw new Error(
+      "La respuesta de incidencias contiene datos fuera del torneo de trabajo."
+    );
+  }
 
   renderOpcionesPartidosIncidencias(
     partidoPrevio,
@@ -1576,6 +1916,15 @@ function renderOpcionesPartidosIncidencias(
   partidoPrevio = "",
   partidoRapidoPrevio = ""
 ) {
+  if (!torneoTrabajoValido()) {
+    eventMatch.innerHTML = `<option value="">Selecciona un torneo</option>`;
+    liveMatch.innerHTML = eventMatch.innerHTML;
+    eventMatch.disabled = true;
+    liveMatch.disabled = true;
+    newEventBtn.disabled = true;
+    return;
+  }
+
   const ordenados = [...partidos].sort(
     (a, b) =>
       String(b.fecha_partido || "").localeCompare(
@@ -1608,7 +1957,7 @@ function renderOpcionesPartidosIncidencias(
     ordenados[0];
 
   eventMatch.value = sugerido ? String(sugerido.id) : "";
-  newEventBtn.disabled = !sugerido;
+  newEventBtn.disabled = !sugerido || !torneoTrabajoValido();
 
   liveMatch.innerHTML = eventMatch.innerHTML;
   const sugeridoRapido =
@@ -1625,12 +1974,14 @@ function renderOpcionesPartidosIncidencias(
   liveMatch.value = sugeridoRapido
     ? String(sugeridoRapido.id)
     : "";
+  actualizarBloqueoPorTorneo();
 }
 
 function partidoIncidenciasSeleccionado() {
-  return partidos.find(
+  const partido = partidos.find(
     partido => String(partido.id) === eventMatch.value
   ) || null;
+  return partidoPerteneceTorneoTrabajo(partido) ? partido : null;
 }
 
 function incidenciasVisibles() {
@@ -1646,6 +1997,18 @@ function incidenciasVisibles() {
 }
 
 function renderIncidenciasAdmin() {
+  if (!torneoTrabajoValido()) {
+    eventsTotal.textContent = "0 incidencias";
+    eventList.innerHTML = `
+      <div class="analytics-empty">
+        Selecciona un torneo para listar incidencias.
+      </div>
+    `;
+    newEventBtn.disabled = true;
+    actualizarBloqueoPorTorneo();
+    return;
+  }
+
   const visibles = incidenciasVisibles();
   const partido = partidoIncidenciasSeleccionado();
   const etapa = obtenerEtapaPartidoAdmin(partido);
@@ -1655,6 +2018,7 @@ function renderIncidenciasAdmin() {
     `${visibles.length} ${
       visibles.length === 1 ? "incidencia" : "incidencias"
     }`;
+  newEventBtn.disabled = !partido || etapaCerrada || !torneoTrabajoValido();
 
   if (!eventMatch.value) {
     eventList.innerHTML = `
@@ -1792,9 +2156,10 @@ function momentoIncidencia(evento) {
 }
 
 function partidoModoSeleccionado() {
-  return partidos.find(
+  const partido = partidos.find(
     partido => String(partido.id) === liveMatch.value
   ) || null;
+  return partidoPerteneceTorneoTrabajo(partido) ? partido : null;
 }
 
 function incidenciasModoPartido() {
@@ -2210,6 +2575,7 @@ function renderTimelineModo(partido, eventos) {
 function renderModoPartido() {
   const partido = partidoModoSeleccionado();
   const eventos = incidenciasModoPartido();
+  const sinTorneo = !torneoTrabajoValido();
   const local = resolverEquipoPartidoAdmin(partido, "local");
   const visitante = resolverEquipoPartidoAdmin(partido, "visitante");
   const etapa = obtenerEtapaPartidoAdmin(partido);
@@ -2218,7 +2584,7 @@ function renderModoPartido() {
   const finalizado = partido?.estado === "finalizado";
   const sinEquipos = !local.id || !visitante.id;
   const bloqueado =
-    !partido || etapaCerrada || sinEquipos;
+    sinTorneo || !partido || etapaCerrada || sinEquipos;
   const marcador = partido
     ? calcularMarcadorModo(partido)
     : { local: 0, visitante: 0 };
@@ -2249,7 +2615,9 @@ function renderModoPartido() {
 
   let estado = "Preparado";
   let estadoClave = "";
-  if (!partido) {
+  if (sinTorneo) {
+    estado = "Sin torneo";
+  } else if (!partido) {
     estado = "Sin seleccionar";
   } else if (etapaCerrada) {
     estado = "Etapa cerrada";
@@ -2284,7 +2652,8 @@ function renderModoPartido() {
   renderTimelineModo(partido, eventos);
   renderConsistenciaModo(partido, eventos);
 
-  liveMatch.disabled = liveBusy || partidos.length === 0;
+  liveMatch.disabled =
+    liveBusy || sinTorneo || partidos.length === 0;
   liveUndoBtn.disabled =
     liveBusy || bloqueado || eventos.length === 0;
   liveFinishBtn.disabled =
@@ -2315,6 +2684,10 @@ function inscripcionesModoEquipo(equipoId, torneoId) {
 function abrirSelectorModo(lado, tipo) {
   const partido = partidoModoSeleccionado();
   if (!partido || liveBusy) return;
+  if (!torneoTrabajoValido()) {
+    setLiveFeedback("Selecciona un torneo antes de cargar incidencias.", "error");
+    return;
+  }
 
   const etapa = obtenerEtapaPartidoAdmin(partido);
   if (obtenerEstadoEtapa(etapa)?.estado === "cerrada") {
@@ -2449,6 +2822,7 @@ function cerrarSelectorModo() {
 
 async function seleccionarJugadorModo(valor) {
   if (!liveAction || liveBusy) return;
+  const torneoId = requerirTorneoTrabajoId();
 
   const inscripcionId = valor === "unknown"
     ? null
@@ -2460,7 +2834,14 @@ async function seleccionarJugadorModo(valor) {
   }
 
   const partidoId = liveAction.partidoId;
+  const partido = partidos.find(
+    item => String(item.id) === String(partidoId)
+  );
+  if (!partidoPerteneceTorneoTrabajo(partido)) {
+    throw new Error("El partido no pertenece al torneo de trabajo.");
+  }
   const valores = {
+    torneo_id: torneoId,
     partido_id: partidoId,
     tipo: liveAction.tipo,
     equipo_id: liveAction.equipoId,
@@ -2504,14 +2885,17 @@ async function seleccionarJugadorModo(valor) {
 }
 
 async function deshacerUltimaAccionModo() {
+  const torneoId = requerirTorneoTrabajoId();
   const eventos = incidenciasModoPartido();
   const ultima = eventos[eventos.length - 1];
   if (!ultima || liveBusy) return;
+  const partido = partidoModoSeleccionado();
 
   const confirmar = window.confirm(
     `¿Deshacer ${etiquetaTipoIncidencia(ultima.tipo)} de ${
       nombreParticipanteModo(ultima)
-    }?`
+    } en ${partido ? nombrePartido(partido) : "el partido"} ` +
+    `(${etiquetaTorneoTrabajo()})?`
   );
   if (!confirmar) return;
 
@@ -2522,7 +2906,7 @@ async function deshacerUltimaAccionModo() {
   try {
     await apiRequest(
       "DELETE",
-      { id: ultima.id },
+      { id: ultima.id, torneo_id: torneoId },
       EVENTS_API_URL
     );
     await cargarPartidos();
@@ -2539,12 +2923,13 @@ async function deshacerUltimaAccionModo() {
 async function finalizarPartidoModo() {
   const partido = partidoModoSeleccionado();
   if (!partido || liveBusy) return;
+  const torneoId = requerirTorneoTrabajoId();
 
   const marcador = calcularMarcadorModo(partido);
   const confirmar = window.confirm(
     `¿Finalizar ${nombrePartido(partido)} ${marcador.local} - ${
       marcador.visitante
-    }?`
+    } en ${etiquetaTorneoTrabajo()}?`
   );
   if (!confirmar) return;
 
@@ -2553,6 +2938,7 @@ async function finalizarPartidoModo() {
 
   try {
     await apiRequest("PATCH", {
+      torneo_id: torneoId,
       id: partido.id,
       patch: {
         estado: "finalizado",
@@ -2710,7 +3096,13 @@ function inferirEquipoIncidencia(evento, partido) {
 
 function iniciarNuevaIncidencia() {
   const partido = partidoIncidenciasSeleccionado();
-  if (!partido) return;
+  if (!partido) {
+    setEventFeedback(
+      "Selecciona un partido del torneo de trabajo.",
+      "error"
+    );
+    return;
+  }
 
   incidenciaSeleccionadaId = null;
   eventForm.reset();
@@ -2733,6 +3125,7 @@ function iniciarNuevaIncidencia() {
     "Se agregará al final de la secuencia del partido."
   );
   renderIncidenciasAdmin();
+  setEventSaving(false);
 }
 
 function seleccionarIncidencia(id) {
@@ -2744,7 +3137,13 @@ function seleccionarIncidencia(id) {
   const partido = partidos.find(
     item => String(item.id) === String(incidencia.partido_id)
   );
-  if (!partido) return;
+  if (!partidoPerteneceTorneoTrabajo(partido)) {
+    setEventFeedback(
+      "La incidencia no pertenece al torneo de trabajo.",
+      "error"
+    );
+    return;
+  }
 
   incidenciaSeleccionadaId = incidencia.id;
   eventMatch.value = String(incidencia.partido_id);
@@ -2782,10 +3181,12 @@ function seleccionarIncidencia(id) {
       : "Modificá los datos disponibles y guardá."
   );
   renderIncidenciasAdmin();
+  setEventSaving(false);
 }
 
 function valoresFormularioIncidencia() {
   return {
+    torneo_id: requerirTorneoTrabajoId(),
     id: eventFields.id.value || null,
     partido_id: Number(eventMatch.value),
     tipo: eventFields.type.value,
@@ -2850,6 +3251,10 @@ function validarIncidencia(valores) {
 
 async function guardarIncidencia(event) {
   event.preventDefault();
+  const partido = partidoIncidenciasSeleccionado();
+  if (!partido) {
+    throw new Error("Selecciona un partido del torneo de trabajo.");
+  }
   const valores = valoresFormularioIncidencia();
   validarIncidencia(valores);
 
@@ -2886,11 +3291,25 @@ async function guardarIncidencia(event) {
 }
 
 async function eliminarIncidencia() {
+  const torneoId = requerirTorneoTrabajoId();
   const id = Number(eventFields.id.value);
   if (!id) return;
+  const incidencia = incidencias.find(
+    item => String(item.id) === String(id)
+  );
+  const partido = incidencia
+    ? partidos.find(item =>
+        String(item.id) === String(incidencia.partido_id)
+      )
+    : null;
+  if (!partidoPerteneceTorneoTrabajo(partido)) {
+    throw new Error("La incidencia no pertenece al torneo de trabajo.");
+  }
 
   const confirmar = window.confirm(
-    "¿Eliminar esta incidencia? Esta acción no modifica el resultado."
+    `Eliminar ${etiquetaTipoIncidencia(incidencia.tipo)} de ` +
+    `${nombreParticipanteModo(incidencia)} en ${nombrePartido(partido)} ` +
+    `(${etiquetaTorneoTrabajo()})? Esta accion no modifica el resultado.`
   );
   if (!confirmar) return;
 
@@ -2900,7 +3319,7 @@ async function eliminarIncidencia() {
   try {
     await apiRequest(
       "DELETE",
-      { id },
+      { id, torneo_id: torneoId },
       EVENTS_API_URL
     );
     incidenciaSeleccionadaId = null;
@@ -2934,6 +3353,7 @@ async function moverIncidencia(id, direction) {
 
   const partido = partidoIncidenciasSeleccionado();
   if (!partido) return;
+  const torneoId = requerirTorneoTrabajoId();
 
   const ids = visibles.map(evento => Number(evento.id));
   [ids[currentIndex], ids[targetIndex]] =
@@ -2946,6 +3366,7 @@ async function moverIncidencia(id, direction) {
     await apiRequest(
       "PATCH",
       {
+        torneo_id: torneoId,
         action: "reordenar",
         partido_id: partido.id,
         ids
@@ -2964,14 +3385,15 @@ async function moverIncidencia(id, direction) {
 }
 
 async function cargarPanel() {
-  await cargarPartidos();
+  const torneoGuardado = idTorneoDesdeSesion();
+  mostrarEstadoSinTorneo(
+    "Selecciona un torneo para habilitar partidos e incidencias."
+  );
+  await cargarTorneosTrabajo();
 
   await Promise.all([
     cargarAnalitica().catch(error =>
       mostrarAnaliticaNoDisponible(error.message)
-    ),
-    cargarEtapasAdmin().catch(error =>
-      mostrarEtapasNoDisponibles(error.message)
     ),
     cargarClubesAdmin().catch(error =>
       mostrarClubesNoDisponibles(error.message)
@@ -2982,20 +3404,61 @@ async function cargarPanel() {
     mostrarPlantelesNoDisponibles(error.message)
   );
 
-  await cargarIncidenciasAdmin().catch(error =>
-    mostrarIncidenciasNoDisponibles(error.message)
+  if (
+    torneoGuardado &&
+    torneosTrabajo.some(torneo =>
+      String(torneo.id) === String(torneoGuardado)
+    )
+  ) {
+    await activarTorneoTrabajo(torneoGuardado, { desdeSesion: true });
+    setStatus(
+      `Torneo de trabajo: ${etiquetaTorneoTrabajo()}.`,
+      "ok"
+    );
+    return;
+  }
+
+  mostrarEstadoSinTorneo(
+    "Selecciona un torneo para habilitar partidos e incidencias."
   );
+  setStatus("Selecciona un torneo de trabajo.", "warn");
 }
 
 async function cargarPartidos() {
+  const torneoId = requerirTorneoTrabajoId();
   setStatus("Cargando partidos...");
-  const data = await apiRequest("GET");
+  const data = await apiRequest(
+    "GET",
+    null,
+    `${API_URL}?torneo_id=${encodeURIComponent(torneoId)}`
+  );
   partidos = Array.isArray(data.partidos) ? data.partidos : [];
+  const partidoFueraDeTorneo = partidos.find(
+    partido => !partidoPerteneceTorneoTrabajo(partido)
+  );
+  if (partidoFueraDeTorneo) {
+    partidos = [];
+    throw new Error(
+      "La respuesta de partidos contiene datos fuera del torneo de trabajo."
+    );
+  }
   renderLista();
-  setStatus(`${partidos.length} partidos cargados.`, "ok");
+  setStatus(
+    `${partidos.length} partidos cargados para ${etiquetaTorneoTrabajo()}.`,
+    "ok"
+  );
 }
 
 function renderLista() {
+  if (!torneoTrabajoValido()) {
+    matchList.innerHTML = `
+      <div class="empty-list">
+        Selecciona un torneo para listar partidos.
+      </div>
+    `;
+    return;
+  }
+
   const tipo = typeFilter.value;
   const busqueda = searchInput.value.trim().toLowerCase();
 
@@ -3065,6 +3528,11 @@ function renderLista() {
 function seleccionarPartido(id) {
   const partido = partidos.find(item => String(item.id) === String(id));
   if (!partido) return;
+  if (!partidoPerteneceTorneoTrabajo(partido)) {
+    setStatus("El partido no pertenece al torneo de trabajo.", "error");
+    setSaveFeedback("Selecciona un partido del torneo de trabajo.", "error");
+    return;
+  }
 
   const partidoVisible = resolverPartidoPlayoffAdmin(partido);
   const tieneEquiposSugeridos =
@@ -3403,9 +3871,13 @@ function limpiarResultado() {
 
 async function guardarPartido(event) {
   event.preventDefault();
+  const torneoId = requerirTorneoTrabajoId();
 
   const id = fields.id.value;
   if (!id) return;
+  if (!partidoPerteneceTorneoTrabajo(partidoOriginal)) {
+    throw new Error("El partido no pertenece al torneo de trabajo.");
+  }
 
   const valores = {
     local: valorTexto(fields.local),
@@ -3439,7 +3911,7 @@ async function guardarPartido(event) {
   setSaveFeedback("Guardando cambios...");
 
   try {
-    const data = await apiRequest("PATCH", { id, patch });
+    const data = await apiRequest("PATCH", { id, torneo_id: torneoId, patch });
     const partidoGuardado = data.partido || {};
     const ignorados = data.ignoredFields?.length
       ? ` Campos ignorados porque no existen en DB: ${data.ignoredFields.join(", ")}.`
@@ -3604,11 +4076,28 @@ matchForm.addEventListener("submit", event => {
 
 typeFilter.addEventListener("change", renderLista);
 searchInput.addEventListener("input", renderLista);
+workTournamentSelect.addEventListener("change", () => {
+  const torneoId = workTournamentSelect.value;
+  if (!torneoId) {
+    mostrarEstadoSinTorneo(
+      "Selecciona un torneo para habilitar partidos e incidencias."
+    );
+    setStatus("Selecciona un torneo de trabajo.", "warn");
+    return;
+  }
+
+  activarTorneoTrabajo(torneoId).catch(error => {
+    setStatus(error.message, "error");
+    setWorkTournamentFeedback(error.message, "error");
+    mostrarEstadoSinTorneo(error.message);
+  });
+});
 refreshBtn.addEventListener("click", () => {
   cargarPanel().catch(error => setStatus(error.message, "error"));
 });
 logoutBtn.addEventListener("click", () => {
   sessionStorage.removeItem(PASSWORD_KEY);
+  sessionStorage.removeItem(WORK_TOURNAMENT_KEY);
   showAuth();
 });
 clearScoreBtn.addEventListener("click", limpiarResultado);
