@@ -15,7 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0A0B0D">
 
-<!-- Dominio planificado: actualizar estas URLs si cambia antes del lanzamiento. -->
+<!-- Dominio oficial: actualizar estas URLs solo si cambia el dominio público. -->
 <link rel="canonical" href="https://trespalos.com.ar/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_AR">
@@ -309,79 +309,66 @@
 
       <div class="tp-footer__content">
         <div class="tp-footer__grid">
-          <section class="tp-footer__about" aria-labelledby="footer-project-title">
-            <div class="tp-footer__eyebrow" id="footer-project-title">
-              Sobre el proyecto
+          <section class="tp-footer__summary" aria-labelledby="footer-project-title">
+            <div class="tp-footer__brand-row">
+              <img
+                class="tp-footer__brand-mark"
+                src="/assets/brand/tres-palos-isotipo-sin-curva.svg"
+                alt=""
+                width="40"
+                height="36"
+              >
+              <p class="tp-footer__brand-title" id="footer-project-title">
+                Tres Palos <span>· Fútbol regional</span>
+              </p>
             </div>
-            <img
-              class="tp-footer__brand-logo"
-              src="/assets/brand/tres-palos-logo-horizontal-fondo-oscuro.svg"
-              alt="Tres Palos — Fútbol Regional"
-              width="240"
-              height="63"
-            >
             <p class="tp-footer__text">
-              Un proyecto para seguir la <strong>Liga Cañadense</strong> en datos.
-              Sin noticias, sin periodismo. Solo resultados, posiciones y el torneo
-              en tiempo real.
-              <br><br>
+              Resultados, posiciones y estadísticas de la Liga Cañadense,
+              reunidos en un solo lugar.
+            </p>
+            <p class="tp-footer__tagline">
               Hecho por hinchas, para hinchas.
             </p>
-            <a class="tp-footer__about-link" href="/acerca.html">
-              Acerca de Tres Palos <span aria-hidden="true">→</span>
-            </a>
           </section>
 
-          <div class="tp-footer__details">
-            <div class="tp-footer__contact">
-              <div>
-                <div class="tp-footer__contact-label">Contacto</div>
-                <p class="tp-footer__contact-text">
-                  ¿Error en un dato?<br>Escribinos.
-                </p>
-              </div>
-
-              <a
-                class="tp-footer__contact-link"
-                href="mailto:contacto@trespalos.com.ar"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                <span>Escribir</span>
-              </a>
+          <section class="tp-footer__contact" aria-labelledby="footer-contact-title">
+            <div>
+              <h2 class="tp-footer__contact-title" id="footer-contact-title">
+                ¿Encontraste un dato incorrecto?
+              </h2>
+              <p class="tp-footer__contact-text">
+                Avisanos para revisarlo.
+              </p>
             </div>
 
-            <div class="tp-footer__meta">
-              <div class="tp-footer__meta-row">
-                <span class="tp-footer__meta-key">Torneo</span>
-                <span class="tp-footer__meta-value" id="footer-tournament">
-                  Liga Cañadense 2026
-                </span>
-              </div>
-              <div class="tp-footer__meta-divider"></div>
-              <div class="tp-footer__meta-row">
-                <span class="tp-footer__meta-key">Etapa actual</span>
-                <span class="tp-footer__meta-value" id="footer-stage">
-                  Semifinales
-                </span>
-              </div>
-              <div class="tp-footer__meta-divider"></div>
-              <div class="tp-footer__meta-row">
-                <span class="tp-footer__meta-key">Última actualización</span>
-                <span class="tp-footer__meta-value" id="footer-last-update"></span>
-              </div>
-            </div>
-          </div>
+            <a
+              class="tp-footer__contact-link"
+              href="mailto:trespalos.lcf@gmail.com?subject=Correcci%C3%B3n%20de%20dato%20en%20Tres%20Palos&body=Secci%C3%B3n%20o%20partido%3A%0ADato%20a%20corregir%3A%0AFuente%20o%20detalle%3A"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              <span>Informar un error</span>
+            </a>
+          </section>
         </div>
 
-        <div class="tp-footer__signature">
-          <p class="tp-footer__signature-text">
-            Sitio independiente. Datos del fútbol regional relevados y actualizados
-            por Tres Palos.
-          </p>
-          <div class="tp-footer__signature-mark">Tres<span>·</span>Palos</div>
+        <nav class="tp-footer__links" aria-label="Enlaces del pie de página">
+          <a href="/acerca.html">Acerca del proyecto</a>
+          <span aria-hidden="true">·</span>
+          <a href="mailto:trespalos.lcf@gmail.com?subject=Correcci%C3%B3n%20de%20dato%20en%20Tres%20Palos&body=Secci%C3%B3n%20o%20partido%3A%0ADato%20a%20corregir%3A%0AFuente%20o%20detalle%3A">Contacto</a>
+        </nav>
+
+        <p class="tp-footer__source">
+          Información recopilada de publicaciones de la Liga y los clubes. Puede estar sujeta a correcciones.
+        </p>
+
+        <div class="tp-footer__bottom">
+          <a class="tp-footer__domain" href="https://trespalos.com.ar">
+            trespalos.com.ar
+          </a>
+          <span>© 2026 Tres Palos</span>
         </div>
       </div>
     </footer>
