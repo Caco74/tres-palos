@@ -1,4 +1,4 @@
-# Dominio planificado: cambiar esta URL si el dominio definitivo fuera otro.
+# Dominio oficial: cambiar esta URL solo si cambia el dominio público.
 User-agent: *
 Allow: /
 

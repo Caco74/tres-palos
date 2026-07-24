@@ -289,10 +289,19 @@ a:focus-visible {
 }
 
 .about-footer a {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
   color: #c8c8cf;
   font-size: .78rem;
   text-decoration-color: var(--red);
   text-underline-offset: 4px;
+}
+
+.about-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 
 .about-footer__mark {
