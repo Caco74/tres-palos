@@ -231,15 +231,19 @@ a:focus-visible {
   line-height: 1.85;
 }
 
+.about-section-copy > p + p {
+  margin-top: 14px;
+}
+
 .about-principles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .about-principles article {
-  min-height: 190px;
-  padding: 24px 20px;
+  min-height: 0;
+  padding: 20px 18px;
   border: 1px solid var(--border);
   background: var(--surface);
 }
@@ -248,7 +252,7 @@ a:focus-visible {
   content: '';
   width: 26px;
   height: 2px;
-  margin-bottom: 42px;
+  margin-bottom: 28px;
   display: block;
   background: var(--red);
 }
@@ -263,7 +267,7 @@ a:focus-visible {
 }
 
 .about-principles p {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
   font-size: .82rem;
   line-height: 1.65;
@@ -353,14 +357,15 @@ a:focus-visible {
 
   .about-principles {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .about-principles article {
-    min-height: 0;
+    padding: 18px 16px;
   }
 
   .about-principles article::before {
-    margin-bottom: 24px;
+    margin-bottom: 14px;
   }
 
   .about-footer {
