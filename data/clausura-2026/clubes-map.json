@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "torneo": "Clausura 2026",
+    "torneo_id_confirmado": 2,
+    "confirmacion": "Supabase REST publico, solo lectura, 2026-07-25",
+    "nota": "Mapeo explicito entre nombres de la fuente oficial y clubes existentes. No crea ni modifica clubes."
+  },
+  "clubes": [
+    {
+      "nombre_fuente": "C.A. COSMOPOLITA",
+      "nombre_en_proyecto": "C.A. Cosmopolita",
+      "club_id": 49,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "SPORT C. CAÑADENSE",
+      "nombre_en_proyecto": "Sport C. Cañadense",
+      "club_id": 47,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "SPORTIVO A. CLUB",
+      "nombre_en_proyecto": "Sportivo A. Club",
+      "club_id": 43,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. CORREA",
+      "nombre_en_proyecto": "C.A. Correa",
+      "club_id": 53,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "DEF. SPORTSMAN",
+      "nombre_en_proyecto": "Def. Sportsman",
+      "club_id": 54,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "AD.EVERTON/OLIMPIA",
+      "nombre_en_proyecto": "AD Everton/Olimpia",
+      "club_id": 46,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "ARGENTINO A. CLUB",
+      "nombre_en_proyecto": "Argentino A. Club",
+      "club_id": 55,
+      "zona": 1,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. MONTES DE OCA",
+      "nombre_en_proyecto": "C.A. Montes de Oca",
+      "club_id": 48,
+      "zona": 2,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. N.O. BOYS",
+      "nombre_en_proyecto": "C.A. N.O. Boys",
+      "club_id": 59,
+      "zona": 2,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. CAMPAÑA",
+      "nombre_en_proyecto": "C.A. Campaña",
+      "club_id": 52,
+      "zona": 2,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. UNION C.S.D.",
+      "nombre_en_proyecto": "C.A. Unión C.S.D.",
+      "club_id": 56,
+      "zona": 2,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. AMERICA",
+      "nombre_en_proyecto": "C.A. América",
+      "club_id": 58,
+      "zona": 2,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "BELGRANO A.C.",
+      "nombre_en_proyecto": "Belgrano A.C.",
+      "club_id": 61,
+      "zona": 2,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. DEFENSORES",
+      "nombre_en_proyecto": "C.A. Defensores",
+      "club_id": 44,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. SAN JERONIMO",
+      "nombre_en_proyecto": "C.A. San Jerónimo",
+      "club_id": 60,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. ALMAFUERTE",
+      "nombre_en_proyecto": "C.A. Almafuerte",
+      "club_id": 50,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. UNION TORTUGAS",
+      "nombre_en_proyecto": "C.A. Unión Tortugas",
+      "club_id": 62,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. BARRACA",
+      "nombre_en_proyecto": "C.A. Barraca",
+      "club_id": 63,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A. EL PORVENIR DEL NORTE",
+      "nombre_en_proyecto": "C.A. El Porvenir del Norte",
+      "club_id": 45,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    },
+    {
+      "nombre_fuente": "C.A.WILLIAMS KEMMIS",
+      "nombre_en_proyecto": "C.A. Williams Kemmis",
+      "club_id": 51,
+      "zona": 3,
+      "metodo": "normalización confirmada",
+      "estado": "confirmado"
+    }
+  ]
+}
