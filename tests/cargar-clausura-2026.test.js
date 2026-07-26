@@ -1,9 +1,13 @@
 "use strict";
 
 const assert = require("assert").strict;
+const fs = require("fs");
+const path = require("path");
 
 const cargar = require("../scripts/cargar-clausura-2026");
 const preparar = require("../scripts/preparar-clausura-2026");
+
+const ROOT = path.resolve(__dirname, "..");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -17,18 +21,34 @@ function assertThrowsMessage(run, pattern) {
 }
 
 const PARTIDOS_COMPARISON_TYPES = {
-  torneo_id: "bigint",
-  tipo: "text",
+  arbitro: "text",
+  dia: "text",
+  estado: "text",
+  estadio: "text",
+  fase: "text",
   fecha: "integer",
-  zona: "text",
+  fecha_partido: "date",
+  goles_local: "integer",
+  goles_visitante: "integer",
+  hora: "text",
+  local: "text",
   local_id: "bigint",
-  visitante_id: "bigint"
+  numero_playoff: "integer",
+  penales_local: "integer",
+  penales_visitante: "integer",
+  source_local: "text",
+  source_visitante: "text",
+  tipo: "text",
+  torneo_id: "bigint",
+  visitante: "text",
+  visitante_id: "bigint",
+  zona: "text"
 };
 
 function extractFixtureRecordsetDeclarations(sql) {
   const declarations = [];
   const recordsetPattern =
-    /jsonb_to_recordset\(v_fixture\)\s+as\s+\w+\s*\(([\s\S]*?)\n\s*\)/g;
+    /jsonb_to_recordset\([^)]+\)\s+as\s+\w+\s*\(([\s\S]*?)\n\s*\)/g;
   let match = null;
 
   while ((match = recordsetPattern.exec(sql)) !== null) {
@@ -40,7 +60,7 @@ function extractFixtureRecordsetDeclarations(sql) {
       if (!fieldMatch) return;
       fields[fieldMatch[1]] = fieldMatch[2].trim();
     });
-    declarations.push(fields);
+    if (fields.source_fixture_key) declarations.push(fields);
   }
 
   return declarations;
@@ -49,7 +69,7 @@ function extractFixtureRecordsetDeclarations(sql) {
 function extractPartidosFixtureEqualityFields(sql) {
   const fields = new Set();
   const comparisonPattern =
-    /\b(?:partido\.([a-z_]+)\s*=\s*fixture\.([a-z_]+)|fixture\.([a-z_]+)\s*=\s*partido\.([a-z_]+))/g;
+    /\b(?:partido\.([a-z_]+)\s*(?:=|is\s+not\s+distinct\s+from)\s*fixture\.([a-z_]+)|fixture\.([a-z_]+)\s*(?:=|is\s+not\s+distinct\s+from)\s*partido\.([a-z_]+))/gi;
   let match = null;
 
   while ((match = comparisonPattern.exec(sql)) !== null) {
@@ -83,6 +103,32 @@ function assertFixtureComparisonTypes(sql) {
 
 function assertNoSqlWriteStatements(sql) {
   assert.equal(/^\s*(insert|update|delete|upsert|merge)\b/im.test(sql), false);
+}
+
+function assertSqlFileFixtureTypes(relativePath, options = {}) {
+  const sql = fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+  const declarations = extractFixtureRecordsetDeclarations(sql);
+  const comparedFields = extractPartidosFixtureEqualityFields(sql);
+
+  if (options.fixtureRecordsets === 0) {
+    assert.equal(declarations.length, 0, `${relativePath} no debe declarar fixture`);
+    return sql;
+  }
+
+  assert.equal(declarations.length > 0, true, `${relativePath} debe declarar fixture`);
+  assert.equal(comparedFields.has("zona"), true, `${relativePath} debe comparar zona`);
+  declarations.forEach(fields => {
+    Object.entries(PARTIDOS_COMPARISON_TYPES).forEach(([field, expectedType]) => {
+      if (!fields[field]) return;
+      assert.equal(
+        fields[field],
+        expectedType,
+        `${relativePath}: ${field} debe declararse ${expectedType}`
+      );
+    });
+  });
+
+  return sql;
 }
 
 function makeRemote(context, overrides = {}) {
@@ -306,10 +352,40 @@ async function runTests() {
   const prevalidationSql = cargar.buildPrevalidationSql(context);
   assert.equal(prevalidationSql.includes("AUTORIZO CARGA CLAUSURA 2026"), false);
   assert.equal(prevalidationSql.includes("PENDIENTE_AUTORIZACION"), false);
+  assert.equal(/^\s*do\s+\$\$/im.test(prevalidationSql), false);
+  assert.equal(/^\s*with\s+/im.test(prevalidationSql), true);
+  assert.equal(prevalidationSql.includes("fixture_total"), true);
+  assert.equal(prevalidationSql.includes("existentes_clausura"), true);
+  assert.equal(prevalidationSql.includes("conflictos"), true);
+  assert.equal(prevalidationSql.includes("zonas_validas"), true);
+  assert.equal(prevalidationSql.includes("tipos_validos"), true);
+  assert.equal(prevalidationSql.includes("resultado_final"), true);
+  assert.equal(prevalidationSql.includes("jsonb_to_recordset(fixture_json.data)"), true);
+  assert.equal(prevalidationSql.includes("jsonb_to_recordset(v_fixture)"), false);
   assertNoSqlWriteStatements(prevalidationSql);
   assertFixtureComparisonTypes(prevalidationSql);
   assert.equal(prevalidationSql.includes("pg_typeof(partido.zona)"), true);
   results.push("prevalidacion SQL read-only y tipos: ok");
+
+  const postVerificationSql = cargar.buildPostVerificationSql();
+  assertNoSqlWriteStatements(postVerificationSql);
+  assert.equal(/\bzona\s*=\s*[123]\b/.test(postVerificationSql), false);
+  results.push("verificacion posterior read-only y zona text: ok");
+
+  const versionedLoadSql = assertSqlFileFixtureTypes("sql/cargar-clausura-2026.sql");
+  const versionedPrevalidationSql = assertSqlFileFixtureTypes(
+    "sql/prevalidar-clausura-2026-carga.sql"
+  );
+  const versionedPostSql = assertSqlFileFixtureTypes(
+    "sql/verificar-clausura-2026-post-carga.sql",
+    { fixtureRecordsets: 0 }
+  );
+  assert.equal(versionedLoadSql.includes("PENDIENTE_AUTORIZACION"), true);
+  assert.equal(versionedPrevalidationSql.includes("jsonb_to_recordset(fixture_json.data)"), true);
+  assert.equal(versionedPrevalidationSql.includes("jsonb_to_recordset(v_fixture)"), false);
+  assertNoSqlWriteStatements(versionedPrevalidationSql);
+  assertNoSqlWriteStatements(versionedPostSql);
+  results.push("SQL versionados con tipos de fixture compatibles: ok");
 
   return results;
 }

@@ -1492,8 +1492,8 @@ where id = 1
 `;
 }
 
-function buildFixtureRecordsetSql(aliasName) {
-  return `jsonb_to_recordset(v_fixture) as ${aliasName}(
+function buildFixtureRecordsetSql(aliasName, sourceExpression = "v_fixture") {
+  return `jsonb_to_recordset(${sourceExpression}) as ${aliasName}(
     source_fixture_key text,
     torneo_id bigint,
     tipo text,
@@ -1520,10 +1520,10 @@ function buildFixtureRecordsetSql(aliasName) {
   )`;
 }
 
-function buildPrevalidationSql(context) {
+function buildPrevalidationSqlLegacy(context) {
   const recordsJson = sqlJson(context.records);
   const clubsJson = sqlJson(expectedClubRows(context.mapData));
-  const fixtureRecordset = buildFixtureRecordsetSql("item");
+  const fixtureRecordset = buildFixtureRecordsetSql("item", "fixture_json.data");
 
   return `-- Prevalidacion solo lectura - Clausura 2026.
 -- Ejecutar en Supabase SQL Editor antes de reintentar la carga.
@@ -1788,6 +1788,272 @@ begin
   raise notice 'Prevalidacion Clausura 2026 aprobada: fixture 114, Clausura 0, Apertura 140, tipos compatibles.';
 end;
 $$;
+`;
+}
+
+function buildPrevalidationSql(context) {
+  const recordsJson = sqlJson(context.records);
+  const clubsJson = sqlJson(expectedClubRows(context.mapData));
+  const fixtureRecordset = buildFixtureRecordsetSql("item", "fixture_json.data");
+
+  return `-- Prevalidacion solo lectura - Clausura 2026.
+-- Ejecutar en Supabase SQL Editor antes de reintentar la carga.
+-- Devuelve una fila; no modifica datos remotos.
+
+with fixture_json as (
+  select $fixture_json$
+${recordsJson}
+$fixture_json$::jsonb as data
+),
+expected_clubs_json as (
+  select $clubs_json$
+${clubsJson}
+$clubs_json$::jsonb as data
+),
+fixture as (
+  select item.*
+  from fixture_json
+  cross join lateral ${fixtureRecordset}
+),
+expected_clubs as (
+  select expected.*
+  from expected_clubs_json
+  cross join lateral jsonb_to_recordset(expected_clubs_json.data) as expected(
+    nombre_fuente text,
+    nombre_en_proyecto text,
+    club_id bigint,
+    zona_clausura integer,
+    estado text
+  )
+),
+apertura as (
+  select count(*) as total
+  from public.partidos
+  where torneo_id = 1
+),
+clausura as (
+  select count(*) as total
+  from public.partidos
+  where torneo_id = 2
+),
+fixture_total as (
+  select count(*) as total
+  from fixture
+),
+fixture_invalidos as (
+  select count(*) as total
+  from fixture
+  where torneo_id <> 2
+    or tipo <> 'regular'
+    or fecha is null
+    or zona not in ('1', '2', '3')
+    or local_id is null
+    or visitante_id is null
+    or local_id = visitante_id
+    or local is null
+    or visitante is null
+    or fecha_partido is not null
+    or dia is not null
+    or hora is not null
+    or estadio is not null
+    or arbitro is not null
+    or estado <> 'programado'
+    or goles_local is not null
+    or goles_visitante is not null
+    or penales_local is not null
+    or penales_visitante is not null
+    or fase is not null
+    or numero_playoff is not null
+    or source_local is not null
+    or source_visitante is not null
+    or local_id = 57
+    or visitante_id = 57
+),
+fixture_duplicados as (
+  select count(*) as total
+  from (
+    select torneo_id, tipo, fecha, zona, local_id, visitante_id
+    from fixture
+    group by torneo_id, tipo, fecha, zona, local_id, visitante_id
+    having count(*) > 1
+  ) duplicados
+),
+clubes_invalidos as (
+  select count(*) as total
+  from expected_clubs expected
+  left join public.clubes club
+    on club.id = expected.club_id
+  where club.id is null
+    or club.nombre_oficial is distinct from expected.nombre_en_proyecto
+    or club.activo is false
+    or expected.estado is distinct from 'confirmado'
+),
+existing_matches as (
+  select
+    fixture.*,
+    partido.id as partido_id,
+    partido.fecha_partido as p_fecha_partido,
+    partido.dia as p_dia,
+    partido.hora as p_hora,
+    partido.estadio as p_estadio,
+    partido.arbitro as p_arbitro,
+    partido.estado as p_estado,
+    partido.goles_local as p_goles_local,
+    partido.goles_visitante as p_goles_visitante,
+    partido.penales_local as p_penales_local,
+    partido.penales_visitante as p_penales_visitante,
+    partido.fase as p_fase,
+    partido.numero_playoff as p_numero_playoff,
+    partido.local as p_local,
+    partido.visitante as p_visitante,
+    partido.source_local as p_source_local,
+    partido.source_visitante as p_source_visitante
+  from fixture
+  join public.partidos partido
+    on partido.torneo_id = fixture.torneo_id
+    and partido.tipo = fixture.tipo
+    and partido.fecha = fixture.fecha
+    and partido.zona = fixture.zona
+    and partido.local_id = fixture.local_id
+    and partido.visitante_id = fixture.visitante_id
+),
+conflictos as (
+  select count(*) as total
+  from existing_matches
+  where not (
+    p_local is not distinct from local
+      and p_visitante is not distinct from visitante
+      and p_fecha_partido is not distinct from fecha_partido
+      and p_dia is not distinct from dia
+      and p_hora is not distinct from hora
+      and p_estadio is not distinct from estadio
+      and p_arbitro is not distinct from arbitro
+      and p_estado is not distinct from estado
+      and p_goles_local is not distinct from goles_local
+      and p_goles_visitante is not distinct from goles_visitante
+      and p_penales_local is not distinct from penales_local
+      and p_penales_visitante is not distinct from penales_visitante
+      and p_fase is not distinct from fase
+      and p_numero_playoff is not distinct from numero_playoff
+      and p_source_local is not distinct from source_local
+      and p_source_visitante is not distinct from source_visitante
+  )
+),
+type_checks as (
+  select
+    campo,
+    tipo_partidos,
+    tipo_fixture,
+    tipo_partidos = tipo_fixture as ok
+  from (
+    select 'arbitro' as campo, pg_typeof(partido.arbitro)::text as tipo_partidos, pg_typeof(fixture.arbitro)::text as tipo_fixture
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'dia', pg_typeof(partido.dia)::text, pg_typeof(fixture.dia)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'estado', pg_typeof(partido.estado)::text, pg_typeof(fixture.estado)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'estadio', pg_typeof(partido.estadio)::text, pg_typeof(fixture.estadio)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'fase', pg_typeof(partido.fase)::text, pg_typeof(fixture.fase)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'fecha', pg_typeof(partido.fecha)::text, pg_typeof(fixture.fecha)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'fecha_partido', pg_typeof(partido.fecha_partido)::text, pg_typeof(fixture.fecha_partido)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'goles_local', pg_typeof(partido.goles_local)::text, pg_typeof(fixture.goles_local)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'goles_visitante', pg_typeof(partido.goles_visitante)::text, pg_typeof(fixture.goles_visitante)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'hora', pg_typeof(partido.hora)::text, pg_typeof(fixture.hora)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'local', pg_typeof(partido.local)::text, pg_typeof(fixture.local)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'local_id', pg_typeof(partido.local_id)::text, pg_typeof(fixture.local_id)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'numero_playoff', pg_typeof(partido.numero_playoff)::text, pg_typeof(fixture.numero_playoff)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'penales_local', pg_typeof(partido.penales_local)::text, pg_typeof(fixture.penales_local)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'penales_visitante', pg_typeof(partido.penales_visitante)::text, pg_typeof(fixture.penales_visitante)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'source_local', pg_typeof(partido.source_local)::text, pg_typeof(fixture.source_local)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'source_visitante', pg_typeof(partido.source_visitante)::text, pg_typeof(fixture.source_visitante)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'tipo', pg_typeof(partido.tipo)::text, pg_typeof(fixture.tipo)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'torneo_id', pg_typeof(partido.torneo_id)::text, pg_typeof(fixture.torneo_id)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'visitante', pg_typeof(partido.visitante)::text, pg_typeof(fixture.visitante)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'visitante_id', pg_typeof(partido.visitante_id)::text, pg_typeof(fixture.visitante_id)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+    union all
+    select 'zona', pg_typeof(partido.zona)::text, pg_typeof(fixture.zona)::text
+    from (select * from public.partidos where torneo_id = 1 limit 1) partido cross join (select * from fixture limit 1) fixture
+  ) typed
+),
+type_summary as (
+  select
+    count(*) filter (where not ok) as invalidos,
+    coalesce(
+      string_agg(campo || ':' || tipo_partidos || '<>' || tipo_fixture, '; ' order by campo)
+        filter (where not ok),
+      ''
+    ) as detalle
+  from type_checks
+),
+resumen as (
+  select
+    (select total from fixture_total) as fixture_total,
+    (select total from clausura) as existentes_clausura,
+    (select total from conflictos) as conflictos,
+    (
+      (select total from fixture_invalidos) = 0
+      and (select total from fixture_duplicados) = 0
+      and (select total from clubes_invalidos) = 0
+      and (select total from apertura) = 140
+    ) as zonas_validas,
+    (select invalidos from type_summary) = 0 as tipos_validos,
+    (select detalle from type_summary) as detalle_tipos
+)
+select
+  fixture_total,
+  existentes_clausura,
+  conflictos,
+  zonas_validas,
+  tipos_validos,
+  case
+    when fixture_total = 114
+      and existentes_clausura = 0
+      and conflictos = 0
+      and zonas_validas
+      and tipos_validos
+    then 'OK'
+    else 'BLOQUEADO'
+  end as resultado_final,
+  detalle_tipos
+from resumen;
 `;
 }
 
