@@ -32,7 +32,7 @@ const PARTIDOS_COMPARISON_TYPES = {
   goles_visitante: "integer",
   hora: "text",
   local: "text",
-  local_id: "bigint",
+  local_id: "integer",
   numero_playoff: "integer",
   penales_local: "integer",
   penales_visitante: "integer",
@@ -41,7 +41,7 @@ const PARTIDOS_COMPARISON_TYPES = {
   tipo: "text",
   torneo_id: "bigint",
   visitante: "text",
-  visitante_id: "bigint",
+  visitante_id: "integer",
   zona: "text"
 };
 
@@ -119,7 +119,11 @@ function assertSqlFileFixtureTypes(relativePath, options = {}) {
   assert.equal(comparedFields.has("zona"), true, `${relativePath} debe comparar zona`);
   declarations.forEach(fields => {
     Object.entries(PARTIDOS_COMPARISON_TYPES).forEach(([field, expectedType]) => {
-      if (!fields[field]) return;
+      assert.equal(
+        Object.prototype.hasOwnProperty.call(fields, field),
+        true,
+        `${relativePath}: falta declaracion de ${field}`
+      );
       assert.equal(
         fields[field],
         expectedType,
