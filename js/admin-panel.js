@@ -198,6 +198,7 @@ let liveAction = null;
 let liveChangeOutId = null;
 let liveBusy = false;
 let eventReordering = false;
+let recargaDatosEnCurso = false;
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -589,6 +590,112 @@ function filtrosPartidosActuales() {
   };
 }
 
+function capturarEstadoRecarga() {
+  return {
+    torneoId: torneoTrabajoId,
+    tipo: typeFilter.value || "regular",
+    fecha: dateFilter.value,
+    zona: zoneFilter.value,
+    estado: statusFilter.value,
+    equipo: searchInput.value,
+    seleccionadoId: seleccionadoId ? String(seleccionadoId) : "",
+    scrollX: window.scrollX || 0,
+    scrollY: window.scrollY || 0
+  };
+}
+
+function capturarDatosRecarga() {
+  return {
+    partidos: [...partidos],
+    incidencias: [...incidencias],
+    etapasEstado: [...etapasEstado],
+    respaldosEtapa: [...respaldosEtapa],
+    etapasDisponibles: [...etapasDisponibles],
+    etapasHabilitadas
+  };
+}
+
+function partidoSeleccionadoCompatibleConFiltros(id) {
+  return AdminMatchFlow.selectedMatchIsCompatible(
+    partidos,
+    filtrosPartidosActuales(),
+    id,
+    resolverPartidoPlayoffAdmin,
+    partido => partido.tipo === "playoff"
+      ? etiquetaPartidoPlayoffAdmin(partido)
+      : etiquetaFechaZonaPartido(partido)
+  );
+}
+
+function restaurarDatosRecarga(datos, estado) {
+  partidos = [...datos.partidos];
+  incidencias = [...datos.incidencias];
+  etapasEstado = [...datos.etapasEstado];
+  respaldosEtapa = [...datos.respaldosEtapa];
+  etapasDisponibles = [...datos.etapasDisponibles];
+  etapasHabilitadas = datos.etapasHabilitadas;
+  seleccionadoId = estado.seleccionadoId || null;
+
+  restaurarFiltrosPartidos(estado);
+  renderLista();
+  if (etapasHabilitadas) renderControlEtapas();
+  renderOpcionesPartidosIncidencias(
+    estado.seleccionadoId,
+    estado.seleccionadoId
+  );
+
+  if (
+    estado.seleccionadoId &&
+    partidoSeleccionadoCompatibleConFiltros(estado.seleccionadoId)
+  ) {
+    seleccionarPartido(estado.seleccionadoId, {
+      desplazarAEditor: false
+    });
+  } else {
+    renderIncidenciasAdmin();
+    renderModoPartido();
+  }
+}
+
+function asignarValorSelectSiExiste(select, value, fallback = "") {
+  const valor = value ? String(value) : "";
+  if (valor && [...select.options].some(option => option.value === valor)) {
+    select.value = valor;
+    return;
+  }
+  select.value = fallback;
+}
+
+function restaurarFiltrosPartidos(estado) {
+  if (!estado) return;
+
+  asignarValorSelectSiExiste(typeFilter, estado.tipo || "regular", "regular");
+  searchInput.value = estado.equipo || "";
+  dateFilter.value = estado.fecha || "";
+  zoneFilter.value = estado.zona || "";
+  statusFilter.value = estado.estado || "";
+  renderFiltrosPartidos({ preferirFechaPendiente: false });
+  asignarValorSelectSiExiste(dateFilter, estado.fecha);
+  asignarValorSelectSiExiste(zoneFilter, estado.zona);
+  asignarValorSelectSiExiste(statusFilter, estado.estado);
+  searchInput.value = estado.equipo || "";
+}
+
+function restaurarPosicionPanel(estado) {
+  if (!estado) return;
+  window.requestAnimationFrame(() => {
+    const maxScroll = Math.max(
+      0,
+      document.documentElement.scrollHeight - window.innerHeight
+    );
+    window.scrollTo({
+      left: estado.scrollX || 0,
+      top: Math.min(estado.scrollY || 0, maxScroll),
+      behavior: "auto"
+    });
+  });
+}
+
 function renderFiltrosPartidos(options = {}) {
   const filtros = filtrosPartidosActuales();
   const filtroOpciones = AdminMatchFlow.getFilterOptions(partidos, filtros);
@@ -668,14 +775,14 @@ function limpiarSeleccionPartido(message) {
   actualizarBloqueoEditor();
 }
 
-function limpiarSeleccionIncompatible(visibles) {
+function limpiarSeleccionIncompatible(visibles, message) {
   if (!seleccionadoId) return;
   const sigueVisible = visibles.some(
     partido => String(partido.id) === String(seleccionadoId)
   );
   if (!sigueVisible) {
     limpiarSeleccionPartido(
-      "La seleccion se limpio porque ya no coincide con los filtros."
+      message || "La seleccion se limpio porque ya no coincide con los filtros."
     );
   }
 }
@@ -3598,6 +3705,73 @@ async function moverIncidencia(id, direction) {
   }
 }
 
+function setRecargandoDatos(isReloading) {
+  recargaDatosEnCurso = isReloading;
+  refreshBtn.disabled = isReloading;
+  refreshBtn.textContent = isReloading
+    ? "Actualizando…"
+    : "Recargar datos";
+  refreshBtn.setAttribute("aria-busy", isReloading ? "true" : "false");
+}
+
+async function recargarDatosPanel() {
+  if (recargaDatosEnCurso) return;
+  if (!torneoTrabajoValido()) {
+    setStatus("Selecciona un torneo de trabajo antes de recargar.", "warn");
+    return;
+  }
+
+  const estado = capturarEstadoRecarga();
+  const datosPrevios = capturarDatosRecarga();
+  const mensajeSeleccionIncompatible =
+    "El partido seleccionado ya no está disponible con estos filtros.";
+
+  setRecargandoDatos(true);
+  setStatus("Actualizando…");
+
+  try {
+    restaurarFiltrosPartidos(estado);
+    await cargarPartidos({
+      preferirFechaPendiente: false,
+      mostrarEstado: false,
+      seleccionIncompatibleMensaje: mensajeSeleccionIncompatible
+    });
+    restaurarFiltrosPartidos(estado);
+
+    await cargarEtapasAdmin();
+    await cargarIncidenciasAdmin();
+
+    const sigueDisponible = partidoSeleccionadoCompatibleConFiltros(
+      estado.seleccionadoId
+    );
+
+    if (sigueDisponible) {
+      seleccionarPartido(estado.seleccionadoId, {
+        desplazarAEditor: false
+      });
+    } else if (estado.seleccionadoId) {
+      limpiarSeleccionPartido(mensajeSeleccionIncompatible);
+      renderLista();
+    } else {
+      renderLista();
+    }
+
+    setStatus(
+      `Datos actualizados para ${etiquetaTorneoTrabajo()}.`,
+      "ok"
+    );
+  } catch (error) {
+    restaurarDatosRecarga(datosPrevios, estado);
+    setStatus(
+      `No se pudieron recargar los datos: ${error.message}`,
+      "error"
+    );
+  } finally {
+    setRecargandoDatos(false);
+    restaurarPosicionPanel(estado);
+  }
+}
+
 async function cargarPanel() {
   const torneoGuardado = idTorneoDesdeSesion();
   mostrarEstadoSinTorneo(
@@ -3638,9 +3812,10 @@ async function cargarPanel() {
   setStatus("Selecciona un torneo de trabajo.", "warn");
 }
 
-async function cargarPartidos() {
+async function cargarPartidos(options = {}) {
   const torneoId = requerirTorneoTrabajoId();
-  setStatus("Cargando partidos...");
+  const mostrarEstado = options.mostrarEstado !== false;
+  if (mostrarEstado) setStatus("Cargando partidos...");
   const data = await apiRequest(
     "GET",
     null,
@@ -3659,15 +3834,21 @@ async function cargarPartidos() {
       "La respuesta de partidos contiene datos fuera del torneo de trabajo."
     );
   }
-  renderFiltrosPartidos({ preferirFechaPendiente: true });
-  renderLista();
-  setStatus(
-    `${partidos.length} partidos cargados para ${etiquetaTorneoTrabajo()}.`,
-    "ok"
-  );
+  renderFiltrosPartidos({
+    preferirFechaPendiente: options.preferirFechaPendiente !== false
+  });
+  renderLista({
+    seleccionIncompatibleMensaje: options.seleccionIncompatibleMensaje
+  });
+  if (mostrarEstado) {
+    setStatus(
+      `${partidos.length} partidos cargados para ${etiquetaTorneoTrabajo()}.`,
+      "ok"
+    );
+  }
 }
 
-function renderLista() {
+function renderLista(options = {}) {
   if (!torneoTrabajoValido()) {
     matchListSummary.textContent = "Selecciona un torneo para listar partidos.";
     matchList.innerHTML = `
@@ -3679,7 +3860,10 @@ function renderLista() {
   }
 
   const visibles = partidosVisiblesSelector();
-  limpiarSeleccionIncompatible(visibles);
+  limpiarSeleccionIncompatible(
+    visibles,
+    options.seleccionIncompatibleMensaje
+  );
   renderResumenPartidoSeleccionado();
   matchListSummary.textContent =
     `${visibles.length} de ${partidos.length} partido(s) del torneo de trabajo.`;
@@ -4349,7 +4533,7 @@ workTournamentSelect.addEventListener("change", () => {
   });
 });
 refreshBtn.addEventListener("click", () => {
-  cargarPanel().catch(error => setStatus(error.message, "error"));
+  recargarDatosPanel().catch(error => setStatus(error.message, "error"));
 });
 logoutBtn.addEventListener("click", () => {
   sessionStorage.removeItem(PASSWORD_KEY);

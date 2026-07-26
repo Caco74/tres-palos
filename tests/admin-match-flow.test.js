@@ -182,6 +182,47 @@ function runTests() {
   }
 
   {
+    const filtros = {
+      torneoId: 2,
+      tipo: "regular",
+      fecha: "1",
+      zona: "1",
+      estado: "programado",
+      equipo: "sportivo"
+    };
+    const seleccionado = clausura.find(match =>
+      match.fecha === 1 &&
+      match.zona === 1 &&
+      /sportivo/i.test(match.local)
+    );
+    assert.equal(
+      AdminMatchFlow.selectedMatchIsCompatible(
+        clausura,
+        filtros,
+        seleccionado.id
+      ),
+      true
+    );
+    assert.equal(
+      AdminMatchFlow.selectedMatchIsCompatible(
+        clausura,
+        { ...filtros, zona: "2" },
+        seleccionado.id
+      ),
+      false
+    );
+    assert.equal(
+      AdminMatchFlow.selectedMatchIsCompatible(
+        clausura,
+        { ...filtros, torneoId: 1 },
+        seleccionado.id
+      ),
+      false
+    );
+    results.push("recarga conserva seleccion solo si sigue compatible: ok");
+  }
+
+  {
     const apertura = [
       { id: 1, torneo_id: 1, tipo: "regular", fecha: 1, zona: 1 },
       { id: 2, torneo_id: 1, tipo: "regular", fecha: 1, zona: 2 },
@@ -224,6 +265,7 @@ function runTests() {
     };
 
     assert.ok(indexOfId("refreshBtn") < indexOfId("matchList"));
+    assert.match(html, /id="refreshBtn" class="ghost"[\s\S]*?Recargar datos/);
     assert.ok(indexOfId("matchList") < indexOfId("selectedMatchSummary"));
     assert.ok(indexOfId("selectedMatchSummary") < indexOfId("matchForm"));
     assert.ok(indexOfId("matchForm") < indexOfId("liveMatch"));
@@ -237,16 +279,39 @@ function runTests() {
     const seleccionarStart = js.indexOf("function seleccionarPartido");
     const seleccionarEnd = js.indexOf("function obtenerEstadioClubLocal", seleccionarStart);
     const seleccionarBody = js.slice(seleccionarStart, seleccionarEnd);
+    const refreshHandlerStart = js.indexOf('refreshBtn.addEventListener("click"');
+    const refreshHandlerEnd = js.indexOf('logoutBtn.addEventListener("click"', refreshHandlerStart);
+    const refreshHandler = js.slice(refreshHandlerStart, refreshHandlerEnd);
+    const recargaStart = js.indexOf("async function recargarDatosPanel");
+    const recargaEnd = js.indexOf("async function cargarPanel", recargaStart);
+    const recargaBody = js.slice(recargaStart, recargaEnd);
 
     assert.match(js, /adminApp\.classList\.toggle\("has-match-selection", valido\)/);
     assert.match(js, /selectedMatchSummary\.innerHTML = `/);
     assert.match(js, /scrollIntoView\(\{\s*behavior: "smooth"/);
     assert.match(js, /<option value="">Elegí un partido<\/option>/);
+    assert.match(refreshHandler, /recargarDatosPanel\(\)/);
+    assert.doesNotMatch(refreshHandler, /cargarPanel\(\)/);
+    assert.match(recargaBody, /capturarEstadoRecarga\(\)/);
+    assert.match(recargaBody, /restaurarFiltrosPartidos\(estado\)/);
+    assert.match(recargaBody, /partidoSeleccionadoCompatibleConFiltros/);
+    assert.match(js, /selectedMatchIsCompatible/);
+    assert.match(recargaBody, /El partido seleccionado ya no está disponible con estos filtros\./);
+    assert.match(recargaBody, /if \(recargaDatosEnCurso\) return;/);
+    assert.match(recargaBody, /restaurarPosicionPanel\(estado\)/);
+    assert.match(recargaBody, /capturarDatosRecarga\(\)/);
+    assert.match(recargaBody, /restaurarDatosRecarga\(datosPrevios, estado\)/);
+    assert.match(js, /function restaurarDatosRecarga/);
+    assert.doesNotMatch(recargaBody, /cargarPanel\(\)/);
+    assert.doesNotMatch(recargaBody, /limpiarContextoTorneo|mostrarEstadoSinTorneo/);
+    assert.doesNotMatch(recargaBody, /apiRequest\("(POST|PATCH|DELETE)"/);
+    assert.match(js, /refreshBtn\.disabled = isReloading;/);
+    assert.match(js, /Actualizando…/);
     assert.doesNotMatch(
       seleccionarBody,
       /\b(typeFilter|dateFilter|zoneFilter|statusFilter|searchInput)\.value\s*=/
     );
-    results.push("seleccion conserva filtros y habilita resumen/edicion: ok");
+    results.push("recarga manual conserva filtros, seleccion y posicion: ok");
   }
 
   {

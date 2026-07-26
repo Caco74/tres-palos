@@ -247,6 +247,23 @@
     }).length;
   }
 
+  function selectedMatchIsCompatible(
+    matches,
+    filters,
+    selectedId,
+    resolver,
+    extraLabelForMatch
+  ) {
+    if (!selectedId) return false;
+
+    return filterMatches(
+      matches,
+      filters,
+      resolver,
+      extraLabelForMatch
+    ).some(match => String(match.id) === String(selectedId));
+  }
+
   return {
     normalizeSearchText,
     compareMatchesSporting,
@@ -258,6 +275,7 @@
     buildRegularStageValue,
     parseRegularStageValue,
     isLegacyRegularStageValue,
-    countMatchesForStage
+    countMatchesForStage,
+    selectedMatchIsCompatible
   };
 });
