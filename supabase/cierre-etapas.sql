@@ -1014,6 +1014,12 @@ revoke all on function public.tp_reabrir_etapa(
 revoke all on function public.tp_restaurar_respaldo(
   bigint, bigint
 ) from public, anon, authenticated;
+revoke all on function public.tp_etapa_regular_fecha(
+  text
+) from public, anon, authenticated;
+revoke all on function public.tp_etapa_regular_zona(
+  text
+) from public, anon, authenticated;
 
 grant select, insert on table public.respaldos_etapa to service_role;
 grant select, insert, update on table public.etapas_estado to service_role;
@@ -1033,6 +1039,12 @@ grant execute on function public.tp_reabrir_etapa(
 ) to service_role;
 grant execute on function public.tp_restaurar_respaldo(
   bigint, bigint
+) to service_role;
+grant execute on function public.tp_etapa_regular_fecha(
+  text
+) to service_role;
+grant execute on function public.tp_etapa_regular_zona(
+  text
 ) to service_role;
 
 comment on table public.respaldos_etapa is
