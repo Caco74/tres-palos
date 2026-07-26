@@ -9,13 +9,13 @@ with partidos_clausura as (
 select 'total_clausura_114' as chequeo, count(*)::text as valor, count(*) = 114 as ok
 from partidos_clausura
 union all
-select 'zona_1_42', count(*) filter (where zona = 1)::text, count(*) filter (where zona = 1) = 42
+select 'zona_1_42', count(*) filter (where zona = '1')::text, count(*) filter (where zona = '1') = 42
 from partidos_clausura
 union all
-select 'zona_2_30', count(*) filter (where zona = 2)::text, count(*) filter (where zona = 2) = 30
+select 'zona_2_30', count(*) filter (where zona = '2')::text, count(*) filter (where zona = '2') = 30
 from partidos_clausura
 union all
-select 'zona_3_42', count(*) filter (where zona = 3)::text, count(*) filter (where zona = 3) = 42
+select 'zona_3_42', count(*) filter (where zona = '3')::text, count(*) filter (where zona = '3') = 42
 from partidos_clausura
 union all
 select 'todos_torneo_id_2', count(*) filter (where torneo_id = 2)::text, count(*) filter (where torneo_id = 2) = 114

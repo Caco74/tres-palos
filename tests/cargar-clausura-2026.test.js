@@ -16,6 +16,75 @@ function assertThrowsMessage(run, pattern) {
   });
 }
 
+const PARTIDOS_COMPARISON_TYPES = {
+  torneo_id: "bigint",
+  tipo: "text",
+  fecha: "integer",
+  zona: "text",
+  local_id: "bigint",
+  visitante_id: "bigint"
+};
+
+function extractFixtureRecordsetDeclarations(sql) {
+  const declarations = [];
+  const recordsetPattern =
+    /jsonb_to_recordset\(v_fixture\)\s+as\s+\w+\s*\(([\s\S]*?)\n\s*\)/g;
+  let match = null;
+
+  while ((match = recordsetPattern.exec(sql)) !== null) {
+    const fields = {};
+    match[1].split("\n").forEach(rawLine => {
+      const line = rawLine.trim().replace(/,$/, "");
+      if (!line) return;
+      const fieldMatch = line.match(/^([a-z_]+)\s+([a-z ]+)$/);
+      if (!fieldMatch) return;
+      fields[fieldMatch[1]] = fieldMatch[2].trim();
+    });
+    declarations.push(fields);
+  }
+
+  return declarations;
+}
+
+function extractPartidosFixtureEqualityFields(sql) {
+  const fields = new Set();
+  const comparisonPattern =
+    /\b(?:partido\.([a-z_]+)\s*=\s*fixture\.([a-z_]+)|fixture\.([a-z_]+)\s*=\s*partido\.([a-z_]+))/g;
+  let match = null;
+
+  while ((match = comparisonPattern.exec(sql)) !== null) {
+    const left = match[1] || match[4];
+    const right = match[2] || match[3];
+    if (left === right && PARTIDOS_COMPARISON_TYPES[left]) {
+      fields.add(left);
+    }
+  }
+
+  return fields;
+}
+
+function assertFixtureComparisonTypes(sql) {
+  const declarations = extractFixtureRecordsetDeclarations(sql);
+  const comparedFields = extractPartidosFixtureEqualityFields(sql);
+
+  assert.equal(declarations.length > 0, true);
+  assert.equal(comparedFields.has("zona"), true);
+
+  declarations.forEach(fields => {
+    comparedFields.forEach(field => {
+      assert.equal(
+        fields[field],
+        PARTIDOS_COMPARISON_TYPES[field],
+        `${field} debe declararse ${PARTIDOS_COMPARISON_TYPES[field]}`
+      );
+    });
+  });
+}
+
+function assertNoSqlWriteStatements(sql) {
+  assert.equal(/^\s*(insert|update|delete|upsert|merge)\b/im.test(sql), false);
+}
+
 function makeRemote(context, overrides = {}) {
   const mapped = context.local.mappings.map(mapping => ({
     id: mapping.club_id,
@@ -230,7 +299,17 @@ async function runTests() {
   assert.equal(sql.includes("update public.clubes"), false);
   assert.equal(sql.includes("update public.torneos"), false);
   assert.equal(sql.includes("insert into public.inscripciones_jugadores"), false);
+  assert.equal(/\bzona\s*=\s*[123]\b/.test(sql), false);
+  assertFixtureComparisonTypes(sql);
   results.push("SQL protegido y acotado: ok");
+
+  const prevalidationSql = cargar.buildPrevalidationSql(context);
+  assert.equal(prevalidationSql.includes("AUTORIZO CARGA CLAUSURA 2026"), false);
+  assert.equal(prevalidationSql.includes("PENDIENTE_AUTORIZACION"), false);
+  assertNoSqlWriteStatements(prevalidationSql);
+  assertFixtureComparisonTypes(prevalidationSql);
+  assert.equal(prevalidationSql.includes("pg_typeof(partido.zona)"), true);
+  results.push("prevalidacion SQL read-only y tipos: ok");
 
   return results;
 }
