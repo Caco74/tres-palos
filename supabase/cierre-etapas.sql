@@ -72,6 +72,32 @@ alter table public.respaldos_etapa
 alter table public.etapas_estado
   add column if not exists torneo_id bigint null references public.torneos(id);
 
+create or replace function public.tp_etapa_regular_fecha(p_valor text)
+returns integer
+language sql
+immutable
+as $$
+  select case
+    when p_valor ~ '^fecha:[0-9]+:zona:[A-Za-z0-9_-]+$'
+      then substring(p_valor from '^fecha:([0-9]+):zona:[A-Za-z0-9_-]+$')::integer
+    when p_valor ~ '^[0-9]+$'
+      then p_valor::integer
+    else null
+  end;
+$$;
+
+create or replace function public.tp_etapa_regular_zona(p_valor text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when p_valor ~ '^fecha:[0-9]+:zona:[A-Za-z0-9_-]+$'
+      then substring(p_valor from '^fecha:[0-9]+:zona:([A-Za-z0-9_-]+)$')
+    else null
+  end;
+$$;
+
 drop trigger if exists respaldos_etapa_inmutables
   on public.respaldos_etapa;
 
@@ -108,7 +134,11 @@ with candidatos_por_torneo as (
       (
         respaldo.tipo = 'regular'
         and partido.tipo = 'regular'
-        and partido.fecha::text = respaldo.valor
+        and partido.fecha = public.tp_etapa_regular_fecha(respaldo.valor)
+        and (
+          public.tp_etapa_regular_zona(respaldo.valor) is null
+          or partido.zona::text = public.tp_etapa_regular_zona(respaldo.valor)
+        )
       ) or (
         respaldo.tipo = 'playoff'
         and partido.tipo = 'playoff'
@@ -183,7 +213,11 @@ with candidatos as (
       (
         etapa.tipo = 'regular'
         and partido.tipo = 'regular'
-        and partido.fecha::text = etapa.valor
+        and partido.fecha = public.tp_etapa_regular_fecha(etapa.valor)
+        and (
+          public.tp_etapa_regular_zona(etapa.valor) is null
+          or partido.zona::text = public.tp_etapa_regular_zona(etapa.valor)
+        )
       ) or (
         etapa.tipo = 'playoff'
         and partido.tipo = 'playoff'
@@ -478,7 +512,11 @@ begin
       (
         p_tipo = 'regular'
         and partido.tipo = 'regular'
-        and partido.fecha::text = p_valor
+        and partido.fecha = public.tp_etapa_regular_fecha(p_valor)
+        and (
+          public.tp_etapa_regular_zona(p_valor) is null
+          or partido.zona::text = public.tp_etapa_regular_zona(p_valor)
+        )
       ) or (
         p_tipo = 'playoff'
         and partido.tipo = 'playoff'
@@ -615,7 +653,11 @@ begin
       (
         p_tipo = 'regular'
         and partido.tipo = 'regular'
-        and partido.fecha::text = p_valor
+        and partido.fecha = public.tp_etapa_regular_fecha(p_valor)
+        and (
+          public.tp_etapa_regular_zona(p_valor) is null
+          or partido.zona::text = public.tp_etapa_regular_zona(p_valor)
+        )
       ) or (
         p_tipo = 'playoff'
         and partido.tipo = 'playoff'
@@ -642,7 +684,11 @@ begin
       (
         p_tipo = 'regular'
         and partido.tipo = 'regular'
-        and partido.fecha::text = p_valor
+        and partido.fecha = public.tp_etapa_regular_fecha(p_valor)
+        and (
+          public.tp_etapa_regular_zona(p_valor) is null
+          or partido.zona::text = public.tp_etapa_regular_zona(p_valor)
+        )
       ) or (
         p_tipo = 'playoff'
         and partido.tipo = 'playoff'
@@ -827,7 +873,11 @@ begin
       (
         v_respaldo.tipo = 'regular'
         and partido.tipo = 'regular'
-        and partido.fecha::text = v_respaldo.valor
+        and partido.fecha = public.tp_etapa_regular_fecha(v_respaldo.valor)
+        and (
+          public.tp_etapa_regular_zona(v_respaldo.valor) is null
+          or partido.zona::text = public.tp_etapa_regular_zona(v_respaldo.valor)
+        )
       ) or (
         v_respaldo.tipo = 'playoff'
         and partido.tipo = 'playoff'
@@ -986,9 +1036,9 @@ grant execute on function public.tp_restaurar_respaldo(
 ) to service_role;
 
 comment on table public.respaldos_etapa is
-  'Copias inmutables creadas al cerrar o restaurar una fecha o fase, siempre dentro de un torneo.';
+  'Copias inmutables creadas al cerrar o restaurar una fecha, fecha/zona o fase, siempre dentro de un torneo.';
 
 comment on table public.etapas_estado is
-  'Estado administrativo actual de cada fecha o fase de un torneo.';
+  'Estado administrativo actual de cada fecha, fecha/zona o fase de un torneo.';
 
 commit;

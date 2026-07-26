@@ -49,6 +49,19 @@ function adminEvent() {
   };
 }
 
+function matchesEvent(torneoId = 2) {
+  return {
+    httpMethod: "GET",
+    headers: {
+      "x-admin-password": DEFAULT_ENV.ADMIN_PASSWORD
+    },
+    queryStringParameters: {
+      torneo_id: String(torneoId)
+    },
+    body: null
+  };
+}
+
 function mockResponse(status, body, statusText = "") {
   return {
     ok: status >= 200 && status < 300,
@@ -134,6 +147,47 @@ async function runAdminPartidosTests() {
       urls[0],
       "https://supabase.test/rest/v1/torneos" +
         "?select=id,anio,tipo,nombre,activo&order=anio.desc,tipo.asc"
+    );
+  }));
+
+  results.push(await runCase("partidos orden deportivo", async () => {
+    setEnv();
+    const urls = [];
+    global.fetch = async url => {
+      urls.push(url);
+      if (String(url).includes("/rest/v1/torneos")) {
+        return mockResponse(200, [
+          {
+            id: 2,
+            anio: 2026,
+            tipo: "clausura",
+            nombre: "Clausura 2026",
+            activo: false
+          }
+        ], "OK");
+      }
+      return mockResponse(200, [
+        {
+          id: 279,
+          torneo_id: 2,
+          fecha: 1,
+          zona: 1,
+          local: "Sportivo A. Club",
+          visitante: "C.A. Correa"
+        }
+      ], "OK");
+    };
+
+    const result = await handler(matchesEvent());
+    assert.equal(result.statusCode, 200);
+    assert.equal(bodyOf(result).partidos[0].id, 279);
+    assert.equal(
+      urls[1],
+      "https://supabase.test/rest/v1/partidos" +
+        "?select=*" +
+        "&torneo_id=eq.2" +
+        "&order=torneo_id.asc,fecha.asc,zona.asc," +
+        "fecha_partido.asc.nullslast,hora.asc.nullslast,local.asc,id.asc"
     );
   }));
 

@@ -247,7 +247,8 @@ async function listMatches(event) {
     "/rest/v1/partidos" +
     "?select=*" +
     `&torneo_id=eq.${encodeURIComponent(torneoId)}` +
-    "&order=id.asc"
+    "&order=torneo_id.asc,fecha.asc,zona.asc,fecha_partido.asc.nullslast," +
+      "hora.asc.nullslast,local.asc,id.asc"
   );
   const partidos = await parseSupabaseResponse(response);
   return json(200, { partidos, torneo });

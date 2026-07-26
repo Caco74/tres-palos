@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=10">
+  <link rel="stylesheet" href="styles/admin.css?v=11">
 </head>
 <body>
   <main class="admin-shell">
@@ -72,14 +72,32 @@
         <div>
           <label for="typeFilter">Tipo</label>
           <select id="typeFilter">
-            <option value="playoff">Playoffs</option>
             <option value="regular">Fase regular</option>
+            <option value="playoff">Playoffs</option>
             <option value="all">Todos</option>
           </select>
         </div>
         <div>
+          <label for="dateFilter">Fecha</label>
+          <select id="dateFilter">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div>
+          <label for="zoneFilter">Zona</label>
+          <select id="zoneFilter">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div>
+          <label for="statusFilter">Estado</label>
+          <select id="statusFilter">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div>
           <label for="searchInput">Buscar</label>
-          <input id="searchInput" type="search" placeholder="Equipo, fase o ID">
+          <input id="searchInput" type="search" placeholder="Equipo o ID">
         </div>
         <button type="button" id="refreshBtn">Actualizar</button>
         <button type="button" id="logoutBtn" class="ghost">Salir</button>
@@ -750,6 +768,9 @@
       <div class="admin-grid">
         <section class="admin-card matches-panel">
           <h2>Partidos</h2>
+          <div id="matchListSummary" class="match-list-summary">
+            Selecciona un torneo para listar partidos.
+          </div>
           <div id="matchList" class="match-list"></div>
         </section>
 
@@ -846,6 +867,7 @@
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=20"></script>
+  <script src="js/admin-match-flow.js?v=1"></script>
+  <script src="js/admin-panel.js?v=21"></script>
 </body>
 </html>
