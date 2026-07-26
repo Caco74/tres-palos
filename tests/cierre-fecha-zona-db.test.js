@@ -44,7 +44,23 @@ function runTests() {
 
   assertReadOnlySql("sql/prevalidar-cierre-fecha-zona.sql");
   assertReadOnlySql("sql/verificar-cierre-fecha-zona.sql");
-  results.push("prevalidacion y verificacion son solo lectura: ok");
+  assertReadOnlySql("sql/verificar-cierre-fecha-zona-post.sql");
+  const post = read("sql/verificar-cierre-fecha-zona-post.sql");
+  assert.match(post, /^(?:\s|--[^\n]*\n)*with\s+/i);
+  assert.match(post, /\bchequeo\b/);
+  assert.match(post, /\bvalor\b/);
+  assert.match(post, /\bok\b/);
+  assert.match(post, /\bdetalle\b/);
+  assert.match(post, /tp_etapa_regular_fecha/);
+  assert.match(post, /tp_etapa_regular_zona/);
+  assert.match(post, /tp_guardar_respaldo_etapa/);
+  assert.match(post, /tp_cerrar_etapa/);
+  assert.match(post, /tp_restaurar_respaldo/);
+  assert.doesNotMatch(post, /\b(select|perform|call)\s+(public\.)?tp_guardar_respaldo_etapa\s*\(/i);
+  assert.doesNotMatch(post, /\b(select|perform|call)\s+(public\.)?tp_cerrar_etapa\s*\(/i);
+  assert.doesNotMatch(post, /\b(select|perform|call)\s+(public\.)?tp_restaurar_respaldo\s*\(/i);
+  assert.doesNotMatch(post, /\bexecute\b/i);
+  results.push("prevalidacion y verificaciones son solo lectura: ok");
 
   assert.match(aplicar, /^(?:\s|--[^\n]*\n)*begin;/i);
   assert.match(aplicar, /commit;\s*$/i);
