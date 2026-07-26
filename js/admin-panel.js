@@ -27,6 +27,9 @@ const workTournamentFeedback = document.getElementById(
 const matchList = document.getElementById("matchList");
 const matchForm = document.getElementById("matchForm");
 const emptyEditor = document.getElementById("emptyEditor");
+const selectedMatchSummary = document.getElementById("selectedMatchSummary");
+const selectedMatchState = document.getElementById("selectedMatchState");
+const matchEditorPanel = document.getElementById("matchEditorPanel");
 const typeFilter = document.getElementById("typeFilter");
 const dateFilter = document.getElementById("dateFilter");
 const zoneFilter = document.getElementById("zoneFilter");
@@ -421,6 +424,7 @@ function limpiarContextoTorneo(message) {
   matchForm.reset();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
+  renderResumenPartidoSeleccionado();
   eventForm.reset();
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
@@ -507,6 +511,60 @@ function resetearFiltrosPartidos() {
   zoneFilter.value = "";
   statusFilter.value = "";
   searchInput.value = "";
+}
+
+function renderResumenPartidoSeleccionado(partido = null) {
+  const seleccionado = partido || partidos.find(
+    item => String(item.id) === String(seleccionadoId)
+  );
+  const valido =
+    Boolean(seleccionado) && partidoPerteneceTorneoTrabajo(seleccionado);
+
+  adminApp.classList.toggle("has-match-selection", valido);
+
+  if (!valido) {
+    selectedMatchState.textContent = "Sin seleccionar";
+    selectedMatchState.dataset.state = "";
+    selectedMatchSummary.innerHTML =
+      `<div class="selected-match-empty">Elegí un partido para continuar.</div>`;
+    return;
+  }
+
+  const visible = resolverPartidoPlayoffAdmin(seleccionado);
+  const titulo = seleccionado.tipo === "playoff"
+    ? etiquetaPartidoPlayoffAdmin(seleccionado)
+    : etiquetaFechaZonaPartido(seleccionado);
+  const estado = etiquetaEstadoAdmin(seleccionado.estado || "programado");
+
+  selectedMatchState.textContent = "Seleccionado";
+  selectedMatchState.dataset.state = "selected";
+  selectedMatchSummary.innerHTML = `
+    <div class="selected-match-kicker">
+      ${escapeHtml(etiquetaTorneoTrabajo())}
+    </div>
+    <div class="selected-match-grid">
+      <span>${escapeHtml(titulo)}</span>
+      <strong>${escapeHtml(nombrePartido(visible))}</strong>
+      <small>${escapeHtml(estado)} · ID #${escapeHtml(seleccionado.id)}</small>
+    </div>
+  `;
+}
+
+function desplazarAEditorSiNecesario() {
+  if (!matchEditorPanel || typeof matchEditorPanel.scrollIntoView !== "function") {
+    return;
+  }
+  if (window.matchMedia("(min-width: 761px)").matches) return;
+
+  window.requestAnimationFrame(() => {
+    const rect = matchEditorPanel.getBoundingClientRect();
+    if (rect.top > window.innerHeight * 0.65 || rect.top < 0) {
+      matchEditorPanel.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  });
 }
 
 function opcionesSelect(values, etiquetaTodos, formatter) {
@@ -598,6 +656,7 @@ function limpiarSeleccionPartido(message) {
   matchForm.reset();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
+  renderResumenPartidoSeleccionado();
   eventForm.reset();
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
@@ -2099,49 +2158,33 @@ function renderOpcionesPartidosIncidencias(
     resolverPartidoPlayoffAdmin
   );
 
-  eventMatch.innerHTML = ordenados.map(partido => `
-    <option value="${partido.id}">
-      ${escapeHtml(
-        partido.tipo === "playoff"
-          ? etiquetaPartidoPlayoffAdmin(partido)
-          : etiquetaFechaZonaPartido(partido)
-      )} · ${escapeHtml(nombrePartido(partido))}
-      ${partido.fecha_partido
-        ? ` · ${formatearFechaAdmin(partido.fecha_partido)}`
-        : ""}
-      · ID #${partido.id}
-    </option>
-  `).join("");
+  eventMatch.innerHTML = `
+    <option value="">Elegí un partido</option>
+    ${ordenados.map(partido => `
+      <option value="${partido.id}">
+        ${escapeHtml(
+          partido.tipo === "playoff"
+            ? etiquetaPartidoPlayoffAdmin(partido)
+            : etiquetaFechaZonaPartido(partido)
+        )} · ${escapeHtml(nombrePartido(partido))}
+        ${partido.fecha_partido
+          ? ` · ${formatearFechaAdmin(partido.fecha_partido)}`
+          : ""}
+        · ID #${partido.id}
+      </option>
+    `).join("")}
+  `;
 
-  const sugerido =
-    ordenados.find(item =>
-      String(item.id) === String(partidoPrevio)
-    ) ||
-    ordenados.find(item =>
-      String(item.id) === String(seleccionadoId)
-    ) ||
-    ordenados.find(item =>
-      incidencias.some(evento =>
-        String(evento.partido_id) === String(item.id)
-      )
-    ) ||
-    ordenados[0];
+  const seleccionado = seleccionadoId
+    ? ordenados.find(item => String(item.id) === String(seleccionadoId))
+    : null;
+  const sugerido = seleccionado;
 
   eventMatch.value = sugerido ? String(sugerido.id) : "";
   newEventBtn.disabled = !sugerido || !torneoTrabajoValido();
 
   liveMatch.innerHTML = eventMatch.innerHTML;
-  const sugeridoRapido =
-    ordenados.find(item =>
-      String(item.id) === String(partidoRapidoPrevio)
-    ) ||
-    ordenados.find(item =>
-      item.estado === "finalizado" &&
-      tieneResultado(item) &&
-      resolverEquipoPartidoAdmin(item, "local").id &&
-      resolverEquipoPartidoAdmin(item, "visitante").id
-    ) ||
-    sugerido;
+  const sugeridoRapido = seleccionado || sugerido;
   liveMatch.value = sugeridoRapido
     ? String(sugeridoRapido.id)
     : "";
@@ -3637,6 +3680,7 @@ function renderLista() {
 
   const visibles = partidosVisiblesSelector();
   limpiarSeleccionIncompatible(visibles);
+  renderResumenPartidoSeleccionado();
   matchListSummary.textContent =
     `${visibles.length} de ${partidos.length} partido(s) del torneo de trabajo.`;
 
@@ -3684,7 +3728,7 @@ function renderLista() {
   }).join("");
 }
 
-function seleccionarPartido(id) {
+function seleccionarPartido(id, options = {}) {
   const partido = partidos.find(item => String(item.id) === String(id));
   if (!partido) return;
   if (!partidoPerteneceTorneoTrabajo(partido)) {
@@ -3730,6 +3774,7 @@ function seleccionarPartido(id) {
     ${datosSecundarios ? `<small>${escapeHtml(datosSecundarios)}</small>` : ""}
   `;
   partidoOriginal = { ...partido };
+  renderResumenPartidoSeleccionado(partido);
   setSaveFeedback(
     estadioSugerido
       ? "Se sugirió el estadio del club local. Guardá para confirmarlo."
@@ -3757,6 +3802,10 @@ function seleccionarPartido(id) {
     emptyEventEditor.classList.remove("hidden");
     renderIncidenciasAdmin();
     renderModoPartido();
+  }
+
+  if (options.desplazarAEditor !== false) {
+    desplazarAEditorSiNecesario();
   }
 }
 
@@ -4130,7 +4179,7 @@ async function guardarPartido(event) {
       tipo
     );
     await cargarPartidos();
-    seleccionarPartido(id);
+    seleccionarPartido(id, { desplazarAEditor: false });
     setSaveFeedback(
       `Guardado a las ${hora}: ${camposGuardados || "cambios aplicados"}.${advertenciaEstado}${ignorados}`,
       tipo
@@ -4395,6 +4444,14 @@ toggleRosterBtn.addEventListener("click", () => {
   });
 });
 eventMatch.addEventListener("change", () => {
+  if (eventMatch.value && String(eventMatch.value) !== String(seleccionadoId)) {
+    seleccionarPartido(eventMatch.value, { desplazarAEditor: false });
+    return;
+  }
+  if (!eventMatch.value) {
+    limpiarSeleccionPartido("Elegí un partido para continuar.");
+    return;
+  }
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
@@ -4403,6 +4460,14 @@ eventMatch.addEventListener("change", () => {
   renderModoPartido();
 });
 liveMatch.addEventListener("change", () => {
+  if (liveMatch.value && String(liveMatch.value) !== String(seleccionadoId)) {
+    seleccionarPartido(liveMatch.value, { desplazarAEditor: false });
+    return;
+  }
+  if (!liveMatch.value) {
+    limpiarSeleccionPartido("Elegí un partido para continuar.");
+    return;
+  }
   eventMatch.value = liveMatch.value;
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");

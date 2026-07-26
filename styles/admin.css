@@ -174,6 +174,46 @@ p {
   gap: 14px;
 }
 
+.tournament-panel {
+  order: 10;
+}
+
+.toolbar {
+  order: 20;
+}
+
+.status {
+  order: 15;
+}
+
+.match-workflow {
+  order: 40;
+}
+
+.live-mode-panel {
+  order: 50;
+}
+
+.events-panel {
+  order: 60;
+}
+
+.roster-panel {
+  order: 70;
+}
+
+.clubs-panel {
+  order: 80;
+}
+
+.analytics-panel {
+  order: 85;
+}
+
+.stage-panel {
+  order: 90;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: 130px 105px 105px 145px minmax(180px, 1fr) auto auto;
@@ -238,6 +278,12 @@ p {
   grid-template-columns: minmax(260px, 390px) 1fr;
   gap: 14px;
   align-items: start;
+}
+
+.match-workflow-detail {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
 }
 
 .panel-heading {
@@ -786,6 +832,7 @@ input[readonly] {
 
 .match-item {
   width: 100%;
+  min-height: 74px;
   border: 1px solid var(--line);
   background: var(--card2);
   color: var(--text);
@@ -794,6 +841,7 @@ input[readonly] {
 
 .match-item.on {
   border-color: rgba(255, 48, 69, .75);
+  background: rgba(255, 48, 69, .08);
   box-shadow: inset 3px 0 0 var(--red);
 }
 
@@ -811,6 +859,82 @@ input[readonly] {
 .match-item strong {
   display: block;
   margin: 5px 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.selected-match-state {
+  padding: 7px 10px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.selected-match-state[data-state="selected"] {
+  color: var(--green);
+  background: rgba(53, 199, 122, .08);
+  border-color: rgba(53, 199, 122, .28);
+}
+
+.selected-match-summary,
+.match-required-message {
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--muted);
+  font-size: .86rem;
+  line-height: 1.45;
+}
+
+.match-required-message {
+  margin-top: 14px;
+}
+
+.match-dependent-detail {
+  display: block;
+}
+
+.admin-app.has-match-selection .match-required-message {
+  display: none;
+}
+
+.admin-app:not(.has-match-selection) .match-dependent-detail {
+  display: none;
+}
+
+.selected-match-empty {
+  color: var(--muted);
+}
+
+.selected-match-kicker {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.selected-match-grid {
+  display: grid;
+  gap: 5px;
+}
+
+.selected-match-grid span,
+.selected-match-grid small {
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.selected-match-grid strong {
+  color: var(--text);
+  font-size: .98rem;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -1331,7 +1455,6 @@ body.live-picker-open {
 
 @media (max-width: 760px) {
   .auth-form,
-  .toolbar,
   .work-tournament-controls,
   .admin-grid,
   .analytics-grid,
@@ -1345,6 +1468,14 @@ body.live-picker-open {
   .form-row.three,
   .live-picker-moment {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar > div:nth-child(5) {
+    grid-column: 1 / -1;
   }
 
   .stage-summary {
@@ -1367,6 +1498,7 @@ body.live-picker-open {
 
   .tournament-state,
   .stage-state,
+  .selected-match-state,
   .analytics-total,
   .route-badge {
     max-width: 100%;

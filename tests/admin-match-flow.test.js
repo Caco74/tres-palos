@@ -213,11 +213,60 @@ function runTests() {
   }
 
   {
+    const html = fs.readFileSync(
+      path.join(ROOT, "tp-admin-7c9f2026.html"),
+      "utf8"
+    );
+    const indexOfId = id => {
+      const index = html.indexOf(`id="${id}"`);
+      assert.notEqual(index, -1, `No se encontro #${id}`);
+      return index;
+    };
+
+    assert.ok(indexOfId("refreshBtn") < indexOfId("matchList"));
+    assert.ok(indexOfId("matchList") < indexOfId("selectedMatchSummary"));
+    assert.ok(indexOfId("selectedMatchSummary") < indexOfId("matchForm"));
+    assert.ok(indexOfId("matchForm") < indexOfId("liveMatch"));
+    assert.ok(indexOfId("matchForm") < indexOfId("eventMatch"));
+    assert.ok(indexOfId("matchForm") < indexOfId("stageAdminSelect"));
+    results.push("resultados y seleccion quedan antes de edicion/incidencias/cierre: ok");
+  }
+
+  {
+    const js = fs.readFileSync(path.join(ROOT, "js", "admin-panel.js"), "utf8");
+    const seleccionarStart = js.indexOf("function seleccionarPartido");
+    const seleccionarEnd = js.indexOf("function obtenerEstadioClubLocal", seleccionarStart);
+    const seleccionarBody = js.slice(seleccionarStart, seleccionarEnd);
+
+    assert.match(js, /adminApp\.classList\.toggle\("has-match-selection", valido\)/);
+    assert.match(js, /selectedMatchSummary\.innerHTML = `/);
+    assert.match(js, /scrollIntoView\(\{\s*behavior: "smooth"/);
+    assert.match(js, /<option value="">Elegí un partido<\/option>/);
+    assert.doesNotMatch(
+      seleccionarBody,
+      /\b(typeFilter|dateFilter|zoneFilter|statusFilter|searchInput)\.value\s*=/
+    );
+    results.push("seleccion conserva filtros y habilita resumen/edicion: ok");
+  }
+
+  {
     const css = fs.readFileSync(path.join(ROOT, "styles", "admin.css"), "utf8");
     assert.equal(css.includes("overflow-x: hidden;"), true);
     assert.match(css, /\.status\s*\{[\s\S]*?position:\s*static;/);
     assert.equal(css.includes("overflow-wrap: anywhere;"), true);
-    results.push("CSS movil sin overflow horizontal ni textos forzados a superponer: ok");
+    assert.match(css, /\.match-workflow\s*\{[\s\S]*?order:\s*40;/);
+    assert.match(css, /\.events-panel\s*\{[\s\S]*?order:\s*60;/);
+    assert.match(css, /\.roster-panel\s*\{[\s\S]*?order:\s*70;/);
+    assert.match(css, /\.stage-panel\s*\{[\s\S]*?order:\s*90;/);
+    assert.match(
+      css,
+      /\.admin-app:not\(\.has-match-selection\)\s+\.match-dependent-detail\s*\{[\s\S]*?display:\s*none;/
+    );
+    assert.match(
+      css,
+      /\.admin-app\.has-match-selection\s+\.match-required-message\s*\{[\s\S]*?display:\s*none;/
+    );
+    results.push("CSS movil sin overflow, superposicion ni bloques altos vacios: ok");
   }
 
   return results;
