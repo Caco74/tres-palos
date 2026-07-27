@@ -5434,9 +5434,7 @@ function renderTablaPosiciones(cont) {
   `;
 
   data.forEach((t, i) => {
-    const dots = t.forma
-      .map(f => `<span class="fd f${f}"></span>`)
-      .join('');
+    const dots = renderIndicadoresFormaTabla(t);
     const nombreEquipo = nombre(t.equipo);
     const escudo = obtenerEscudoEquipo(t.equipo);
     const escudoEquipo = escudo
@@ -5463,7 +5461,7 @@ function renderTablaPosiciones(cont) {
         <td>${t.pe}</td>
         <td>${t.pp}</td>
         <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-        <td><div class="form-row">${dots}</div></td>
+        <td>${dots ? `<div class="form-row">${dots}</div>` : ""}</td>
       </tr>
     `;
   });
@@ -5471,6 +5469,31 @@ function renderTablaPosiciones(cont) {
   html += `</tbody></table></div>`;
   cont.innerHTML = html;
   activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
+}
+
+function obtenerEtiquetaFormaTabla(resultado) {
+  return {
+    w: "victoria",
+    e: "empate",
+    l: "derrota"
+  }[resultado] || "resultado";
+}
+
+function renderIndicadoresFormaTabla(fila) {
+  if (!fila || Number(fila.pj) === 0) return "";
+
+  return (fila.forma || [])
+    .map(resultado => {
+      const etiqueta = obtenerEtiquetaFormaTabla(resultado);
+      return `
+        <span
+          class="fd f${resultado}"
+          aria-label="&Uacute;ltimo resultado: ${etiqueta}"
+          title="&Uacute;ltimo resultado: ${etiqueta}"
+        ></span>
+      `;
+    })
+    .join("");
 }
 
 function renderTablaGoleadores(cont) {
@@ -5527,8 +5550,7 @@ function renderTablaGeneral(standalone = false) {
     <div class="${clases}">
       <div class="tabla-general-head">
         <div>
-          <div class="tabla-general-kicker">General</div>
-          <h3>Tabla general de puntos</h3>
+          <h3>Tabla general</h3>
         </div>
         <span>${data.length} equipos</span>
       </div>
@@ -5558,9 +5580,7 @@ function renderTablaGeneral(standalone = false) {
 }
 
 function renderFilaTablaGeneral(t, indice) {
-  const dots = t.forma
-    .map(f => `<span class="fd f${f}"></span>`)
-    .join("");
+  const dots = renderIndicadoresFormaTabla(t);
   const nombreEquipo = nombre(t.equipo);
   const escudo = obtenerEscudoEquipo(t.equipo);
   const escudoEquipo = escudo
@@ -5584,7 +5604,7 @@ function renderFilaTablaGeneral(t, indice) {
       <td>${t.pe}</td>
       <td>${t.pp}</td>
       <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-      <td><div class="form-row">${dots}</div></td>
+      <td>${dots ? `<div class="form-row">${dots}</div>` : ""}</td>
     </tr>
   `;
 }
@@ -7359,9 +7379,23 @@ function agruparPartidosEquipoPorFase(partidosEquipo) {
   ];
 }
 
-function obtenerProximoPartidoEquipo(partidosEquipo) {
+function torneoPermiteProximoEquipo(torneo) {
+  if (!torneo) return false;
+  if (esTorneoVigente(torneo)) return true;
+
+  return (
+    state.torneoPreview?.id &&
+    String(state.torneoPreview.id) === String(torneo.id)
+  );
+}
+
+function obtenerProximoPartidoEquipo(partidosEquipo, torneo) {
+  if (!torneoPermiteProximoEquipo(torneo)) return null;
+
   const partidosReales = partidosEquipo.filter(
-    partido => partido.tipoActividad !== "libre"
+    partido =>
+      partido.tipoActividad !== "libre" &&
+      partidoPendienteParaVista(partido)
   );
 
   if (window.TPPublicTournament?.getNextPendingMatch) {
@@ -7371,9 +7405,7 @@ function obtenerProximoPartidoEquipo(partidosEquipo) {
     );
   }
 
-  return partidosReales
-    .filter(partido => partidoPendienteParaVista(partido))
-    .sort(ordenarPartidosCronologicamente)[0] || null;
+  return partidosReales.sort(ordenarPartidosCronologicamente)[0] || null;
 }
 
 function renderResumenGrupoPartidosEquipo(grupo) {
@@ -7389,22 +7421,24 @@ function renderResumenGrupoPartidosEquipo(grupo) {
   const titulo = grupo.clave === "regular" && cantidadFechas > 0
     ? `${cantidadFechas} ${cantidadFechas === 1 ? "fecha" : "fechas"}`
     : `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`;
-  const detalle = [
-    `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`,
-    cantidadLibres > 0
-      ? `${cantidadLibres} ${cantidadLibres === 1 ? "libre" : "libres"}`
-      : ""
-  ].filter(Boolean).join(" · ");
+  const detalle = grupo.clave === "regular"
+    ? [
+        `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`,
+        cantidadLibres > 0
+          ? `${cantidadLibres} ${cantidadLibres === 1 ? "libre" : "libres"}`
+          : ""
+      ].filter(Boolean).join(" · ")
+    : "";
 
   return `
     <span class="team-season-summary">
       <strong>${titulo}</strong>
-      <small>${detalle}</small>
+      ${detalle ? `<small>${detalle}</small>` : ""}
     </span>
   `;
 }
 
-function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
+function renderPartidosEquipoPorFase(partidosEquipo, equipo, torneo) {
   if (partidosEquipo.length === 0) {
     return `
       <section class="detail-section">
@@ -7418,7 +7452,7 @@ function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
     `;
   }
 
-  const proximoPartido = obtenerProximoPartidoEquipo(partidosEquipo);
+  const proximoPartido = obtenerProximoPartidoEquipo(partidosEquipo, torneo);
   const proximoId = proximoPartido ? String(proximoPartido.id) : null;
 
   return agruparPartidosEquipoPorFase(partidosEquipo)
@@ -7594,7 +7628,11 @@ function renderDetalleEquipo(equipo) {
         </section>
       `
       : `
-        ${renderPartidosEquipoPorFase(actividadesEquipo, equipo)}
+        ${renderPartidosEquipoPorFase(
+          actividadesEquipo,
+          equipo,
+          torneoSeleccionado
+        )}
       `}
   `;
   return;
@@ -7626,6 +7664,7 @@ function resultadoEquipoDetalle(partido, equipo) {
 
 function renderMiniPartido(partido, equipo, proximo = false) {
   const finalizado = partidoResueltoParaVista(partido);
+  const esProximo = proximo && !finalizado;
   const tieneMarcador = partidoTieneResultado(partido);
   const estadoTemporal = obtenerEstadoTemporalPartido(partido);
   const centro = tieneMarcador
@@ -7638,7 +7677,7 @@ function renderMiniPartido(partido, equipo, proximo = false) {
     : `Fecha ${partido.fecha}`;
   const etiquetaEstado = finalizado
     ? "FINALIZADO"
-    : proximo
+    : esProximo
       ? "PR&Oacute;XIMO"
       : "";
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
@@ -7656,7 +7695,7 @@ function renderMiniPartido(partido, equipo, proximo = false) {
   return `
     <button
       type="button"
-      class="team-match-row ${finalizado ? "team-match-finished" : proximo ? "team-match-next" : "team-match-future"}"
+      class="team-match-row ${finalizado ? "team-match-finished" : esProximo ? "team-match-next" : "team-match-future"}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
     >
       <span class="team-match-meta">

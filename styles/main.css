@@ -1241,6 +1241,10 @@ button {
   font-family: 'DM Mono', monospace;
   font-size: 0.7rem;
   font-weight: 600;
+  line-height: 1.12;
+  overflow-wrap: normal;
+  text-align: center;
+  white-space: normal;
 }
 
 .home-moment.live {
@@ -1729,7 +1733,9 @@ button {
 .mr-time {
   width: 64px;
   min-width: 64px;
+  max-width: 64px;
   height: 48px;
+  box-sizing: border-box;
   text-align: center;
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1rem;
@@ -1751,8 +1757,16 @@ button {
   color: var(--blue);
   font-family: 'DM Mono', monospace;
   font-size: 0.56rem;
+  line-height: 1.12;
   background: transparent;
   border-color: transparent;
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: normal;
+}
+
+.mr-time.tbd {
+  font-size: clamp(0.52rem, 2.3vw, 0.58rem);
 }
 
 .mr-time.live {
@@ -2112,9 +2126,10 @@ button {
   gap: 7px;
 }
 
-.t-pts {
+.tabla td.t-pts {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1rem;
+  font-size: 1.08rem;
+  font-weight: 700;
   letter-spacing: 0.06em;
   color: #ff6575;
   background: rgba(255, 48, 69, .09);
@@ -4266,8 +4281,10 @@ button.team-match-row:focus-visible {
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: 0.64rem;
+  line-height: 1.18;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: normal;
   text-transform: uppercase;
 }
 
@@ -6441,7 +6458,9 @@ button.team-match-row:focus-visible {
 }
 
 .mr-time {
+  width: 64px;
   min-width: 64px;
+  max-width: 64px;
   padding-top: 7px;
   padding-bottom: 7px;
 }
@@ -6465,8 +6484,8 @@ button.team-match-row:focus-visible {
   padding-bottom: 13px;
 }
 
-.t-pts {
-  font-size: 1.15rem;
+.tabla td.t-pts {
+  font-size: 1.22rem;
 }
 
 .fd {
@@ -6770,9 +6789,15 @@ button.team-match-row:focus-visible {
 
   .mr-score,
   .mr-time {
+    width: 52px;
     min-width: 52px;
+    max-width: 52px;
     padding-left: 6px;
     padding-right: 6px;
+  }
+
+  .mr-time.tbd {
+    font-size: 0.52rem;
   }
 }
 
@@ -7000,11 +7025,14 @@ button.team-match-row:focus-visible {
 .home-featured-time strong {
   color: var(--white);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 2rem;
+  font-size: clamp(0.84rem, 5.2vw, 2rem);
   font-weight: 700;
   letter-spacing: 0;
-  line-height: .9;
-  white-space: nowrap;
+  line-height: 1;
+  max-width: 100%;
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: normal;
 }
 
 .home-featured-match.live .home-featured-dot {
@@ -7052,7 +7080,7 @@ button.team-match-row:focus-visible {
   }
 
   .home-featured-time strong {
-    font-size: 1.8rem;
+    font-size: clamp(0.78rem, 4.6vw, 1.8rem);
   }
 }
 
@@ -7066,13 +7094,17 @@ button.team-match-row:focus-visible {
 
 .match-detail-featured-state {
   flex: 0 0 auto;
+  max-width: min(46vw, 160px);
   color: var(--blue);
   font-family: 'DM Mono', monospace;
   font-size: .62rem;
   letter-spacing: 0;
   line-height: 1.2;
+  overflow-wrap: normal;
   text-align: right;
   text-transform: uppercase;
+  white-space: normal;
+  word-break: normal;
 }
 
 .match-detail-featured-state.live {
@@ -7133,6 +7165,11 @@ button.team-match-row:focus-visible {
 
 .match-detail-featured-meta {
   min-height: 74px;
+}
+
+.match-detail-featured-meta .home-featured-time strong {
+  font-size: clamp(0.78rem, 3.7vw, 1.2rem);
+  line-height: 1.05;
 }
 
 .match-detail-support {
@@ -7207,7 +7244,8 @@ button.team-match-row:focus-visible {
   }
 
   .match-detail-featured-state {
-    max-width: 112px;
+    max-width: 102px;
+    font-size: .58rem;
   }
 
   .match-detail-support {
