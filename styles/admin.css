@@ -18,6 +18,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -173,9 +174,49 @@ p {
   gap: 14px;
 }
 
+.tournament-panel {
+  order: 10;
+}
+
+.toolbar {
+  order: 20;
+}
+
+.status {
+  order: 15;
+}
+
+.match-workflow {
+  order: 40;
+}
+
+.live-mode-panel {
+  order: 50;
+}
+
+.events-panel {
+  order: 60;
+}
+
+.roster-panel {
+  order: 70;
+}
+
+.clubs-panel {
+  order: 80;
+}
+
+.analytics-panel {
+  order: 85;
+}
+
+.stage-panel {
+  order: 90;
+}
+
 .toolbar {
   display: grid;
-  grid-template-columns: 150px minmax(180px, 1fr) auto auto;
+  grid-template-columns: 130px 105px 105px 145px minmax(180px, 1fr) auto auto;
   gap: 10px;
   align-items: end;
 }
@@ -194,7 +235,8 @@ p {
   border-radius: 999px;
   font-size: .72rem;
   font-weight: 800;
-  white-space: nowrap;
+  line-height: 1.25;
+  text-align: right;
 }
 
 .tournament-state[data-state="ok"] {
@@ -238,15 +280,23 @@ p {
   align-items: start;
 }
 
+.match-workflow-detail {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
 .panel-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  min-width: 0;
 }
 
 .panel-heading h2 {
   margin-top: 4px;
+  line-height: 1.2;
 }
 
 .analytics-total {
@@ -297,7 +347,8 @@ p {
   border-radius: 999px;
   font-size: .72rem;
   font-weight: 800;
-  white-space: nowrap;
+  line-height: 1.25;
+  text-align: right;
 }
 
 .stage-state[data-state="closed"] {
@@ -772,8 +823,16 @@ input[readonly] {
   padding-right: 4px;
 }
 
+.match-list-summary {
+  margin: -4px 0 10px;
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.35;
+}
+
 .match-item {
   width: 100%;
+  min-height: 74px;
   border: 1px solid var(--line);
   background: var(--card2);
   color: var(--text);
@@ -782,6 +841,7 @@ input[readonly] {
 
 .match-item.on {
   border-color: rgba(255, 48, 69, .75);
+  background: rgba(255, 48, 69, .08);
   box-shadow: inset 3px 0 0 var(--red);
 }
 
@@ -799,9 +859,104 @@ input[readonly] {
 .match-item strong {
   display: block;
   margin: 5px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.selected-match-state {
+  padding: 7px 10px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.selected-match-state[data-state="selected"] {
+  color: var(--green);
+  background: rgba(53, 199, 122, .08);
+  border-color: rgba(53, 199, 122, .28);
+}
+
+.selected-match-summary,
+.match-required-message {
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--muted);
+  font-size: .86rem;
+  line-height: 1.45;
+}
+
+.match-required-message {
+  margin-top: 14px;
+}
+
+.match-dependent-detail {
+  display: block;
+}
+
+.admin-app.has-match-selection .match-required-message {
+  display: none;
+}
+
+.admin-app:not(.has-match-selection) .match-dependent-detail {
+  display: none;
+}
+
+.selected-match-empty {
+  color: var(--muted);
+}
+
+.selected-match-kicker {
+  margin-bottom: 7px;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.selected-match-grid {
+  display: grid;
+  gap: 5px;
+}
+
+.selected-match-grid span,
+.selected-match-grid small {
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.selected-match-grid strong {
+  color: var(--text);
+  font-size: .98rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.source-info strong,
+.source-info span,
+.source-info small {
+  display: block;
+}
+
+.source-info strong {
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.source-info span {
+  margin-top: 5px;
+}
+
+.source-info small {
+  margin-top: 5px;
+  color: var(--muted);
 }
 
 .match-form {
@@ -1288,9 +1443,18 @@ body.live-picker-open {
   border-color: rgba(244, 185, 66, .28);
 }
 
+@media (max-width: 980px) {
+  .toolbar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .toolbar button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 760px) {
   .auth-form,
-  .toolbar,
   .work-tournament-controls,
   .admin-grid,
   .analytics-grid,
@@ -1306,8 +1470,40 @@ body.live-picker-open {
     grid-template-columns: 1fr;
   }
 
+  .toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar > div:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
   .stage-summary {
     gap: 8px;
+  }
+
+  .admin-shell {
+    padding: 18px 12px 40px;
+  }
+
+  .admin-header,
+  .panel-heading {
+    flex-wrap: wrap;
+  }
+
+  .status {
+    position: static;
+    z-index: auto;
+  }
+
+  .tournament-state,
+  .stage-state,
+  .selected-match-state,
+  .analytics-total,
+  .route-badge {
+    max-width: 100%;
+    text-align: left;
+    white-space: normal;
   }
 
   .backup-item {

@@ -12,6 +12,7 @@ const PLAYOFF_STAGES = [
   { value: "semifinal", label: "Semifinales" },
   { value: "final", label: "Final" }
 ];
+const AdminMatchFlow = window.TPAdminFlow;
 
 const authCard = document.getElementById("authCard");
 const authForm = document.getElementById("authForm");
@@ -26,8 +27,15 @@ const workTournamentFeedback = document.getElementById(
 const matchList = document.getElementById("matchList");
 const matchForm = document.getElementById("matchForm");
 const emptyEditor = document.getElementById("emptyEditor");
+const selectedMatchSummary = document.getElementById("selectedMatchSummary");
+const selectedMatchState = document.getElementById("selectedMatchState");
+const matchEditorPanel = document.getElementById("matchEditorPanel");
 const typeFilter = document.getElementById("typeFilter");
+const dateFilter = document.getElementById("dateFilter");
+const zoneFilter = document.getElementById("zoneFilter");
+const statusFilter = document.getElementById("statusFilter");
 const searchInput = document.getElementById("searchInput");
+const matchListSummary = document.getElementById("matchListSummary");
 const refreshBtn = document.getElementById("refreshBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const clearScoreBtn = document.getElementById("clearScoreBtn");
@@ -190,6 +198,7 @@ let liveAction = null;
 let liveChangeOutId = null;
 let liveBusy = false;
 let eventReordering = false;
+let recargaDatosEnCurso = false;
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -372,6 +381,9 @@ function renderSelectorTorneoTrabajo() {
 function actualizarBloqueoPorTorneo() {
   const bloqueado = !torneoTrabajoValido() || torneoTrabajoCargando;
   typeFilter.disabled = bloqueado;
+  dateFilter.disabled = bloqueado;
+  zoneFilter.disabled = bloqueado;
+  statusFilter.disabled = bloqueado;
   searchInput.disabled = bloqueado;
   stageAdminSelect.disabled = bloqueado || etapasDisponibles.length === 0;
   stageNote.disabled = bloqueado || etapasDisponibles.length === 0;
@@ -413,6 +425,7 @@ function limpiarContextoTorneo(message) {
   matchForm.reset();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
+  renderResumenPartidoSeleccionado();
   eventForm.reset();
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
@@ -422,6 +435,9 @@ function limpiarContextoTorneo(message) {
       ${escapeHtml(message || "Selecciona un torneo para listar partidos.")}
     </div>
   `;
+  matchListSummary.textContent =
+    message || "Selecciona un torneo para listar partidos.";
+  resetearFiltrosPartidos();
   eventsTotal.textContent = "0 incidencias";
   eventMatch.innerHTML = `<option value="">Selecciona un torneo</option>`;
   liveMatch.innerHTML = `<option value="">Selecciona un torneo</option>`;
@@ -485,6 +501,290 @@ function mostrarEstadoSinTorneo(message) {
     "warn"
   );
   limpiarContextoTorneo(message);
+}
+
+function resetearFiltrosPartidos() {
+  typeFilter.value = "regular";
+  dateFilter.innerHTML = `<option value="">Todas</option>`;
+  zoneFilter.innerHTML = `<option value="">Todas</option>`;
+  statusFilter.innerHTML = `<option value="">Todos</option>`;
+  dateFilter.value = "";
+  zoneFilter.value = "";
+  statusFilter.value = "";
+  searchInput.value = "";
+}
+
+function renderResumenPartidoSeleccionado(partido = null) {
+  const seleccionado = partido || partidos.find(
+    item => String(item.id) === String(seleccionadoId)
+  );
+  const valido =
+    Boolean(seleccionado) && partidoPerteneceTorneoTrabajo(seleccionado);
+
+  adminApp.classList.toggle("has-match-selection", valido);
+
+  if (!valido) {
+    selectedMatchState.textContent = "Sin seleccionar";
+    selectedMatchState.dataset.state = "";
+    selectedMatchSummary.innerHTML =
+      `<div class="selected-match-empty">Elegí un partido para continuar.</div>`;
+    return;
+  }
+
+  const visible = resolverPartidoPlayoffAdmin(seleccionado);
+  const titulo = seleccionado.tipo === "playoff"
+    ? etiquetaPartidoPlayoffAdmin(seleccionado)
+    : etiquetaFechaZonaPartido(seleccionado);
+  const estado = etiquetaEstadoAdmin(seleccionado.estado || "programado");
+
+  selectedMatchState.textContent = "Seleccionado";
+  selectedMatchState.dataset.state = "selected";
+  selectedMatchSummary.innerHTML = `
+    <div class="selected-match-kicker">
+      ${escapeHtml(etiquetaTorneoTrabajo())}
+    </div>
+    <div class="selected-match-grid">
+      <span>${escapeHtml(titulo)}</span>
+      <strong>${escapeHtml(nombrePartido(visible))}</strong>
+      <small>${escapeHtml(estado)} · ID #${escapeHtml(seleccionado.id)}</small>
+    </div>
+  `;
+}
+
+function desplazarAEditorSiNecesario() {
+  if (!matchEditorPanel || typeof matchEditorPanel.scrollIntoView !== "function") {
+    return;
+  }
+  if (window.matchMedia("(min-width: 761px)").matches) return;
+
+  window.requestAnimationFrame(() => {
+    const rect = matchEditorPanel.getBoundingClientRect();
+    if (rect.top > window.innerHeight * 0.65 || rect.top < 0) {
+      matchEditorPanel.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  });
+}
+
+function opcionesSelect(values, etiquetaTodos, formatter) {
+  return [
+    `<option value="">${escapeHtml(etiquetaTodos)}</option>`,
+    ...values.map(value =>
+      `<option value="${escapeHtml(String(value))}">${
+        escapeHtml(formatter ? formatter(value) : String(value))
+      }</option>`
+    )
+  ].join("");
+}
+
+function filtrosPartidosActuales() {
+  return {
+    torneoId: torneoTrabajoId,
+    tipo: typeFilter.value || "all",
+    fecha: dateFilter.value,
+    zona: zoneFilter.value,
+    estado: statusFilter.value,
+    equipo: searchInput.value
+  };
+}
+
+function capturarEstadoRecarga() {
+  return {
+    torneoId: torneoTrabajoId,
+    tipo: typeFilter.value || "regular",
+    fecha: dateFilter.value,
+    zona: zoneFilter.value,
+    estado: statusFilter.value,
+    equipo: searchInput.value,
+    seleccionadoId: seleccionadoId ? String(seleccionadoId) : "",
+    scrollX: window.scrollX || 0,
+    scrollY: window.scrollY || 0
+  };
+}
+
+function capturarDatosRecarga() {
+  return {
+    partidos: [...partidos],
+    incidencias: [...incidencias],
+    etapasEstado: [...etapasEstado],
+    respaldosEtapa: [...respaldosEtapa],
+    etapasDisponibles: [...etapasDisponibles],
+    etapasHabilitadas
+  };
+}
+
+function partidoSeleccionadoCompatibleConFiltros(id) {
+  return AdminMatchFlow.selectedMatchIsCompatible(
+    partidos,
+    filtrosPartidosActuales(),
+    id,
+    resolverPartidoPlayoffAdmin,
+    partido => partido.tipo === "playoff"
+      ? etiquetaPartidoPlayoffAdmin(partido)
+      : etiquetaFechaZonaPartido(partido)
+  );
+}
+
+function restaurarDatosRecarga(datos, estado) {
+  partidos = [...datos.partidos];
+  incidencias = [...datos.incidencias];
+  etapasEstado = [...datos.etapasEstado];
+  respaldosEtapa = [...datos.respaldosEtapa];
+  etapasDisponibles = [...datos.etapasDisponibles];
+  etapasHabilitadas = datos.etapasHabilitadas;
+  seleccionadoId = estado.seleccionadoId || null;
+
+  restaurarFiltrosPartidos(estado);
+  renderLista();
+  if (etapasHabilitadas) renderControlEtapas();
+  renderOpcionesPartidosIncidencias(
+    estado.seleccionadoId,
+    estado.seleccionadoId
+  );
+
+  if (
+    estado.seleccionadoId &&
+    partidoSeleccionadoCompatibleConFiltros(estado.seleccionadoId)
+  ) {
+    seleccionarPartido(estado.seleccionadoId, {
+      desplazarAEditor: false
+    });
+  } else {
+    renderIncidenciasAdmin();
+    renderModoPartido();
+  }
+}
+
+function asignarValorSelectSiExiste(select, value, fallback = "") {
+  const valor = value ? String(value) : "";
+  if (valor && [...select.options].some(option => option.value === valor)) {
+    select.value = valor;
+    return;
+  }
+  select.value = fallback;
+}
+
+function restaurarFiltrosPartidos(estado) {
+  if (!estado) return;
+
+  asignarValorSelectSiExiste(typeFilter, estado.tipo || "regular", "regular");
+  searchInput.value = estado.equipo || "";
+  dateFilter.value = estado.fecha || "";
+  zoneFilter.value = estado.zona || "";
+  statusFilter.value = estado.estado || "";
+  renderFiltrosPartidos({ preferirFechaPendiente: false });
+  asignarValorSelectSiExiste(dateFilter, estado.fecha);
+  asignarValorSelectSiExiste(zoneFilter, estado.zona);
+  asignarValorSelectSiExiste(statusFilter, estado.estado);
+  searchInput.value = estado.equipo || "";
+}
+
+function restaurarPosicionPanel(estado) {
+  if (!estado) return;
+  window.requestAnimationFrame(() => {
+    const maxScroll = Math.max(
+      0,
+      document.documentElement.scrollHeight - window.innerHeight
+    );
+    window.scrollTo({
+      left: estado.scrollX || 0,
+      top: Math.min(estado.scrollY || 0, maxScroll),
+      behavior: "auto"
+    });
+  });
+}
+
+function renderFiltrosPartidos(options = {}) {
+  const filtros = filtrosPartidosActuales();
+  const filtroOpciones = AdminMatchFlow.getFilterOptions(partidos, filtros);
+  const fechaAnterior = dateFilter.value;
+  const zonaAnterior = zoneFilter.value;
+  const estadoAnterior = statusFilter.value;
+
+  dateFilter.innerHTML = opcionesSelect(
+    filtroOpciones.fechas,
+    "Todas",
+    fecha => `Fecha ${fecha}`
+  );
+  if (
+    options.preferirFechaPendiente &&
+    !fechaAnterior &&
+    filtros.tipo !== "playoff"
+  ) {
+    dateFilter.value = AdminMatchFlow.getSuggestedPendingDate(
+      partidos,
+      torneoTrabajoId
+    );
+  } else if (filtroOpciones.fechas.map(String).includes(fechaAnterior)) {
+    dateFilter.value = fechaAnterior;
+  }
+
+  const filtrosConFecha = filtrosPartidosActuales();
+  const opcionesConFecha = AdminMatchFlow.getFilterOptions(
+    partidos,
+    filtrosConFecha
+  );
+  zoneFilter.innerHTML = opcionesSelect(
+    opcionesConFecha.zonas,
+    "Todas",
+    zona => `Zona ${zona}`
+  );
+  if (opcionesConFecha.zonas.map(String).includes(zonaAnterior)) {
+    zoneFilter.value = zonaAnterior;
+  }
+
+  statusFilter.innerHTML = opcionesSelect(
+    filtroOpciones.estados,
+    "Todos",
+    etiquetaEstadoAdmin
+  );
+  if (filtroOpciones.estados.map(String).includes(estadoAnterior)) {
+    statusFilter.value = estadoAnterior;
+  }
+}
+
+function partidosVisiblesSelector() {
+  return AdminMatchFlow.filterMatches(
+    partidos,
+    filtrosPartidosActuales(),
+    resolverPartidoPlayoffAdmin,
+    partido => partido.tipo === "playoff"
+      ? etiquetaPartidoPlayoffAdmin(partido)
+      : etiquetaFechaZonaPartido(partido)
+  );
+}
+
+function limpiarSeleccionPartido(message) {
+  seleccionadoId = null;
+  partidoOriginal = null;
+  incidenciaSeleccionadaId = null;
+  matchForm.reset();
+  matchForm.classList.add("hidden");
+  emptyEditor.classList.remove("hidden");
+  renderResumenPartidoSeleccionado();
+  eventForm.reset();
+  eventForm.classList.add("hidden");
+  emptyEventEditor.classList.remove("hidden");
+  if (eventMatch.options.length) eventMatch.value = "";
+  if (liveMatch.options.length) liveMatch.value = "";
+  if (message) setSaveFeedback(message, "warn");
+  renderIncidenciasAdmin();
+  renderModoPartido();
+  actualizarBloqueoEditor();
+}
+
+function limpiarSeleccionIncompatible(visibles, message) {
+  if (!seleccionadoId) return;
+  const sigueVisible = visibles.some(
+    partido => String(partido.id) === String(seleccionadoId)
+  );
+  if (!sigueVisible) {
+    limpiarSeleccionPartido(
+      message || "La seleccion se limpio porque ya no coincide con los filtros."
+    );
+  }
 }
 
 async function cargarTorneosTrabajo() {
@@ -687,23 +987,33 @@ function obtenerEtapasDisponiblesAdmin() {
     .forEach(partido => {
       const torneoId = obtenerTorneoIdPartidoAdmin(partido);
       const fecha = Number(partido.fecha);
+      const zona = String(partido.zona || "").trim();
       if (!torneoId || !Number.isFinite(fecha)) return;
-      const key = `${torneoId}:regular:${fecha}`;
+      const usaLegacy = torneoUsaEtapasRegularesLegacy(torneoId);
+      const valor = usaLegacy
+        ? String(fecha)
+        : AdminMatchFlow.buildRegularStageValue(fecha, zona);
+      if (!valor) return;
+      const key = `${torneoId}:regular:${valor}`;
       fechasMap.set(key, {
         key,
         torneoId,
         sort: fecha,
-        base: `regular:${fecha}`,
+        zoneSort: Number.isFinite(Number(zona)) ? Number(zona) : 999,
+        base: usaLegacy ? `regular:${fecha}` : `regular:${fecha}:${zona}`,
         tipo: "regular",
-        valor: String(fecha),
-        etiquetaBase: `Fecha ${fecha}`
+        valor,
+        etiquetaBase: usaLegacy
+          ? `Fecha ${fecha}`
+          : `Fecha ${fecha} · Zona ${zona}`
       });
     });
 
   const fechas = [...fechasMap.values()]
     .sort((a, b) =>
       Number(a.torneoId) - Number(b.torneoId) ||
-      a.sort - b.sort
+      a.sort - b.sort ||
+      a.zoneSort - b.zoneSort
     );
 
   const fases = [];
@@ -766,6 +1076,15 @@ function obtenerTorneoIdsPartidosAdmin() {
   ];
 }
 
+function torneoUsaEtapasRegularesLegacy(torneoId) {
+  const registros = [...etapasEstado, ...respaldosEtapa];
+  return registros.some(item =>
+    String(item.torneo_id) === String(torneoId) &&
+    item.tipo === "regular" &&
+    AdminMatchFlow.isLegacyRegularStageValue(item.valor)
+  );
+}
+
 function renderControlEtapas() {
   etapasDisponibles = obtenerEtapasDisponiblesAdmin();
   const seleccionAnterior = stageAdminSelect.value;
@@ -788,7 +1107,7 @@ function renderControlEtapas() {
 
   stageAdminSelect.innerHTML = etapasDisponibles
     .map(etapa =>
-      `<option value="${etapa.key}">${etapa.etiqueta}</option>`
+      `<option value="${escapeHtml(etapa.key)}">${escapeHtml(etapa.etiqueta)}</option>`
     )
     .join("");
   stageAdminSelect.disabled = false;
@@ -846,12 +1165,19 @@ function obtenerEtapaPartidoAdmin(partido) {
     partido.fecha !== null &&
     partido.fecha !== undefined
   ) {
+    const usaLegacy = torneoUsaEtapasRegularesLegacy(torneoId);
+    const valor = usaLegacy
+      ? String(partido.fecha)
+      : AdminMatchFlow.buildRegularStageValue(partido.fecha, partido.zona);
+    const etiqueta = usaLegacy
+      ? `Fecha ${partido.fecha}`
+      : etiquetaFechaZonaPartido(partido);
     return {
-      key: `${torneoId}:regular:${partido.fecha}`,
+      key: `${torneoId}:regular:${valor}`,
       torneoId,
       tipo: "regular",
-      valor: String(partido.fecha),
-      etiqueta: `Fecha ${partido.fecha}`
+      valor,
+      etiqueta
     };
   }
 
@@ -945,8 +1271,11 @@ function obtenerPartidosEtapa(etapa) {
     }
 
     if (etapa.tipo === "regular") {
+      const regular = AdminMatchFlow.parseRegularStageValue(etapa.valor);
+      if (!regular.fecha) return false;
       return partido.tipo === "regular" &&
-        String(partido.fecha) === String(etapa.valor);
+        String(partido.fecha) === String(regular.fecha) &&
+        (!regular.zona || String(partido.zona) === String(regular.zona));
     }
     return partido.tipo === "playoff" &&
       String(partido.fase) === String(etapa.valor);
@@ -1022,7 +1351,13 @@ function renderEtapaSeleccionada() {
   stageState.textContent = cerrada ? "Etapa cerrada" : "Etapa abierta";
   stageState.dataset.state = cerrada ? "closed" : "open";
 
-  if (cerrada) {
+  if (partidosEtapa.length === 0) {
+    stageValidation.textContent =
+      etapa.tipo === "regular"
+        ? "Esta zona no tiene partidos en esta fecha."
+        : "La etapa no tiene partidos para respaldar.";
+    stageValidation.dataset.type = "warn";
+  } else if (cerrada) {
     stageValidation.textContent =
       `Cerrada el ${formatearActualizacion(estado.cerrada_en)}. ` +
       "Sus partidos están bloqueados para edición.";
@@ -1035,7 +1370,7 @@ function renderEtapaSeleccionada() {
       advertenciasIncidencias.length > 0 ? "warn" : "ok";
   } else {
     const ids = faltantes.slice(0, 6).map(
-      partido => `#${partido.id}`
+      resumenPartidoAdvertencia
     ).join(", ");
     stageValidation.textContent =
       `${faltantes.length} partido(s) todavía requieren equipos, ` +
@@ -1925,52 +2260,38 @@ function renderOpcionesPartidosIncidencias(
     return;
   }
 
-  const ordenados = [...partidos].sort(
-    (a, b) =>
-      String(b.fecha_partido || "").localeCompare(
-        String(a.fecha_partido || "")
-      ) ||
-      Number(b.id) - Number(a.id)
+  const ordenados = AdminMatchFlow.sortMatchesForSelector(
+    partidos,
+    resolverPartidoPlayoffAdmin
   );
 
-  eventMatch.innerHTML = ordenados.map(partido => `
-    <option value="${partido.id}">
-      #${partido.id} · ${escapeHtml(nombrePartido(partido))}
-      ${partido.fecha_partido
-        ? ` · ${formatearFechaAdmin(partido.fecha_partido)}`
-        : ""}
-    </option>
-  `).join("");
+  eventMatch.innerHTML = `
+    <option value="">Elegí un partido</option>
+    ${ordenados.map(partido => `
+      <option value="${partido.id}">
+        ${escapeHtml(
+          partido.tipo === "playoff"
+            ? etiquetaPartidoPlayoffAdmin(partido)
+            : etiquetaFechaZonaPartido(partido)
+        )} · ${escapeHtml(nombrePartido(partido))}
+        ${partido.fecha_partido
+          ? ` · ${formatearFechaAdmin(partido.fecha_partido)}`
+          : ""}
+        · ID #${partido.id}
+      </option>
+    `).join("")}
+  `;
 
-  const sugerido =
-    ordenados.find(item =>
-      String(item.id) === String(partidoPrevio)
-    ) ||
-    ordenados.find(item =>
-      String(item.id) === String(seleccionadoId)
-    ) ||
-    ordenados.find(item =>
-      incidencias.some(evento =>
-        String(evento.partido_id) === String(item.id)
-      )
-    ) ||
-    ordenados[0];
+  const seleccionado = seleccionadoId
+    ? ordenados.find(item => String(item.id) === String(seleccionadoId))
+    : null;
+  const sugerido = seleccionado;
 
   eventMatch.value = sugerido ? String(sugerido.id) : "";
   newEventBtn.disabled = !sugerido || !torneoTrabajoValido();
 
   liveMatch.innerHTML = eventMatch.innerHTML;
-  const sugeridoRapido =
-    ordenados.find(item =>
-      String(item.id) === String(partidoRapidoPrevio)
-    ) ||
-    ordenados.find(item =>
-      item.estado === "finalizado" &&
-      tieneResultado(item) &&
-      resolverEquipoPartidoAdmin(item, "local").id &&
-      resolverEquipoPartidoAdmin(item, "visitante").id
-    ) ||
-    sugerido;
+  const sugeridoRapido = seleccionado || sugerido;
   liveMatch.value = sugeridoRapido
     ? String(sugeridoRapido.id)
     : "";
@@ -3384,6 +3705,73 @@ async function moverIncidencia(id, direction) {
   }
 }
 
+function setRecargandoDatos(isReloading) {
+  recargaDatosEnCurso = isReloading;
+  refreshBtn.disabled = isReloading;
+  refreshBtn.textContent = isReloading
+    ? "Actualizando…"
+    : "Recargar datos";
+  refreshBtn.setAttribute("aria-busy", isReloading ? "true" : "false");
+}
+
+async function recargarDatosPanel() {
+  if (recargaDatosEnCurso) return;
+  if (!torneoTrabajoValido()) {
+    setStatus("Selecciona un torneo de trabajo antes de recargar.", "warn");
+    return;
+  }
+
+  const estado = capturarEstadoRecarga();
+  const datosPrevios = capturarDatosRecarga();
+  const mensajeSeleccionIncompatible =
+    "El partido seleccionado ya no está disponible con estos filtros.";
+
+  setRecargandoDatos(true);
+  setStatus("Actualizando…");
+
+  try {
+    restaurarFiltrosPartidos(estado);
+    await cargarPartidos({
+      preferirFechaPendiente: false,
+      mostrarEstado: false,
+      seleccionIncompatibleMensaje: mensajeSeleccionIncompatible
+    });
+    restaurarFiltrosPartidos(estado);
+
+    await cargarEtapasAdmin();
+    await cargarIncidenciasAdmin();
+
+    const sigueDisponible = partidoSeleccionadoCompatibleConFiltros(
+      estado.seleccionadoId
+    );
+
+    if (sigueDisponible) {
+      seleccionarPartido(estado.seleccionadoId, {
+        desplazarAEditor: false
+      });
+    } else if (estado.seleccionadoId) {
+      limpiarSeleccionPartido(mensajeSeleccionIncompatible);
+      renderLista();
+    } else {
+      renderLista();
+    }
+
+    setStatus(
+      `Datos actualizados para ${etiquetaTorneoTrabajo()}.`,
+      "ok"
+    );
+  } catch (error) {
+    restaurarDatosRecarga(datosPrevios, estado);
+    setStatus(
+      `No se pudieron recargar los datos: ${error.message}`,
+      "error"
+    );
+  } finally {
+    setRecargandoDatos(false);
+    restaurarPosicionPanel(estado);
+  }
+}
+
 async function cargarPanel() {
   const torneoGuardado = idTorneoDesdeSesion();
   mostrarEstadoSinTorneo(
@@ -3424,15 +3812,19 @@ async function cargarPanel() {
   setStatus("Selecciona un torneo de trabajo.", "warn");
 }
 
-async function cargarPartidos() {
+async function cargarPartidos(options = {}) {
   const torneoId = requerirTorneoTrabajoId();
-  setStatus("Cargando partidos...");
+  const mostrarEstado = options.mostrarEstado !== false;
+  if (mostrarEstado) setStatus("Cargando partidos...");
   const data = await apiRequest(
     "GET",
     null,
     `${API_URL}?torneo_id=${encodeURIComponent(torneoId)}`
   );
-  partidos = Array.isArray(data.partidos) ? data.partidos : [];
+  partidos = AdminMatchFlow.sortMatchesForSelector(
+    Array.isArray(data.partidos) ? data.partidos : [],
+    resolverPartidoPlayoffAdmin
+  );
   const partidoFueraDeTorneo = partidos.find(
     partido => !partidoPerteneceTorneoTrabajo(partido)
   );
@@ -3442,15 +3834,23 @@ async function cargarPartidos() {
       "La respuesta de partidos contiene datos fuera del torneo de trabajo."
     );
   }
-  renderLista();
-  setStatus(
-    `${partidos.length} partidos cargados para ${etiquetaTorneoTrabajo()}.`,
-    "ok"
-  );
+  renderFiltrosPartidos({
+    preferirFechaPendiente: options.preferirFechaPendiente !== false
+  });
+  renderLista({
+    seleccionIncompatibleMensaje: options.seleccionIncompatibleMensaje
+  });
+  if (mostrarEstado) {
+    setStatus(
+      `${partidos.length} partidos cargados para ${etiquetaTorneoTrabajo()}.`,
+      "ok"
+    );
+  }
 }
 
-function renderLista() {
+function renderLista(options = {}) {
   if (!torneoTrabajoValido()) {
+    matchListSummary.textContent = "Selecciona un torneo para listar partidos.";
     matchList.innerHTML = `
       <div class="empty-list">
         Selecciona un torneo para listar partidos.
@@ -3459,34 +3859,21 @@ function renderLista() {
     return;
   }
 
-  const tipo = typeFilter.value;
-  const busqueda = searchInput.value.trim().toLowerCase();
-
-  const visibles = partidos.filter(partido => {
-    const partidoVisible = resolverPartidoPlayoffAdmin(partido);
-    const etiqueta = partido.tipo === "playoff"
-      ? etiquetaPartidoPlayoffAdmin(partido)
-      : "";
-    const coincideTipo = tipo === "all" || partido.tipo === tipo;
-    const texto = [
-      partido.id,
-      partido.fase,
-      partido.numero_playoff,
-      etiqueta,
-      partido.fecha,
-      partido.local,
-      partido.visitante,
-      partidoVisible.local,
-      partidoVisible.visitante,
-      partido.source_local,
-      partido.source_visitante
-    ].join(" ").toLowerCase();
-
-    return coincideTipo && (!busqueda || texto.includes(busqueda));
-  });
+  const visibles = partidosVisiblesSelector();
+  limpiarSeleccionIncompatible(
+    visibles,
+    options.seleccionIncompatibleMensaje
+  );
+  renderResumenPartidoSeleccionado();
+  matchListSummary.textContent =
+    `${visibles.length} de ${partidos.length} partido(s) del torneo de trabajo.`;
 
   if (visibles.length === 0) {
-    matchList.innerHTML = `<div class="empty-list">Sin partidos para mostrar.</div>`;
+    const sinZona = dateFilter.value && zoneFilter.value
+      ? "Esta zona no tiene partidos en esta fecha."
+      : "Sin partidos para mostrar con estos filtros.";
+    matchList.innerHTML =
+      `<div class="empty-list">${escapeHtml(sinZona)}</div>`;
     return;
   }
 
@@ -3494,7 +3881,7 @@ function renderLista() {
     const partidoVisible = resolverPartidoPlayoffAdmin(partido);
     const titulo = partido.tipo === "playoff"
       ? etiquetaPartidoPlayoffAdmin(partido)
-      : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
+      : etiquetaFechaZonaPartido(partido);
     const resultado = tieneResultado(partido)
       ? `${partido.goles_local} - ${partido.goles_visitante}`
       : "Pendiente";
@@ -3513,11 +3900,11 @@ function renderLista() {
         class="match-item ${String(partido.id) === String(seleccionadoId) ? "on" : ""}"
         data-id="${partido.id}"
       >
-        <span>#${partido.id} · ${titulo}</span>
-        <strong>${nombrePartido(partidoVisible)}</strong>
+        <span>${escapeHtml(titulo)}</span>
+        <strong>${escapeHtml(nombrePartido(partidoVisible))}</strong>
         <small>${programacion}</small>
         <small>
-          ${resultado} · ${etiquetaEstadoAdmin(estado)}
+          ${etiquetaEstadoAdmin(estado)} · ${resultado} · ID #${partido.id}
           ${etapaCerrada ? " · Etapa cerrada" : ""}
         </small>
       </button>
@@ -3525,7 +3912,7 @@ function renderLista() {
   }).join("");
 }
 
-function seleccionarPartido(id) {
+function seleccionarPartido(id, options = {}) {
   const partido = partidos.find(item => String(item.id) === String(id));
   if (!partido) return;
   if (!partidoPerteneceTorneoTrabajo(partido)) {
@@ -3556,10 +3943,7 @@ function seleccionarPartido(id) {
   fields.golesVisitante.value = valorInput(partido.goles_visitante);
   fields.penalesLocal.value = valorInput(partido.penales_local);
   fields.penalesVisitante.value = valorInput(partido.penales_visitante);
-  fields.sourceInfo.textContent = [
-    partido.tipo === "playoff"
-      ? `Partido: ${etiquetaPartidoPlayoffAdmin(partido)}`
-      : "",
+  const datosSecundarios = [
     `Origen: ${partido.source_local || "-"} / ${partido.source_visitante || "-"}`,
     tieneEquiposSugeridos
       ? "Equipos sugeridos desde las llaves; guardá para fijarlos."
@@ -3568,7 +3952,13 @@ function seleccionarPartido(id) {
       ? `Última actualización: ${formatearActualizacion(partido.actualizado_en)}`
       : ""
   ].filter(Boolean).join(" · ");
+  fields.sourceInfo.innerHTML = `
+    <strong>${escapeHtml(etiquetaTorneoFechaZonaId(partido))}</strong>
+    <span>${escapeHtml(nombrePartido(partidoVisible))}</span>
+    ${datosSecundarios ? `<small>${escapeHtml(datosSecundarios)}</small>` : ""}
+  `;
   partidoOriginal = { ...partido };
+  renderResumenPartidoSeleccionado(partido);
   setSaveFeedback(
     estadioSugerido
       ? "Se sugirió el estadio del club local. Guardá para confirmarlo."
@@ -3596,6 +3986,10 @@ function seleccionarPartido(id) {
     emptyEventEditor.classList.remove("hidden");
     renderIncidenciasAdmin();
     renderModoPartido();
+  }
+
+  if (options.desplazarAEditor !== false) {
+    desplazarAEditorSiNecesario();
   }
 }
 
@@ -3807,6 +4201,31 @@ function tieneResultado(partido) {
   return partido.goles_local !== null && partido.goles_visitante !== null;
 }
 
+function etiquetaFechaZonaPartido(partido) {
+  const fecha = partido?.fecha !== null && partido?.fecha !== undefined
+    ? `Fecha ${partido.fecha}`
+    : "Fecha pendiente";
+  const zona = partido?.zona !== null && partido?.zona !== undefined
+    ? `Zona ${partido.zona}`
+    : "Zona pendiente";
+  return `${fecha} · ${zona}`;
+}
+
+function etiquetaTorneoFechaZonaId(partido) {
+  return [
+    etiquetaTorneoTrabajo(),
+    partido?.tipo === "playoff"
+      ? etiquetaPartidoPlayoffAdmin(partido)
+      : etiquetaFechaZonaPartido(partido),
+    partido?.id ? `ID #${partido.id}` : ""
+  ].filter(Boolean).join(" · ");
+}
+
+function resumenPartidoAdvertencia(partido) {
+  const visible = resolverPartidoPlayoffAdmin(partido);
+  return `#${partido.id} · ${nombrePartido(visible)}`;
+}
+
 function nombrePartido(partido) {
   const partidoVisible = resolverPartidoPlayoffAdmin(partido);
   return `${partidoVisible.local || "Por definir"} vs ${
@@ -3944,7 +4363,7 @@ async function guardarPartido(event) {
       tipo
     );
     await cargarPartidos();
-    seleccionarPartido(id);
+    seleccionarPartido(id, { desplazarAEditor: false });
     setSaveFeedback(
       `Guardado a las ${hora}: ${camposGuardados || "cambios aplicados"}.${advertenciaEstado}${ignorados}`,
       tipo
@@ -4049,6 +4468,24 @@ function etiquetaCampoAdmin(campo) {
   }[campo] || campo;
 }
 
+function cambiarTipoFiltroPartidos() {
+  dateFilter.value = "";
+  zoneFilter.value = "";
+  renderFiltrosPartidos();
+  renderLista();
+}
+
+function cambiarFechaFiltroPartidos() {
+  zoneFilter.value = "";
+  renderFiltrosPartidos();
+  renderLista();
+}
+
+function cambiarFiltroPartidos() {
+  renderFiltrosPartidos();
+  renderLista();
+}
+
 authForm.addEventListener("submit", async event => {
   event.preventDefault();
   sessionStorage.setItem(PASSWORD_KEY, adminPassword.value);
@@ -4074,7 +4511,10 @@ matchForm.addEventListener("submit", event => {
   });
 });
 
-typeFilter.addEventListener("change", renderLista);
+typeFilter.addEventListener("change", cambiarTipoFiltroPartidos);
+dateFilter.addEventListener("change", cambiarFechaFiltroPartidos);
+zoneFilter.addEventListener("change", cambiarFiltroPartidos);
+statusFilter.addEventListener("change", cambiarFiltroPartidos);
 searchInput.addEventListener("input", renderLista);
 workTournamentSelect.addEventListener("change", () => {
   const torneoId = workTournamentSelect.value;
@@ -4093,7 +4533,7 @@ workTournamentSelect.addEventListener("change", () => {
   });
 });
 refreshBtn.addEventListener("click", () => {
-  cargarPanel().catch(error => setStatus(error.message, "error"));
+  recargarDatosPanel().catch(error => setStatus(error.message, "error"));
 });
 logoutBtn.addEventListener("click", () => {
   sessionStorage.removeItem(PASSWORD_KEY);
@@ -4188,6 +4628,14 @@ toggleRosterBtn.addEventListener("click", () => {
   });
 });
 eventMatch.addEventListener("change", () => {
+  if (eventMatch.value && String(eventMatch.value) !== String(seleccionadoId)) {
+    seleccionarPartido(eventMatch.value, { desplazarAEditor: false });
+    return;
+  }
+  if (!eventMatch.value) {
+    limpiarSeleccionPartido("Elegí un partido para continuar.");
+    return;
+  }
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
@@ -4196,6 +4644,14 @@ eventMatch.addEventListener("change", () => {
   renderModoPartido();
 });
 liveMatch.addEventListener("change", () => {
+  if (liveMatch.value && String(liveMatch.value) !== String(seleccionadoId)) {
+    seleccionarPartido(liveMatch.value, { desplazarAEditor: false });
+    return;
+  }
+  if (!liveMatch.value) {
+    limpiarSeleccionPartido("Elegí un partido para continuar.");
+    return;
+  }
   eventMatch.value = liveMatch.value;
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");

@@ -1,3 +1,5 @@
+const crypto = require("node:crypto");
+
 const VALID_STAGE_TYPES = new Set(["regular", "playoff"]);
 const VALID_ACTIONS = new Set(["cerrar", "reabrir", "restaurar"]);
 
@@ -108,9 +110,26 @@ async function getBackupExport(event, backupId) {
     return json(404, { error: "Respaldo no encontrado." });
   }
 
+  const etapa = describeStage(respaldo);
+  const integridad = buildIntegrity({
+    respaldo_id: respaldo.id,
+    torneo_id: respaldo.torneo_id,
+    tipo: respaldo.tipo,
+    valor: respaldo.valor,
+    etiqueta: respaldo.etiqueta,
+    nota: respaldo.nota,
+    cantidad_partidos: respaldo.cantidad_partidos,
+    partidos: respaldo.partidos,
+    incidencias: respaldo.incidencias,
+    torneo_completo: respaldo.torneo_completo,
+    creado_en: respaldo.creado_en
+  });
+
   return json(200, {
     formato: "tres-palos-respaldo-etapa-v2",
     exportado_en: new Date().toISOString(),
+    etapa,
+    integridad,
     respaldo
   });
 }
@@ -207,6 +226,79 @@ function sanitizeNote(note) {
     throw validationError("La nota no puede superar los 500 caracteres.");
   }
   return value || null;
+}
+
+function parseRegularStageValue(value) {
+  const raw = String(value || "").trim();
+  const zoned = raw.match(/^fecha:(\d+):zona:([A-Za-z0-9_-]+)$/);
+  if (zoned) {
+    return {
+      fecha: Number(zoned[1]),
+      zona: zoned[2],
+      legacy: false
+    };
+  }
+
+  if (/^\d+$/.test(raw)) {
+    return {
+      fecha: Number(raw),
+      zona: null,
+      legacy: true
+    };
+  }
+
+  return {
+    fecha: null,
+    zona: null,
+    legacy: false
+  };
+}
+
+function describeStage(respaldo) {
+  const torneoMetadata = respaldo.torneo_completo?.metadata || {};
+  const base = {
+    torneo_id: respaldo.torneo_id,
+    torneo: torneoMetadata.torneo || null,
+    tipo: respaldo.tipo,
+    valor: respaldo.valor,
+    etiqueta: respaldo.etiqueta,
+    cantidad_partidos: respaldo.cantidad_partidos
+  };
+
+  if (respaldo.tipo !== "regular") return base;
+
+  const regular = parseRegularStageValue(respaldo.valor);
+  return {
+    ...base,
+    fecha: regular.fecha,
+    zona: regular.zona,
+    legacy: regular.legacy
+  };
+}
+
+function buildIntegrity(payload) {
+  return {
+    algoritmo: "sha256",
+    hash: crypto
+      .createHash("sha256")
+      .update(stableStringify(payload))
+      .digest("hex")
+  };
+}
+
+function stableStringify(value) {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+
+  return "{" + Object.keys(value)
+    .sort()
+    .map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+    .join(",") + "}";
 }
 
 function validationError(message) {

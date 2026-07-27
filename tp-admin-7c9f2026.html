@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=10">
+  <link rel="stylesheet" href="styles/admin.css?v=12">
 </head>
 <body>
   <main class="admin-shell">
@@ -68,24 +68,161 @@
         </div>
       </section>
 
+      <div class="status" id="statusBox">Listo.</div>
+
       <div class="toolbar">
         <div>
           <label for="typeFilter">Tipo</label>
           <select id="typeFilter">
-            <option value="playoff">Playoffs</option>
             <option value="regular">Fase regular</option>
+            <option value="playoff">Playoffs</option>
             <option value="all">Todos</option>
           </select>
         </div>
         <div>
-          <label for="searchInput">Buscar</label>
-          <input id="searchInput" type="search" placeholder="Equipo, fase o ID">
+          <label for="dateFilter">Fecha</label>
+          <select id="dateFilter">
+            <option value="">Todas</option>
+          </select>
         </div>
-        <button type="button" id="refreshBtn">Actualizar</button>
+        <div>
+          <label for="zoneFilter">Zona</label>
+          <select id="zoneFilter">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div>
+          <label for="statusFilter">Estado</label>
+          <select id="statusFilter">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div>
+          <label for="searchInput">Buscar</label>
+          <input id="searchInput" type="search" placeholder="Equipo o ID">
+        </div>
+        <button type="button" id="refreshBtn" class="ghost">
+          Recargar datos
+        </button>
         <button type="button" id="logoutBtn" class="ghost">Salir</button>
       </div>
 
-      <div class="status" id="statusBox">Listo.</div>
+      <div class="admin-grid match-workflow">
+        <section class="admin-card matches-panel">
+          <h2>Partidos</h2>
+          <div id="matchListSummary" class="match-list-summary">
+            Selecciona un torneo para listar partidos.
+          </div>
+          <div id="matchList" class="match-list"></div>
+        </section>
+
+        <div class="match-workflow-detail">
+          <section class="admin-card selected-match-panel" id="selectedMatchPanel">
+            <div class="panel-heading">
+              <div>
+                <span class="eyebrow">Partido seleccionado</span>
+                <h2>Partido seleccionado</h2>
+              </div>
+              <span class="selected-match-state" id="selectedMatchState">
+                Sin seleccionar
+              </span>
+            </div>
+            <div id="selectedMatchSummary" class="selected-match-summary">
+              Elegí un partido para continuar.
+            </div>
+          </section>
+
+          <section class="admin-card editor-panel" id="matchEditorPanel">
+            <h2>Editar partido</h2>
+            <div id="emptyEditor" class="empty-editor">
+              Elegí un partido para cargar datos.
+            </div>
+
+            <form id="matchForm" class="match-form hidden">
+              <input type="hidden" id="partidoId">
+
+              <div class="form-section-title">Equipos</div>
+              <div class="form-row two">
+                <label>
+                  Local
+                  <input id="localInput" type="text">
+                </label>
+                <label>
+                  Visitante
+                  <input id="visitanteInput" type="text">
+                </label>
+              </div>
+
+              <div class="form-section-title">Programación</div>
+              <div class="form-row three">
+                <label>
+                  Fecha
+                  <input id="fechaInput" type="date">
+                </label>
+                <label>
+                  Hora
+                  <input id="horaInput" type="time">
+                </label>
+                <label>
+                  Estado
+                  <select id="estadoInput">
+                    <option value="programado">Programado</option>
+                    <option value="en_vivo">En vivo</option>
+                    <option value="finalizado">Finalizado</option>
+                    <option value="pendiente_resultado">Pendiente resultado</option>
+                    <option value="suspendido">Suspendido</option>
+                    <option value="postergado">Postergado</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-row two">
+                <label>
+                  Estadio / sede
+                  <input id="estadioInput" type="text" placeholder="Vacío = A confirmar">
+                </label>
+                <label>
+                  Árbitro principal
+                  <input id="arbitroInput" type="text" placeholder="Vacío = A confirmar">
+                </label>
+              </div>
+
+              <div class="form-section-title">Resultado</div>
+              <div class="form-row two">
+                <label>
+                  Goles local
+                  <input id="golesLocalInput" type="number" min="0" inputmode="numeric">
+                </label>
+                <label>
+                  Goles visitante
+                  <input id="golesVisitanteInput" type="number" min="0" inputmode="numeric">
+                </label>
+              </div>
+
+              <div class="form-row two">
+                <label>
+                  Penales local
+                  <input id="penalesLocalInput" type="number" min="0" inputmode="numeric">
+                </label>
+                <label>
+                  Penales visitante
+                  <input id="penalesVisitanteInput" type="number" min="0" inputmode="numeric">
+                </label>
+              </div>
+
+              <div class="source-info" id="sourceInfo"></div>
+
+              <div class="actions">
+                <button type="submit" id="saveBtn">Guardar cambios</button>
+                <button type="button" class="ghost" id="clearScoreBtn">Limpiar resultado</button>
+              </div>
+              <div class="form-feedback" id="saveFeedback">
+                Modificá uno o más campos y guardá los cambios.
+              </div>
+            </form>
+          </section>
+        </div>
+      </div>
 
       <section class="admin-card live-mode-panel">
         <div class="panel-heading">
@@ -98,69 +235,75 @@
           </span>
         </div>
 
-        <p class="stage-intro">
-          El resultado no se modifica desde acá. Tocá una acción del equipo
-          y elegí al jugador para completar lo ocurrido en el partido.
-          Tiempo y minuto son opcionales.
-        </p>
-
-        <label class="live-match-select">
-          Partido
-          <select id="liveMatch"></select>
-        </label>
-
-        <div class="live-scoreboard">
-          <div class="live-team live-team-local">
-            <span>Local</span>
-            <strong id="liveLocalName">Por definir</strong>
-          </div>
-          <div class="live-score" id="liveScore">0 - 0</div>
-          <div class="live-team live-team-away">
-            <span>Visitante</span>
-            <strong id="liveAwayName">Por definir</strong>
-          </div>
-        </div>
-        <div class="live-goal-progress" id="liveGoalProgress">
-          Cargá primero el resultado del partido.
-        </div>
-        <div class="live-consistency">
-          <div class="live-consistency-head">
-            <strong>Control de consistencia</strong>
-            <span id="liveConsistencyState">Sin revisar</span>
-          </div>
-          <div id="liveConsistencyList">
-            Elegí un partido para revisar sus incidencias.
-          </div>
+        <div class="match-required-message">
+          Elegí un partido para continuar.
         </div>
 
-        <div class="live-action-columns">
-          <div class="live-actions-side live-actions-local">
-            <div id="liveLocalActions"></div>
+        <div class="match-dependent-detail">
+          <p class="stage-intro">
+            El resultado no se modifica desde acá. Tocá una acción del equipo
+            y elegí al jugador para completar lo ocurrido en el partido.
+            Tiempo y minuto son opcionales.
+          </p>
+
+          <label class="live-match-select">
+            Partido
+            <select id="liveMatch"></select>
+          </label>
+
+          <div class="live-scoreboard">
+            <div class="live-team live-team-local">
+              <span>Local</span>
+              <strong id="liveLocalName">Por definir</strong>
+            </div>
+            <div class="live-score" id="liveScore">0 - 0</div>
+            <div class="live-team live-team-away">
+              <span>Visitante</span>
+              <strong id="liveAwayName">Por definir</strong>
+            </div>
           </div>
-          <div class="live-actions-side live-actions-away">
-            <div id="liveAwayActions"></div>
+          <div class="live-goal-progress" id="liveGoalProgress">
+            Cargá primero el resultado del partido.
           </div>
-        </div>
+          <div class="live-consistency">
+            <div class="live-consistency-head">
+              <strong>Control de consistencia</strong>
+              <span id="liveConsistencyState">Sin revisar</span>
+            </div>
+            <div id="liveConsistencyList">
+              Elegí un partido para revisar sus incidencias.
+            </div>
+          </div>
 
-        <div class="live-timeline-heading">
-          <h3>Últimas acciones</h3>
-          <span id="liveEventCount">0 incidencias</span>
-        </div>
-        <div class="live-timeline" id="liveTimeline">
-          Elegí un partido para comenzar.
-        </div>
+          <div class="live-action-columns">
+            <div class="live-actions-side live-actions-local">
+              <div id="liveLocalActions"></div>
+            </div>
+            <div class="live-actions-side live-actions-away">
+              <div id="liveAwayActions"></div>
+            </div>
+          </div>
 
-        <div class="live-controls">
-          <button type="button" class="ghost" id="liveUndoBtn">
-            Deshacer última
-          </button>
-          <button type="button" id="liveFinishBtn">
-            Confirmar finalizado
-          </button>
-        </div>
+          <div class="live-timeline-heading">
+            <h3>Últimas acciones</h3>
+            <span id="liveEventCount">0 incidencias</span>
+          </div>
+          <div class="live-timeline" id="liveTimeline">
+            Elegí un partido para comenzar.
+          </div>
 
-        <div class="form-feedback" id="liveFeedback">
-          Elegí un partido para completar sus incidencias.
+          <div class="live-controls">
+            <button type="button" class="ghost" id="liveUndoBtn">
+              Deshacer última
+            </button>
+            <button type="button" id="liveFinishBtn">
+              Confirmar finalizado
+            </button>
+          </div>
+
+          <div class="form-feedback" id="liveFeedback">
+            Elegí un partido para completar sus incidencias.
+          </div>
         </div>
       </section>
 
@@ -461,26 +604,31 @@
           <span class="analytics-total" id="rosterTotal">0 jugadores</span>
         </div>
 
-        <p class="stage-intro">
-          Cada inscripcion vincula una persona con un club y un torneo.
-          Reutiliza al jugador existente si cambia de club o competencia.
-        </p>
-
-        <div class="roster-filters">
-          <label>
-            Torneo
-            <select id="rosterTournament"></select>
-          </label>
-          <label>
-            Club
-            <select id="rosterClub"></select>
-          </label>
-          <button type="button" id="newRosterBtn">
-            Agregar jugador
-          </button>
+        <div class="match-required-message">
+          Elegí un partido para continuar.
         </div>
 
-        <div class="roster-admin-grid">
+        <div class="match-dependent-detail">
+          <p class="stage-intro">
+            Cada inscripcion vincula una persona con un club y un torneo.
+            Reutiliza al jugador existente si cambia de club o competencia.
+          </p>
+
+          <div class="roster-filters">
+            <label>
+              Torneo
+              <select id="rosterTournament"></select>
+            </label>
+            <label>
+              Club
+              <select id="rosterClub"></select>
+            </label>
+            <button type="button" id="newRosterBtn">
+              Agregar jugador
+            </button>
+          </div>
+
+          <div class="roster-admin-grid">
           <div class="roster-list" id="rosterList">
             Cargando plantel...
           </div>
@@ -593,6 +741,7 @@
               </div>
             </form>
           </div>
+          </div>
         </div>
       </section>
 
@@ -605,25 +754,30 @@
           <span class="analytics-total" id="eventsTotal">0 incidencias</span>
         </div>
 
-        <p class="stage-intro">
-          Las incidencias nuevas usan el plantel del club y torneo del partido.
-          Cargalas de la primera a la última o corregí el orden con las flechas.
-          Tiempo y minuto son opcionales.
-          Los nombres históricos pueden conciliarse como datos por verificar.
-          En un gol en contra, elegí el club al que pertenece el jugador.
-        </p>
-
-        <div class="event-filters">
-          <label>
-            Partido
-            <select id="eventMatch"></select>
-          </label>
-          <button type="button" id="newEventBtn">
-            Agregar incidencia
-          </button>
+        <div class="match-required-message">
+          Elegí un partido para continuar.
         </div>
 
-        <div class="event-admin-grid">
+        <div class="match-dependent-detail">
+          <p class="stage-intro">
+            Las incidencias nuevas usan el plantel del club y torneo del partido.
+            Cargalas de la primera a la última o corregí el orden con las flechas.
+            Tiempo y minuto son opcionales.
+            Los nombres históricos pueden conciliarse como datos por verificar.
+            En un gol en contra, elegí el club al que pertenece el jugador.
+          </p>
+
+          <div class="event-filters">
+            <label>
+              Partido
+              <select id="eventMatch"></select>
+            </label>
+            <button type="button" id="newEventBtn">
+              Agregar incidencia
+            </button>
+          </div>
+
+          <div class="event-admin-grid">
           <div class="event-admin-list" id="eventList">
             Cargando incidencias...
           </div>
@@ -744,108 +898,14 @@
               </div>
             </form>
           </div>
+          </div>
         </div>
       </section>
 
-      <div class="admin-grid">
-        <section class="admin-card matches-panel">
-          <h2>Partidos</h2>
-          <div id="matchList" class="match-list"></div>
-        </section>
-
-        <section class="admin-card editor-panel">
-          <h2>Editar partido</h2>
-          <div id="emptyEditor" class="empty-editor">
-            Elegí un partido para cargar datos.
-          </div>
-
-          <form id="matchForm" class="match-form hidden">
-            <input type="hidden" id="partidoId">
-
-            <div class="form-section-title">Equipos</div>
-            <div class="form-row two">
-              <label>
-                Local
-                <input id="localInput" type="text">
-              </label>
-              <label>
-                Visitante
-                <input id="visitanteInput" type="text">
-              </label>
-            </div>
-
-            <div class="form-section-title">Programación</div>
-            <div class="form-row three">
-              <label>
-                Fecha
-                <input id="fechaInput" type="date">
-              </label>
-              <label>
-                Hora
-                <input id="horaInput" type="time">
-              </label>
-              <label>
-                Estado
-                <select id="estadoInput">
-                  <option value="programado">Programado</option>
-                  <option value="en_vivo">En vivo</option>
-                  <option value="finalizado">Finalizado</option>
-                  <option value="pendiente_resultado">Pendiente resultado</option>
-                  <option value="suspendido">Suspendido</option>
-                  <option value="postergado">Postergado</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="form-row two">
-              <label>
-                Estadio / sede
-                <input id="estadioInput" type="text" placeholder="Vacío = A confirmar">
-              </label>
-              <label>
-                Árbitro principal
-                <input id="arbitroInput" type="text" placeholder="Vacío = A confirmar">
-              </label>
-            </div>
-
-            <div class="form-section-title">Resultado</div>
-            <div class="form-row two">
-              <label>
-                Goles local
-                <input id="golesLocalInput" type="number" min="0" inputmode="numeric">
-              </label>
-              <label>
-                Goles visitante
-                <input id="golesVisitanteInput" type="number" min="0" inputmode="numeric">
-              </label>
-            </div>
-
-            <div class="form-row two">
-              <label>
-                Penales local
-                <input id="penalesLocalInput" type="number" min="0" inputmode="numeric">
-              </label>
-              <label>
-                Penales visitante
-                <input id="penalesVisitanteInput" type="number" min="0" inputmode="numeric">
-              </label>
-            </div>
-
-            <div class="source-info" id="sourceInfo"></div>
-
-            <div class="actions">
-              <button type="submit" id="saveBtn">Guardar cambios</button>
-              <button type="button" class="ghost" id="clearScoreBtn">Limpiar resultado</button>
-            </div>
-            <div class="form-feedback" id="saveFeedback">
-              Modificá uno o más campos y guardá los cambios.
-            </div>
-          </form>
-        </section>
-      </div>
     </section>
   </main>
 
-  <script src="js/admin-panel.js?v=20"></script>
+  <script src="js/admin-match-flow.js?v=2"></script>
+  <script src="js/admin-panel.js?v=23"></script>
 </body>
 </html>
