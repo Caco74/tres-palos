@@ -7669,9 +7669,7 @@ function renderMiniPartido(partido, equipo, proximo = false) {
   const estadoTemporal = obtenerEstadoTemporalPartido(partido);
   const centro = tieneMarcador
     ? `${partido.goles_local} - ${partido.goles_visitante}`
-    : finalizado
-      ? "Finalizado"
-      : "vs";
+    : "vs";
   const contexto = partido.tipo === "playoff"
     ? etiquetaFase(partido.fase)
     : `Fecha ${partido.fecha}`;
@@ -7682,15 +7680,16 @@ function renderMiniPartido(partido, equipo, proximo = false) {
       : "";
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
   const nombreVisitante = obtenerNombreLadoPartido(partido, "visitante");
-  const detalle = finalizado
-    ? partido.fecha_partido
-      ? formatearFechaCompleta(partido.fecha_partido)
-      : "Partido finalizado"
-    : estadoTemporal.texto || formatearMomentoPartido(partido);
-  const contextoCompleto = [
-    detalle,
-    partido.localia_pendiente ? "Localía a definir" : ""
-  ].filter(Boolean).join(" · ");
+  const contextoCompleto = finalizado
+    ? [
+        partido.fecha_partido
+          ? formatearFechaCompleta(partido.fecha_partido)
+          : ""
+      ].filter(Boolean).join(" · ")
+    : [
+        estadoTemporal.texto || formatearMomentoPartido(partido),
+        partido.localia_pendiente ? "Localía a definir" : ""
+      ].filter(Boolean).join(" · ");
 
   return `
     <button
@@ -7711,7 +7710,7 @@ function renderMiniPartido(partido, equipo, proximo = false) {
         ${nombreVisitante}
       </span>
       </span>
-      <small>${contextoCompleto}</small>
+      ${contextoCompleto ? `<small>${contextoCompleto}</small>` : ""}
     </button>
   `;
 }
