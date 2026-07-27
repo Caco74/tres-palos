@@ -114,12 +114,15 @@ function obtenerVistaInicialDesdeUrl() {
   const segmentoEquipo = obtenerSegmentoEquipoRuta();
 
   if (segmentoEquipo) {
+    const torneoEquipoClave = obtenerParametroTorneoDetalleEquipo();
+
     return {
       id: "equipo",
       equipo: resolverEquipoDesdeSegmentoRuta(segmentoEquipo),
       equipoSlug: segmentoEquipo,
       navId: "equipos",
-      torneoEquipoClave: obtenerParametroTorneoDetalleEquipo()
+      torneoEquipoClave,
+      torneoEquipoManual: Boolean(torneoEquipoClave)
     };
   }
 
@@ -316,16 +319,19 @@ function abrirEquipo(equipo) {
   const origen = vistaActual.navId || "equipos";
   torneoTemporalDetalleEquipo = false;
 
-  if (state.torneoSeleccionadoId && state.torneoVigente) {
+  if (state.torneoSeleccionadoId && obtenerTorneoVisualizacionActual()) {
     state.torneoSeleccionadoId = null;
-    aplicarDatosTorneo(state.torneoVigente, false);
+    aplicarDatosTorneo(obtenerTorneoVisualizacionActual(), false);
   }
+
+  const torneoVisualizacion = obtenerTorneoVisualizacionActual();
 
   vistaActual = {
     id: "equipo",
     equipo,
     navId: origen,
-    torneoEquipoId: state.torneoVigente?.id || null
+    torneoEquipoId: torneoVisualizacion?.id || null,
+    torneoEquipoManual: false
   };
   renderDetalleEquipo(equipo);
   mostrarVista("equipo");
@@ -431,6 +437,13 @@ function esTorneoVigente(torneo) {
     return String(torneo.id) === String(state.torneoVigente.id);
   }
   return Boolean(torneo.activo);
+}
+
+function obtenerTorneoVisualizacionActual() {
+  return state.torneoPreview ||
+    state.torneoActivo ||
+    state.torneoVigente ||
+    obtenerTorneoActivo(state.torneos);
 }
 
 function obtenerTorneoVistaDetalleEquipo() {
@@ -3815,15 +3828,21 @@ function obtenerAntecedentesRegulares(
 }
 
 function ordenarPartidosCronologicamente(a, b) {
-  const fechaA = a.fecha_partido || "0000-00-00";
-  const fechaB = b.fecha_partido || "0000-00-00";
-  const porFecha = fechaA.localeCompare(fechaB);
-
-  if (porFecha !== 0) return porFecha;
-
   const fechaTorneoA = Number(a.fecha || 0);
   const fechaTorneoB = Number(b.fecha || 0);
-  return fechaTorneoA - fechaTorneoB ||
+  const porFechaTorneo = fechaTorneoA - fechaTorneoB;
+
+  if (porFechaTorneo !== 0) return porFechaTorneo;
+
+  const fechaPartidoA = a.fecha_partido || "9999-12-31";
+  const fechaPartidoB = b.fecha_partido || "9999-12-31";
+  const porFechaPartido = fechaPartidoA.localeCompare(fechaPartidoB);
+
+  if (porFechaPartido !== 0) return porFechaPartido;
+
+  const horaA = a.hora || "23:59";
+  const horaB = b.hora || "23:59";
+  return horaA.localeCompare(horaB) ||
     Number(a.id || 0) - Number(b.id || 0);
 }
 
@@ -6527,6 +6546,21 @@ function obtenerTorneosDisponiblesEquipo(equipo) {
     .sort(compararTorneosHistorialEquipo);
 }
 
+function obtenerTorneoEnLista(torneoReferencia, torneos) {
+  if (!torneoReferencia?.id || !Array.isArray(torneos)) return null;
+
+  return torneos.find(
+    torneo => String(torneo.id) === String(torneoReferencia.id)
+  ) || null;
+}
+
+function obtenerTorneoVisualizacionDetalleEquipo(torneosEquipo) {
+  return obtenerTorneoEnLista(
+    obtenerTorneoVisualizacionActual(),
+    torneosEquipo
+  );
+}
+
 function resolverSeleccionTorneoDetalleEquipo(torneosEquipo) {
   const torneoVista = torneosEquipo.find(
     torneo => String(torneo.id) === String(vistaActual.torneoEquipoId)
@@ -6537,11 +6571,20 @@ function resolverSeleccionTorneoDetalleEquipo(torneosEquipo) {
   const torneoUrl = !torneoVista
     ? buscarTorneoPorClaveUrl(claveUrl, torneosEquipo)
     : null;
+  const seleccionManual = Boolean(vistaActual.torneoEquipoManual);
+  const torneoVisualizacion = !seleccionManual && !torneoUrl
+    ? obtenerTorneoVisualizacionDetalleEquipo(torneosEquipo)
+    : null;
   const torneoVigenteEquipo = torneosEquipo.find(esTorneoVigente);
-  const torneo = torneoVista || torneoUrl || torneoVigenteEquipo ||
+  const torneo = torneoUrl ||
+    (seleccionManual ? torneoVista : null) ||
+    torneoVisualizacion ||
+    torneoVista ||
+    torneoVigenteEquipo ||
     torneosEquipo[0] || null;
 
   if (torneo) vistaActual.torneoEquipoId = torneo.id;
+  vistaActual.torneoEquipoManual = Boolean(torneoUrl || seleccionManual);
   vistaActual.torneoEquipoClave = null;
 
   return {
@@ -6560,6 +6603,7 @@ function seleccionarTorneoDetalleEquipo(claveTorneo) {
 
   vistaActual.torneoEquipoId = torneo.id;
   vistaActual.torneoEquipoClave = null;
+  vistaActual.torneoEquipoManual = true;
   renderDetalleEquipo(vistaActual.equipo);
   guardarVistaEnHistorial();
 }
@@ -7052,6 +7096,7 @@ function calcularDestacadosEquipoTorneo(equipo, partidosEquipo, eventos) {
   return {
     mayorMargen,
     mayorTotal,
+    jugados: jugados.length,
     mayoresVictorias,
     partidosMasGoles,
     goleadores: calcularMaximosGoleadoresEquipo(equipo, partidosEquipo, eventos)
@@ -7059,20 +7104,32 @@ function calcularDestacadosEquipoTorneo(equipo, partidosEquipo, eventos) {
 }
 
 function renderCampaniaEquipo(stats) {
+  const sinPartidosJugados = stats.pj === 0;
+
   return `
     <div class="team-season-campaign" aria-label="Resumen de campania">
       <div>
         <span>Partidos</span>
         <strong>${stats.pj}</strong>
+        ${sinPartidosJugados ? "<small>Aún sin partidos jugados</small>" : ""}
       </div>
       <div>
         <span>Campa&ntilde;a</span>
+        ${sinPartidosJugados ? `
+          <strong>Sin datos todavía</strong>
+        ` : `
         <strong>${stats.pg}G · ${stats.pe}E · ${stats.pp}P</strong>
+        `}
       </div>
       <div>
         <span>Goles</span>
+        ${sinPartidosJugados ? `
+          <strong>Sin goles registrados</strong>
+          <small>Sin datos todavía</small>
+        ` : `
         <strong>${stats.gf}-${stats.gc}</strong>
         <small>a favor / en contra</small>
+        `}
       </div>
     </div>
   `;
@@ -7118,7 +7175,26 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
     `);
   }
 
-  if (items.length === 0) return "";
+  if (items.length === 0) {
+    const detalle = destacados.jugados > 0
+      ? "No hay registros destacados para este campeonato"
+      : "Aún sin partidos jugados";
+
+    return `
+      <div class="team-season-notes">
+        <div class="team-season-note">
+          <span>Goleador</span>
+          <strong>Sin goles registrados</strong>
+          <small>${detalle}</small>
+        </div>
+        <div class="team-season-note">
+          <span>Mayor victoria</span>
+          <strong>Sin datos todavía</strong>
+          <small>${detalle}</small>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="team-season-notes">
@@ -7160,7 +7236,8 @@ function agruparPartidosEquipoPorFase(partidosEquipo) {
   ];
 
   partidosEquipo.forEach(partido => {
-    const clave = partido.tipo === "regular"
+    const clave = partido.tipoActividad === "libre" ||
+      partido.tipo === "regular"
       ? "regular"
       : partido.fase || "playoffs";
     if (!grupos.has(clave)) grupos.set(clave, []);
@@ -7200,19 +7277,34 @@ function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
   }
 
   return agruparPartidosEquipoPorFase(partidosEquipo)
-    .map(grupo => `
-      <section class="detail-section team-season-matches">
-        <div class="detail-section-head">
-          <h2>${escaparHtml(grupo.titulo)}</h2>
-          <span>${grupo.partidos.length} ${grupo.partidos.length === 1 ? "partido" : "partidos"}</span>
-        </div>
-        <div class="team-match-list">
-          ${grupo.partidos.map(partido =>
-            renderMiniPartido(partido, equipo)
-          ).join("")}
-        </div>
-      </section>
-    `)
+    .map(grupo => {
+      const cantidadPartidos = grupo.partidos.filter(
+        partido => partido.tipoActividad !== "libre"
+      ).length;
+      const cantidadLibres = grupo.partidos.length - cantidadPartidos;
+      const resumen = [
+        `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`,
+        cantidadLibres > 0
+          ? `${cantidadLibres} ${cantidadLibres === 1 ? "libre" : "libres"}`
+          : ""
+      ].filter(Boolean).join(" &middot; ");
+
+      return `
+        <section class="detail-section team-season-matches">
+          <div class="detail-section-head">
+            <h2>${escaparHtml(grupo.titulo)}</h2>
+            <span>${resumen}</span>
+          </div>
+          <div class="team-match-list">
+            ${grupo.partidos.map(partido =>
+              partido.tipoActividad === "libre"
+                ? renderActividadLibre(partido, equipo)
+                : renderMiniPartido(partido, equipo)
+            ).join("")}
+          </div>
+        </section>
+      `;
+    })
     .join("");
 }
 
@@ -7282,6 +7374,12 @@ function renderDetalleEquipo(equipo) {
         .filter(partido => equipoParticipaEnPartido(partido, equipo))
         .sort(ordenarPartidosCronologicamente)
     : [];
+  const libresEquipo = torneoSeleccionado
+    ? obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneoSeleccionado)
+    : [];
+  const actividadesEquipo = partidosEquipo
+    .concat(libresEquipo)
+    .sort(ordenarPartidosCronologicamente);
   const stats = calcularRendimientoEquipoTorneo(partidosEquipo, equipo);
   const datosTabla = obtenerDatosTablaEquipoTorneo(equipo, partidosTorneo);
   const eventosEquipo = obtenerEventosPartidosHistorial(partidosEquipo);
@@ -7358,7 +7456,7 @@ function renderDetalleEquipo(equipo) {
         </section>
       `
       : `
-        ${renderPartidosEquipoPorFase(partidosEquipo, equipo)}
+        ${renderPartidosEquipoPorFase(actividadesEquipo, equipo)}
       `}
   `;
   return;
@@ -7463,10 +7561,32 @@ function obtenerNombreLadoPartido(partido, lado) {
   return "Por definir";
 }
 
-function obtenerFechasLibresEquipo(equipo, zona) {
+function obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneo) {
+  if (!equipo || !torneo?.id || !window.TPPublicTournament) return [];
+
+  const opciones = {
+    torneoId: torneo.id,
+    getOfficialName: (nombreEquipo, clubId) =>
+      obtenerNombreOficialEquipo(nombreEquipo, clubId)
+  };
+  const derivados = window.TPPublicTournament.deriveRegularParticipants(
+    partidosTorneo,
+    opciones
+  );
+  const participante = derivados.participants.find(item =>
+    !item.conflictoZona && equipoCoincideConNombre(item.equipo, equipo)
+  );
+  const zona = participante?.zona ||
+    obtenerZonaEquipoTorneo(equipo, partidosTorneo);
+  const equiposZona = zona
+    ? window.TPPublicTournament.getTeamsByZone(derivados, zona)
+    : [];
+
+  if (!zona || equiposZona.length % 2 === 0) return [];
+
   const fechasZona = new Map();
 
-  state.partidos
+  partidosTorneo
     .filter(
       partido =>
         partido.tipo === "regular" &&
@@ -7481,32 +7601,22 @@ function obtenerFechasLibresEquipo(equipo, zona) {
 
   return [...fechasZona.entries()]
     .map(([fecha, partidos]) => {
-      const participantes = new Set(
-        partidos
-          .flatMap(partido => [
-            obtenerNombreOficialEquipo(partido.local, partido.local_id),
-            obtenerNombreOficialEquipo(
-              partido.visitante,
-              partido.visitante_id
-            )
-          ])
-          .filter(Boolean)
+      const libres = window.TPPublicTournament.getFreeParticipants(
+        derivados,
+        partidos,
+        zona,
+        opciones
       );
-      const equiposZona = obtenerEquiposZonaTorneo(zona);
-      const cantidadEsperada = equiposZona.length % 2 === 1
-        ? equiposZona.length - 1
-        : equiposZona.length;
-      const equipoLibre = obtenerEquipoLibre(zona, partidos);
+      const esLibre = libres.valid && libres.teams.some(item =>
+        equipoCoincideConNombre(item, equipo)
+      );
 
-      if (
-        participantes.size !== cantidadEsperada ||
-        equipoLibre !== equipo
-      ) {
-        return null;
-      }
+      if (!esLibre) return null;
 
       return {
         tipoActividad: "libre",
+        tipo: "regular",
+        id: `libre-${torneo.id}-${zona}-${fecha}`,
         fecha,
         fecha_partido:
           partidos.find(partido => partido.fecha_partido)?.fecha_partido ||
@@ -7522,7 +7632,7 @@ function renderActividadLibre(actividad, equipo) {
       <span class="focus-team">${nombre(equipo)}</span>
       <strong>Libre</strong>
       <span>Sin partido</span>
-      <small>Fecha ${actividad.fecha}</small>
+      <small>Fecha ${actividad.fecha} &middot; Libre</small>
     </div>
   `;
 }

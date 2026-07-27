@@ -48,6 +48,40 @@ function participantsByZone(derived, zone) {
   return PublicTournament.getTeamsByZone(derived, zone).map(normalize);
 }
 
+function matchesByTeam(records, expected) {
+  const expectedName = normalize(expected);
+
+  return records.filter(record =>
+    normalize(record.local).includes(expectedName) ||
+    normalize(record.visitante).includes(expectedName)
+  );
+}
+
+function freeDatesByTeam(records, derived, expected, zone) {
+  const expectedName = normalize(expected);
+  const byDate = new Map();
+
+  records
+    .filter(record =>
+      record.tipo === "regular" &&
+      Number(record.zona) === Number(zone)
+    )
+    .forEach(record => {
+      const fecha = Number(record.fecha);
+      if (!byDate.has(fecha)) byDate.set(fecha, []);
+      byDate.get(fecha).push(record);
+    });
+
+  return [...byDate.entries()]
+    .filter(([, matches]) =>
+      PublicTournament.getFreeParticipants(derived, matches, zone, {
+        torneoId: TORNEO_CLAUSURA
+      }).teams.some(team => normalize(team).includes(expectedName))
+    )
+    .map(([fecha]) => fecha)
+    .sort((a, b) => a - b);
+}
+
 function assertIncludesTeam(teams, expected) {
   assert.equal(
     teams.some(team => team.includes(normalize(expected))),
@@ -224,6 +258,27 @@ function runTests() {
   assert.deepEqual(libreZona3.teams.map(normalize), ["c a williams kemmis"]);
   results.push("Fecha 1 libres Argentino / ninguno / Kemmis: ok");
 
+  const americaClausura = matchesByTeam(clausura, "C.A. América");
+  assert.equal(americaClausura.length, 10);
+  assert.equal(americaClausura.every(match => Number(match.zona) === 2), true);
+  assert.deepEqual(
+    americaClausura.map(match => match.fecha),
+    [1, 2, 3, 4, 5, 8, 9, 10, 11, 12]
+  );
+  assert.deepEqual(freeDatesByTeam(clausura, derived, "C.A. América", 2), []);
+  assert.equal(
+    americaClausura.every(match => ![6, 7, 13, 14].includes(match.fecha)),
+    true
+  );
+  assert.deepEqual(
+    freeDatesByTeam(clausura, derived, "C.A. Almafuerte", 3),
+    [2, 9]
+  );
+  const almafuerteClausura = matchesByTeam(clausura, "C.A. Almafuerte");
+  assert.equal(almafuerteClausura[0].fecha, 1);
+  assert.equal(almafuerteClausura.at(-1).fecha, 14);
+  results.push("fichas Clausura: America 10 partidos sin libres y Almafuerte libres 2/9: ok");
+
   const withResults = applySixLoadedResults(clausura);
   const derivedWithResults = PublicTournament.deriveRegularParticipants(withResults, {
     torneoId: TORNEO_CLAUSURA
@@ -303,6 +358,7 @@ function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=2/);
+  assert.match(indexSource, /\/js\/app\.js\?v=67/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.doesNotMatch(indexSource, />21 clubes</);
@@ -316,6 +372,22 @@ function runTests() {
   assert.match(extractFunction(appSource, "obtenerTorneoPreview"), /isNetlifyPreviewHost/);
   assert.match(extractFunction(appSource, "obtenerTorneoSeleccionado"), /obtenerTorneoPreview/);
   assert.match(extractFunction(appSource, "actualizarAvisoPreviewTorneo"), /Vista de prueba:/);
+  assert.match(extractFunction(appSource, "abrirEquipo"), /obtenerTorneoVisualizacionActual/);
+  assert.doesNotMatch(extractFunction(appSource, "abrirEquipo"), /torneoEquipoId:\s*state\.torneoVigente/);
+  assert.match(extractFunction(appSource, "obtenerTorneoVisualizacionActual"), /state\.torneoPreview/);
+  assert.match(extractFunction(appSource, "obtenerTorneoVisualizacionActual"), /state\.torneoVigente/);
+  assert.match(extractFunction(appSource, "resolverSeleccionTorneoDetalleEquipo"), /obtenerTorneoVisualizacionDetalleEquipo/);
+  assert.match(extractFunction(appSource, "resolverSeleccionTorneoDetalleEquipo"), /torneoEquipoManual/);
+  assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /torneoEquipoManual = true/);
+  assert.match(extractFunction(appSource, "renderSelectorTorneosDetalleEquipo"), /esTorneoVigente\(torneo\)/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /torneoSeleccionado && esTorneoVigente\(torneoSeleccionado\)/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /actividadesEquipo/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /calcularRendimientoEquipoTorneo\(partidosEquipo/);
+  assert.match(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /getFreeParticipants/);
+  assert.doesNotMatch(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /state\.partidos/);
+  assert.match(extractFunction(appSource, "ordenarPartidosCronologicamente"), /fechaTorneoA/);
+  assert.match(extractFunction(appSource, "ordenarPartidosCronologicamente"), /fecha_partido/);
+  assert.match(extractFunction(appSource, "ordenarPartidosCronologicamente"), /horaA/);
   assert.match(extractFunction(appSource, "obtenerEquiposZonaTorneo"), /getTeamsByZone/);
   assert.match(extractFunction(appSource, "obtenerEquipoLibre"), /getFreeParticipants/);
   assert.match(extractFunction(appSource, "calcularTablaZona"), /buildZoneTable/);
