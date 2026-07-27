@@ -528,6 +528,23 @@ button {
   border-bottom-color: var(--red);
 }
 
+.preview-tournament-notice {
+  margin: 0.75rem 1rem 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(244, 185, 66, 0.35);
+  background: rgba(244, 185, 66, 0.1);
+  color: #f4d58a;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-tournament-notice[hidden] {
+  display: none;
+}
+
 /* CONTENT */
 
 .app-main {

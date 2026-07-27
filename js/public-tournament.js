@@ -16,6 +16,36 @@
       .trim();
   }
 
+  function normalizeHostname(value) {
+    return String(value ?? "").trim().toLowerCase();
+  }
+
+  function isNetlifyPreviewHost(hostname) {
+    const host = normalizeHostname(hostname);
+    return host.endsWith(".netlify.app") && host !== "tres-palos.netlify.app";
+  }
+
+  function getPreviewTournamentId(search, hostname) {
+    if (!isNetlifyPreviewHost(hostname)) return null;
+
+    let params;
+    try {
+      params = new URLSearchParams(String(search || ""));
+    } catch (error) {
+      return null;
+    }
+
+    const value = String(params.get("preview_torneo") || "").trim();
+    return /^[1-9]\d*$/.test(value) ? value : null;
+  }
+
+  function resolvePreviewTournament(torneos, search, hostname) {
+    const id = getPreviewTournamentId(search, hostname);
+    if (!id || !Array.isArray(torneos)) return null;
+
+    return torneos.find(torneo => String(torneo.id) === id) || null;
+  }
+
   function compareText(a, b) {
     return String(a ?? "").localeCompare(String(b ?? ""), "es", {
       sensitivity: "base"
@@ -356,6 +386,10 @@
 
   return {
     normalizeTeamName,
+    normalizeHostname,
+    isNetlifyPreviewHost,
+    getPreviewTournamentId,
+    resolvePreviewTournament,
     getTeamKey,
     getMatchSide,
     deriveRegularParticipants,

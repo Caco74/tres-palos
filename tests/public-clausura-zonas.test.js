@@ -112,10 +112,74 @@ function extractFunction(source, name) {
 
 function runTests() {
   const results = [];
+  const torneos = [
+    { id: TORNEO_APERTURA, nombre: "Apertura 2026", activo: true },
+    { id: TORNEO_CLAUSURA, nombre: "Clausura 2026", activo: false }
+  ];
   const clausura = loadClausuraRecords();
   const derived = PublicTournament.deriveRegularParticipants(clausura, {
     torneoId: TORNEO_CLAUSURA
   });
+
+  assert.equal(
+    PublicTournament.isNetlifyPreviewHost(
+      "deploy-preview-42--tres-palos.netlify.app"
+    ),
+    true
+  );
+  assert.equal(
+    PublicTournament.isNetlifyPreviewHost("w-6--tres-palos.netlify.app"),
+    true
+  );
+  assert.equal(
+    PublicTournament.resolvePreviewTournament(
+      torneos,
+      "?preview_torneo=2",
+      "deploy-preview-42--tres-palos.netlify.app"
+    )?.nombre,
+    "Clausura 2026"
+  );
+  assert.equal(
+    PublicTournament.resolvePreviewTournament(
+      torneos,
+      "",
+      "deploy-preview-42--tres-palos.netlify.app"
+    ),
+    null
+  );
+  assert.equal(
+    PublicTournament.resolvePreviewTournament(
+      torneos,
+      "?preview_torneo=2",
+      "trespalos.com.ar"
+    ),
+    null
+  );
+  assert.equal(
+    PublicTournament.resolvePreviewTournament(
+      torneos,
+      "?preview_torneo=2",
+      "www.trespalos.com.ar"
+    ),
+    null
+  );
+  assert.equal(
+    PublicTournament.resolvePreviewTournament(
+      torneos,
+      "?preview_torneo=2",
+      "tres-palos.netlify.app"
+    ),
+    null
+  );
+  assert.equal(
+    PublicTournament.resolvePreviewTournament(
+      torneos,
+      "?preview_torneo=999",
+      "deploy-preview-42--tres-palos.netlify.app"
+    ),
+    null
+  );
+  results.push("override preview_torneo limitado a previews Netlify: ok");
 
   assert.equal(derived.participants.length, 20);
   assert.equal(PublicTournament.buildTeamList(derived).length, 20);
@@ -238,9 +302,20 @@ function runTests() {
   const appSource = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/js\/public-tournament\.js\?v=1/);
+  assert.match(indexSource, /\/js\/public-tournament\.js\?v=2/);
+  assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.doesNotMatch(indexSource, />21 clubes</);
+  assert.doesNotMatch(indexSource, /preview_torneo[\s\S]{0,160}<select/i);
+  assert.match(appSource, /previewTorneoIdSolicitado[\s\S]{0,120}getPreviewTournamentId/);
+  assert.match(extractFunction(appSource, "agregarParametroPreviewTorneo"), /preview_torneo/);
+  assert.match(
+    extractFunction(appSource, "agregarParametroPreviewTorneo"),
+    /state\.torneoPreview\?\.id \|\| previewTorneoIdSolicitado/
+  );
+  assert.match(extractFunction(appSource, "obtenerTorneoPreview"), /isNetlifyPreviewHost/);
+  assert.match(extractFunction(appSource, "obtenerTorneoSeleccionado"), /obtenerTorneoPreview/);
+  assert.match(extractFunction(appSource, "actualizarAvisoPreviewTorneo"), /Vista de prueba:/);
   assert.match(extractFunction(appSource, "obtenerEquiposZonaTorneo"), /getTeamsByZone/);
   assert.match(extractFunction(appSource, "obtenerEquipoLibre"), /getFreeParticipants/);
   assert.match(extractFunction(appSource, "calcularTablaZona"), /buildZoneTable/);

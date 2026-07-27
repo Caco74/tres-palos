@@ -15,6 +15,11 @@ let equiposComparadorDatos = {
 };
 let torneoTemporalDetalleEquipo = false;
 let firmaConflictosParticipantes = "";
+let previewTorneoIdSolicitado =
+  window.TPPublicTournament?.getPreviewTournamentId(
+    window.location.search,
+    window.location.hostname
+  ) || null;
 
 const VISTAS_PRINCIPALES = [
   "inicio",
@@ -361,6 +366,7 @@ function construirUrlVistaActual() {
     if (torneo && !esTorneoVigente(torneo)) {
       params.set("torneo", crearClaveTorneoUrl(torneo));
     }
+    agregarParametroPreviewTorneo(params);
 
     const search = params.toString();
     return `/equipos/${slug}${search ? `?${search}` : ""}`;
@@ -370,7 +376,23 @@ function construirUrlVistaActual() {
     ? vistaActual.id
     : vistaActual.navId;
   const hash = vistaUrl && vistaUrl !== "inicio" ? `#${vistaUrl}` : "";
-  return `/${hash}`;
+  const params = new URLSearchParams();
+  agregarParametroPreviewTorneo(params);
+  const search = params.toString();
+  return `/${search ? `?${search}` : ""}${hash}`;
+}
+
+function agregarParametroPreviewTorneo(params) {
+  const id = state.torneoPreview?.id || previewTorneoIdSolicitado;
+
+  if (
+    id &&
+    window.TPPublicTournament?.isNetlifyPreviewHost(
+      window.location.hostname
+    )
+  ) {
+    params.set("preview_torneo", String(id));
+  }
 }
 
 function obtenerSlugEquipoUrl(equipo) {
@@ -1333,6 +1355,13 @@ function filtrarGoleadoresPorTorneo(goleadores, torneo) {
 
 function obtenerTorneoSeleccionado(torneos, torneoVigente) {
   const lista = Array.isArray(torneos) ? torneos : [];
+  const preview = obtenerTorneoPreview(lista);
+
+  if (preview) {
+    state.torneoSeleccionadoId = null;
+    return preview;
+  }
+
   const seleccionado = state.torneoSeleccionadoId
     ? lista.find(
         torneo =>
@@ -1349,8 +1378,55 @@ function obtenerTorneoSeleccionado(torneos, torneoVigente) {
   return torneoVigente;
 }
 
+function obtenerTorneoPreview(torneos) {
+  const helper = window.TPPublicTournament;
+
+  if (
+    !helper?.isNetlifyPreviewHost(window.location.hostname) ||
+    !previewTorneoIdSolicitado
+  ) {
+    state.torneoPreview = null;
+    previewTorneoIdSolicitado = null;
+    return null;
+  }
+
+  const torneo = Array.isArray(torneos)
+    ? torneos.find(
+        item => String(item.id) === String(previewTorneoIdSolicitado)
+      )
+    : null;
+
+  state.torneoPreview = torneo || null;
+
+  if (!torneo) {
+    previewTorneoIdSolicitado = null;
+    return null;
+  }
+
+  previewTorneoIdSolicitado = String(torneo.id);
+  return torneo;
+}
+
+function actualizarAvisoPreviewTorneo(torneo) {
+  const aviso = document.getElementById("previewTournamentNotice");
+  if (!aviso) return;
+
+  if (
+    !state.torneoPreview?.id ||
+    String(torneo?.id) !== String(state.torneoPreview.id)
+  ) {
+    aviso.hidden = true;
+    aviso.textContent = "";
+    return;
+  }
+
+  aviso.textContent = `Vista de prueba: ${torneo.nombre || torneo.id}`;
+  aviso.hidden = false;
+}
+
 function aplicarDatosTorneo(torneo, renderizar = false) {
   state.torneoActivo = torneo || null;
+  actualizarAvisoPreviewTorneo(torneo);
   state.partidos = torneo
     ? filtrarPartidosPorTorneo(state.partidosTodos, torneo)
     : [...state.partidosTodos];
@@ -1382,6 +1458,13 @@ function renderizarTorneoSeleccionado() {
 }
 
 function seleccionarTorneoPlayoffs(torneoId) {
+  if (state.torneoPreview?.id) {
+    state.torneoSeleccionadoId = null;
+    aplicarDatosTorneo(state.torneoPreview, true);
+    guardarVistaEnHistorial(true);
+    return;
+  }
+
   const torneo = state.torneos.find(
     item => String(item.id) === String(torneoId)
   );
@@ -1395,10 +1478,11 @@ function seleccionarTorneoPlayoffs(torneoId) {
 }
 
 function restaurarTorneoVigente() {
-  if (!state.torneoVigente) return;
+  const torneo = state.torneoPreview || state.torneoVigente;
+  if (!torneo) return;
 
   state.torneoSeleccionadoId = null;
-  aplicarDatosTorneo(state.torneoVigente, true);
+  aplicarDatosTorneo(torneo, true);
 }
 
 function filtrarEventosPorPartidos(eventos, partidos) {

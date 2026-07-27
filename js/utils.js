@@ -10,6 +10,7 @@ const state = {
   torneos: [],
   torneoActivo: null,
   torneoVigente: null,
+  torneoPreview: null,
   torneoSeleccionadoId: null
 }; 
 
