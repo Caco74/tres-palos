@@ -14,6 +14,12 @@ let equiposComparadorDatos = {
   equipoB: null
 };
 let torneoTemporalDetalleEquipo = false;
+let firmaConflictosParticipantes = "";
+let previewTorneoIdSolicitado =
+  window.TPPublicTournament?.getPreviewTournamentId(
+    window.location.search,
+    window.location.hostname
+  ) || null;
 
 const VISTAS_PRINCIPALES = [
   "inicio",
@@ -108,12 +114,15 @@ function obtenerVistaInicialDesdeUrl() {
   const segmentoEquipo = obtenerSegmentoEquipoRuta();
 
   if (segmentoEquipo) {
+    const torneoEquipoClave = obtenerParametroTorneoDetalleEquipo();
+
     return {
       id: "equipo",
       equipo: resolverEquipoDesdeSegmentoRuta(segmentoEquipo),
       equipoSlug: segmentoEquipo,
       navId: "equipos",
-      torneoEquipoClave: obtenerParametroTorneoDetalleEquipo()
+      torneoEquipoClave,
+      torneoEquipoManual: Boolean(torneoEquipoClave)
     };
   }
 
@@ -310,16 +319,19 @@ function abrirEquipo(equipo) {
   const origen = vistaActual.navId || "equipos";
   torneoTemporalDetalleEquipo = false;
 
-  if (state.torneoSeleccionadoId && state.torneoVigente) {
+  if (state.torneoSeleccionadoId && obtenerTorneoVisualizacionActual()) {
     state.torneoSeleccionadoId = null;
-    aplicarDatosTorneo(state.torneoVigente, false);
+    aplicarDatosTorneo(obtenerTorneoVisualizacionActual(), false);
   }
+
+  const torneoVisualizacion = obtenerTorneoVisualizacionActual();
 
   vistaActual = {
     id: "equipo",
     equipo,
     navId: origen,
-    torneoEquipoId: state.torneoVigente?.id || null
+    torneoEquipoId: torneoVisualizacion?.id || null,
+    torneoEquipoManual: false
   };
   renderDetalleEquipo(equipo);
   mostrarVista("equipo");
@@ -360,6 +372,7 @@ function construirUrlVistaActual() {
     if (torneo && !esTorneoVigente(torneo)) {
       params.set("torneo", crearClaveTorneoUrl(torneo));
     }
+    agregarParametroPreviewTorneo(params);
 
     const search = params.toString();
     return `/equipos/${slug}${search ? `?${search}` : ""}`;
@@ -369,7 +382,23 @@ function construirUrlVistaActual() {
     ? vistaActual.id
     : vistaActual.navId;
   const hash = vistaUrl && vistaUrl !== "inicio" ? `#${vistaUrl}` : "";
-  return `/${hash}`;
+  const params = new URLSearchParams();
+  agregarParametroPreviewTorneo(params);
+  const search = params.toString();
+  return `/${search ? `?${search}` : ""}${hash}`;
+}
+
+function agregarParametroPreviewTorneo(params) {
+  const id = state.torneoPreview?.id || previewTorneoIdSolicitado;
+
+  if (
+    id &&
+    window.TPPublicTournament?.isNetlifyPreviewHost(
+      window.location.hostname
+    )
+  ) {
+    params.set("preview_torneo", String(id));
+  }
 }
 
 function obtenerSlugEquipoUrl(equipo) {
@@ -408,6 +437,13 @@ function esTorneoVigente(torneo) {
     return String(torneo.id) === String(state.torneoVigente.id);
   }
   return Boolean(torneo.activo);
+}
+
+function obtenerTorneoVisualizacionActual() {
+  return state.torneoPreview ||
+    state.torneoActivo ||
+    state.torneoVigente ||
+    obtenerTorneoActivo(state.torneos);
 }
 
 function obtenerTorneoVistaDetalleEquipo() {
@@ -771,13 +807,41 @@ function renderPartidosRegulares(etapa) {
 }
 
 function obtenerEquipoLibre(zona, partidos) {
+  const derivados = obtenerParticipantesRegularesTorneo();
+
+  if (derivados.regularMatches.length > 0 && window.TPPublicTournament) {
+    const libres = window.TPPublicTournament.getFreeParticipants(
+      derivados,
+      partidos,
+      zona,
+      obtenerOpcionesParticipantesTorneo()
+    );
+
+    if (!libres.valid && libres.found > 0) {
+      console.error(
+        "Libre inconsistente para fecha/zona.",
+        { zona, esperados: libres.expected, encontrados: libres.found }
+      );
+    }
+
+    return libres.teams[0] || null;
+  }
+
   const participantes = new Set(
-    partidos.flatMap(p => [p.local, p.visitante])
+    partidos.flatMap(p => [
+      obtenerNombreOficialEquipo(p.local, p.local_id),
+      obtenerNombreOficialEquipo(p.visitante, p.visitante_id)
+    ])
   );
 
-  return obtenerEquiposZonaTorneo(zona).find(
+  const equiposZona = obtenerEquiposZonaLegacy(zona);
+  if (equiposZona.length % 2 === 0) return null;
+
+  const libres = equiposZona.filter(
     equipo => !participantes.has(equipo)
-  ) || null;
+  );
+
+  return libres.length === 1 ? libres[0] : null;
 }
 
 function renderEquipoLibre(equipo) {
@@ -1304,6 +1368,13 @@ function filtrarGoleadoresPorTorneo(goleadores, torneo) {
 
 function obtenerTorneoSeleccionado(torneos, torneoVigente) {
   const lista = Array.isArray(torneos) ? torneos : [];
+  const preview = obtenerTorneoPreview(lista);
+
+  if (preview) {
+    state.torneoSeleccionadoId = null;
+    return preview;
+  }
+
   const seleccionado = state.torneoSeleccionadoId
     ? lista.find(
         torneo =>
@@ -1320,8 +1391,55 @@ function obtenerTorneoSeleccionado(torneos, torneoVigente) {
   return torneoVigente;
 }
 
+function obtenerTorneoPreview(torneos) {
+  const helper = window.TPPublicTournament;
+
+  if (
+    !helper?.isNetlifyPreviewHost(window.location.hostname) ||
+    !previewTorneoIdSolicitado
+  ) {
+    state.torneoPreview = null;
+    previewTorneoIdSolicitado = null;
+    return null;
+  }
+
+  const torneo = Array.isArray(torneos)
+    ? torneos.find(
+        item => String(item.id) === String(previewTorneoIdSolicitado)
+      )
+    : null;
+
+  state.torneoPreview = torneo || null;
+
+  if (!torneo) {
+    previewTorneoIdSolicitado = null;
+    return null;
+  }
+
+  previewTorneoIdSolicitado = String(torneo.id);
+  return torneo;
+}
+
+function actualizarAvisoPreviewTorneo(torneo) {
+  const aviso = document.getElementById("previewTournamentNotice");
+  if (!aviso) return;
+
+  if (
+    !state.torneoPreview?.id ||
+    String(torneo?.id) !== String(state.torneoPreview.id)
+  ) {
+    aviso.hidden = true;
+    aviso.textContent = "";
+    return;
+  }
+
+  aviso.textContent = `Vista de prueba: ${torneo.nombre || torneo.id}`;
+  aviso.hidden = false;
+}
+
 function aplicarDatosTorneo(torneo, renderizar = false) {
   state.torneoActivo = torneo || null;
+  actualizarAvisoPreviewTorneo(torneo);
   state.partidos = torneo
     ? filtrarPartidosPorTorneo(state.partidosTodos, torneo)
     : [...state.partidosTodos];
@@ -1353,6 +1471,13 @@ function renderizarTorneoSeleccionado() {
 }
 
 function seleccionarTorneoPlayoffs(torneoId) {
+  if (state.torneoPreview?.id) {
+    state.torneoSeleccionadoId = null;
+    aplicarDatosTorneo(state.torneoPreview, true);
+    guardarVistaEnHistorial(true);
+    return;
+  }
+
   const torneo = state.torneos.find(
     item => String(item.id) === String(torneoId)
   );
@@ -1366,10 +1491,11 @@ function seleccionarTorneoPlayoffs(torneoId) {
 }
 
 function restaurarTorneoVigente() {
-  if (!state.torneoVigente) return;
+  const torneo = state.torneoPreview || state.torneoVigente;
+  if (!torneo) return;
 
   state.torneoSeleccionadoId = null;
-  aplicarDatosTorneo(state.torneoVigente, true);
+  aplicarDatosTorneo(torneo, true);
 }
 
 function filtrarEventosPorPartidos(eventos, partidos) {
@@ -1505,77 +1631,89 @@ function renderMomentoPartido(partido, estado, clase) {
   return `<div class="${clase} ${estado.clase}">${estado.texto}</div>`;
 }
 
-function obtenerEquiposZonaTorneo(zona) {
-  const esTorneoVigente =
-    !state.torneoVigente?.id ||
-    String(state.torneoActivo?.id) === String(state.torneoVigente.id);
-  const equipos = new Set(
-    esTorneoVigente ? equiposPorZona[zona] || [] : []
+function obtenerOpcionesParticipantesTorneo() {
+  return {
+    torneoId: state.torneoActivo?.id || null,
+    getOfficialName: (equipo, clubId) =>
+      obtenerNombreOficialEquipo(equipo, clubId)
+  };
+}
+
+function reportarConflictosParticipantes(derivados) {
+  const conflictos = derivados?.conflicts || [];
+  const firma = conflictos
+    .map(conflicto => `${conflicto.key}:${conflicto.zonas.join(",")}`)
+    .sort()
+    .join("|");
+
+  if (!firma || firma === firmaConflictosParticipantes) return;
+  firmaConflictosParticipantes = firma;
+  console.error(
+    "Datos inconsistentes: clubes en mas de una zona del torneo.",
+    conflictos
   );
+}
 
-  state.partidos
-    .filter(
-      partido =>
-        partido.tipo === "regular" &&
-        Number(partido.zona) === Number(zona)
-    )
-    .forEach(partido => {
-      const local = obtenerNombreOficialEquipo(
-        partido.local,
-        partido.local_id
-      );
-      const visitante = obtenerNombreOficialEquipo(
-        partido.visitante,
-        partido.visitante_id
-      );
-      if (local) equipos.add(local);
-      if (visitante) equipos.add(visitante);
-    });
-
-  if (equipos.size === 0) {
-    (equiposPorZona[zona] || []).forEach(equipo => equipos.add(equipo));
+function obtenerParticipantesRegularesTorneo() {
+  if (!window.TPPublicTournament) {
+    return {
+      participants: [],
+      participantsByKey: new Map(),
+      byZone: new Map(),
+      zones: [],
+      conflicts: [],
+      regularMatches: []
+    };
   }
 
-  return [...equipos].sort((a, b) =>
+  const derivados = window.TPPublicTournament.deriveRegularParticipants(
+    state.partidos,
+    obtenerOpcionesParticipantesTorneo()
+  );
+  reportarConflictosParticipantes(derivados);
+  return derivados;
+}
+
+function obtenerEquiposZonaLegacy(zona) {
+  return (equiposPorZona[zona] || []).slice().sort((a, b) =>
     nombre(a).localeCompare(nombre(b), "es", { sensitivity: "base" })
   );
 }
 
-function obtenerZonasTorneo() {
-  const zonasPartidos = state.partidos
-    .filter(partido => partido.tipo === "regular")
-    .map(partido => Number(partido.zona))
-    .filter(Number.isFinite);
-  const zonas = new Set(zonasPartidos);
-
-  if (zonas.size === 0) {
-    Object.keys(equiposPorZona).forEach(zona => zonas.add(Number(zona)));
-  }
-
-  return [...zonas].sort((a, b) => a - b);
+function obtenerZonasLegacy() {
+  return Object.keys(equiposPorZona)
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
 }
 
-function calcularTablaZona(zona) {
-  const equiposZona = obtenerEquiposZonaTorneo(zona);
+function obtenerEquiposZonaTorneo(zona) {
+  const derivados = obtenerParticipantesRegularesTorneo();
+
+  if (derivados.regularMatches.length > 0 && window.TPPublicTournament) {
+    return window.TPPublicTournament.getTeamsByZone(derivados, zona);
+  }
+
+  return obtenerEquiposZonaLegacy(zona);
+}
+
+function obtenerZonasTorneo() {
+  const derivados = obtenerParticipantesRegularesTorneo();
+
+  if (derivados.regularMatches.length > 0 && window.TPPublicTournament) {
+    return window.TPPublicTournament.getZones(derivados);
+  }
+
+  return obtenerZonasLegacy();
+}
+
+function calcularTablaZonaLegacy(zona) {
+  const equiposZona = obtenerEquiposZonaLegacy(zona);
   const tabla = Object.fromEntries(
-    equiposZona.map(equipo => [
-      equipo,
-      {
-        equipo,
-        pj: 0,
-        pg: 0,
-        pe: 0,
-        pp: 0,
-        gf: 0,
-        gc: 0,
-        dg: 0,
-        pts: 0,
-        forma: []
-      }
-    ])
+    equiposZona.map(equipo => [equipo, crearFilaTabla(equipo)])
   );
 
-  const partidos = state.partidos
+  state.partidos
     .filter(
       p =>
         p.tipo === "regular" &&
@@ -1585,87 +1723,113 @@ function calcularTablaZona(zona) {
       (a, b) =>
         Number(a.fecha || 0) - Number(b.fecha || 0) ||
         Number(a.id || 0) - Number(b.id || 0)
-    );
+    )
+    .forEach(p => {
+      const localNombre = obtenerNombreOficialEquipo(p.local, p.local_id);
+      const visitanteNombre = obtenerNombreOficialEquipo(
+        p.visitante,
+        p.visitante_id
+      );
 
-  partidos.forEach(p => {
-    if (!tabla[p.local]) tabla[p.local] = crearFilaTabla(p.local);
-    if (!tabla[p.visitante]) tabla[p.visitante] = crearFilaTabla(p.visitante);
+      if (!localNombre || !visitanteNombre) return;
+      if (!tabla[localNombre]) tabla[localNombre] = crearFilaTabla(localNombre);
+      if (!tabla[visitanteNombre]) {
+        tabla[visitanteNombre] = crearFilaTabla(visitanteNombre);
+      }
 
-    if (
-      p.goles_local === null ||
-      p.goles_visitante === null
-    ) {
-      return;
-    }
+      if (
+        p.goles_local === null ||
+        p.goles_visitante === null
+      ) {
+        return;
+      }
 
-    const golesLocal = Number(p.goles_local);
-    const golesVisitante = Number(p.goles_visitante);
-    if (!Number.isFinite(golesLocal) || !Number.isFinite(golesVisitante)) return;
+      const golesLocal = Number(p.goles_local);
+      const golesVisitante = Number(p.goles_visitante);
+      if (!Number.isFinite(golesLocal) || !Number.isFinite(golesVisitante)) return;
 
-    const local = tabla[p.local];
-    const visitante = tabla[p.visitante];
+      const local = tabla[localNombre];
+      const visitante = tabla[visitanteNombre];
 
-    local.pj++;
-    visitante.pj++;
-    local.gf += golesLocal;
-    local.gc += golesVisitante;
-    visitante.gf += golesVisitante;
-    visitante.gc += golesLocal;
+      local.pj++;
+      visitante.pj++;
+      local.gf += golesLocal;
+      local.gc += golesVisitante;
+      visitante.gf += golesVisitante;
+      visitante.gc += golesLocal;
 
-    if (golesLocal > golesVisitante) {
-      local.pg++;
-      local.pts += 3;
-      visitante.pp++;
-      local.forma.push("w");
-      visitante.forma.push("l");
-    } else if (golesLocal < golesVisitante) {
-      visitante.pg++;
-      visitante.pts += 3;
-      local.pp++;
-      local.forma.push("l");
-      visitante.forma.push("w");
-    } else {
-      local.pe++;
-      visitante.pe++;
-      local.pts++;
-      visitante.pts++;
-      local.forma.push("e");
-      visitante.forma.push("e");
-    }
+      if (golesLocal > golesVisitante) {
+        local.pg++;
+        local.pts += 3;
+        visitante.pp++;
+        local.forma.push("w");
+        visitante.forma.push("l");
+      } else if (golesLocal < golesVisitante) {
+        visitante.pg++;
+        visitante.pts += 3;
+        local.pp++;
+        local.forma.push("l");
+        visitante.forma.push("w");
+      } else {
+        local.pe++;
+        visitante.pe++;
+        local.pts++;
+        visitante.pts++;
+        local.forma.push("e");
+        visitante.forma.push("e");
+      }
 
-    local.dg = local.gf - local.gc;
-    visitante.dg = visitante.gf - visitante.gc;
-  });
+      local.dg = local.gf - local.gc;
+      visitante.dg = visitante.gf - visitante.gc;
+    });
 
   return Object.values(tabla)
     .map(fila => ({
       ...fila,
       forma: fila.forma.slice(-5)
     }))
-    .sort(
-      (a, b) =>
-        b.pts - a.pts ||
-        b.dg - a.dg ||
-        b.gf - a.gf ||
-        nombre(a.equipo).localeCompare(nombre(b.equipo), "es")
+    .sort(compararPosiciones);
+}
+
+function calcularTablaZona(zona) {
+  const derivados = obtenerParticipantesRegularesTorneo();
+
+  if (derivados.regularMatches.length > 0 && window.TPPublicTournament) {
+    return window.TPPublicTournament.buildZoneTable(
+      state.partidos,
+      zona,
+      {
+        ...obtenerOpcionesParticipantesTorneo(),
+        derived: derivados,
+        compareRows: compararPosiciones
+      }
     );
+  }
+
+  return calcularTablaZonaLegacy(zona);
 }
 
 function calcularTablaGeneral() {
-  return obtenerZonasTorneo()
-    .flatMap(zona => {
-      const equiposZona = obtenerEquiposZonaTorneo(zona);
-      const tablaZona = calcularTablaZona(zona);
-      const posiciones = new Map(
-        tablaZona.map(fila => [fila.equipo, fila])
-      );
+  const derivados = obtenerParticipantesRegularesTorneo();
 
-      return equiposZona.map(equipo => ({
-        ...crearFilaTabla(equipo),
-        ...posiciones.get(equipo),
+  if (derivados.regularMatches.length > 0 && window.TPPublicTournament) {
+    return window.TPPublicTournament.buildGeneralTable(
+      state.partidos,
+      {
+        ...obtenerOpcionesParticipantesTorneo(),
+        derived: derivados,
+        compareRows: compararPosiciones
+      }
+    );
+  }
+
+  return obtenerZonasLegacy()
+    .flatMap(zona =>
+      calcularTablaZonaLegacy(zona).map(fila => ({
+        ...fila,
         zona
-      }));
-    })
+      }))
+    )
     .sort(compararPosiciones);
 }
 
@@ -3664,15 +3828,21 @@ function obtenerAntecedentesRegulares(
 }
 
 function ordenarPartidosCronologicamente(a, b) {
-  const fechaA = a.fecha_partido || "0000-00-00";
-  const fechaB = b.fecha_partido || "0000-00-00";
-  const porFecha = fechaA.localeCompare(fechaB);
-
-  if (porFecha !== 0) return porFecha;
-
   const fechaTorneoA = Number(a.fecha || 0);
   const fechaTorneoB = Number(b.fecha || 0);
-  return fechaTorneoA - fechaTorneoB ||
+  const porFechaTorneo = fechaTorneoA - fechaTorneoB;
+
+  if (porFechaTorneo !== 0) return porFechaTorneo;
+
+  const fechaPartidoA = a.fecha_partido || "9999-12-31";
+  const fechaPartidoB = b.fecha_partido || "9999-12-31";
+  const porFechaPartido = fechaPartidoA.localeCompare(fechaPartidoB);
+
+  if (porFechaPartido !== 0) return porFechaPartido;
+
+  const horaA = a.hora || "23:59";
+  const horaB = b.hora || "23:59";
+  return horaA.localeCompare(horaB) ||
     Number(a.id || 0) - Number(b.id || 0);
 }
 
@@ -6376,6 +6546,21 @@ function obtenerTorneosDisponiblesEquipo(equipo) {
     .sort(compararTorneosHistorialEquipo);
 }
 
+function obtenerTorneoEnLista(torneoReferencia, torneos) {
+  if (!torneoReferencia?.id || !Array.isArray(torneos)) return null;
+
+  return torneos.find(
+    torneo => String(torneo.id) === String(torneoReferencia.id)
+  ) || null;
+}
+
+function obtenerTorneoVisualizacionDetalleEquipo(torneosEquipo) {
+  return obtenerTorneoEnLista(
+    obtenerTorneoVisualizacionActual(),
+    torneosEquipo
+  );
+}
+
 function resolverSeleccionTorneoDetalleEquipo(torneosEquipo) {
   const torneoVista = torneosEquipo.find(
     torneo => String(torneo.id) === String(vistaActual.torneoEquipoId)
@@ -6386,11 +6571,20 @@ function resolverSeleccionTorneoDetalleEquipo(torneosEquipo) {
   const torneoUrl = !torneoVista
     ? buscarTorneoPorClaveUrl(claveUrl, torneosEquipo)
     : null;
+  const seleccionManual = Boolean(vistaActual.torneoEquipoManual);
+  const torneoVisualizacion = !seleccionManual && !torneoUrl
+    ? obtenerTorneoVisualizacionDetalleEquipo(torneosEquipo)
+    : null;
   const torneoVigenteEquipo = torneosEquipo.find(esTorneoVigente);
-  const torneo = torneoVista || torneoUrl || torneoVigenteEquipo ||
+  const torneo = torneoUrl ||
+    (seleccionManual ? torneoVista : null) ||
+    torneoVisualizacion ||
+    torneoVista ||
+    torneoVigenteEquipo ||
     torneosEquipo[0] || null;
 
   if (torneo) vistaActual.torneoEquipoId = torneo.id;
+  vistaActual.torneoEquipoManual = Boolean(torneoUrl || seleccionManual);
   vistaActual.torneoEquipoClave = null;
 
   return {
@@ -6409,6 +6603,7 @@ function seleccionarTorneoDetalleEquipo(claveTorneo) {
 
   vistaActual.torneoEquipoId = torneo.id;
   vistaActual.torneoEquipoClave = null;
+  vistaActual.torneoEquipoManual = true;
   renderDetalleEquipo(vistaActual.equipo);
   guardarVistaEnHistorial();
 }
@@ -6901,6 +7096,7 @@ function calcularDestacadosEquipoTorneo(equipo, partidosEquipo, eventos) {
   return {
     mayorMargen,
     mayorTotal,
+    jugados: jugados.length,
     mayoresVictorias,
     partidosMasGoles,
     goleadores: calcularMaximosGoleadoresEquipo(equipo, partidosEquipo, eventos)
@@ -6908,20 +7104,32 @@ function calcularDestacadosEquipoTorneo(equipo, partidosEquipo, eventos) {
 }
 
 function renderCampaniaEquipo(stats) {
+  const sinPartidosJugados = stats.pj === 0;
+
   return `
     <div class="team-season-campaign" aria-label="Resumen de campania">
       <div>
         <span>Partidos</span>
         <strong>${stats.pj}</strong>
+        ${sinPartidosJugados ? "<small>Aún sin partidos jugados</small>" : ""}
       </div>
       <div>
         <span>Campa&ntilde;a</span>
+        ${sinPartidosJugados ? `
+          <strong>Sin datos todavía</strong>
+        ` : `
         <strong>${stats.pg}G · ${stats.pe}E · ${stats.pp}P</strong>
+        `}
       </div>
       <div>
         <span>Goles</span>
+        ${sinPartidosJugados ? `
+          <strong>Sin goles registrados</strong>
+          <small>Sin datos todavía</small>
+        ` : `
         <strong>${stats.gf}-${stats.gc}</strong>
         <small>a favor / en contra</small>
+        `}
       </div>
     </div>
   `;
@@ -6967,7 +7175,26 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
     `);
   }
 
-  if (items.length === 0) return "";
+  if (items.length === 0) {
+    const detalle = destacados.jugados > 0
+      ? "No hay registros destacados para este campeonato"
+      : "Aún sin partidos jugados";
+
+    return `
+      <div class="team-season-notes">
+        <div class="team-season-note">
+          <span>Goleador</span>
+          <strong>Sin goles registrados</strong>
+          <small>${detalle}</small>
+        </div>
+        <div class="team-season-note">
+          <span>Mayor victoria</span>
+          <strong>Sin datos todavía</strong>
+          <small>${detalle}</small>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div class="team-season-notes">
@@ -7009,7 +7236,8 @@ function agruparPartidosEquipoPorFase(partidosEquipo) {
   ];
 
   partidosEquipo.forEach(partido => {
-    const clave = partido.tipo === "regular"
+    const clave = partido.tipoActividad === "libre" ||
+      partido.tipo === "regular"
       ? "regular"
       : partido.fase || "playoffs";
     if (!grupos.has(clave)) grupos.set(clave, []);
@@ -7049,19 +7277,34 @@ function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
   }
 
   return agruparPartidosEquipoPorFase(partidosEquipo)
-    .map(grupo => `
-      <section class="detail-section team-season-matches">
-        <div class="detail-section-head">
-          <h2>${escaparHtml(grupo.titulo)}</h2>
-          <span>${grupo.partidos.length} ${grupo.partidos.length === 1 ? "partido" : "partidos"}</span>
-        </div>
-        <div class="team-match-list">
-          ${grupo.partidos.map(partido =>
-            renderMiniPartido(partido, equipo)
-          ).join("")}
-        </div>
-      </section>
-    `)
+    .map(grupo => {
+      const cantidadPartidos = grupo.partidos.filter(
+        partido => partido.tipoActividad !== "libre"
+      ).length;
+      const cantidadLibres = grupo.partidos.length - cantidadPartidos;
+      const resumen = [
+        `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`,
+        cantidadLibres > 0
+          ? `${cantidadLibres} ${cantidadLibres === 1 ? "libre" : "libres"}`
+          : ""
+      ].filter(Boolean).join(" &middot; ");
+
+      return `
+        <section class="detail-section team-season-matches">
+          <div class="detail-section-head">
+            <h2>${escaparHtml(grupo.titulo)}</h2>
+            <span>${resumen}</span>
+          </div>
+          <div class="team-match-list">
+            ${grupo.partidos.map(partido =>
+              partido.tipoActividad === "libre"
+                ? renderActividadLibre(partido, equipo)
+                : renderMiniPartido(partido, equipo)
+            ).join("")}
+          </div>
+        </section>
+      `;
+    })
     .join("");
 }
 
@@ -7131,6 +7374,12 @@ function renderDetalleEquipo(equipo) {
         .filter(partido => equipoParticipaEnPartido(partido, equipo))
         .sort(ordenarPartidosCronologicamente)
     : [];
+  const libresEquipo = torneoSeleccionado
+    ? obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneoSeleccionado)
+    : [];
+  const actividadesEquipo = partidosEquipo
+    .concat(libresEquipo)
+    .sort(ordenarPartidosCronologicamente);
   const stats = calcularRendimientoEquipoTorneo(partidosEquipo, equipo);
   const datosTabla = obtenerDatosTablaEquipoTorneo(equipo, partidosTorneo);
   const eventosEquipo = obtenerEventosPartidosHistorial(partidosEquipo);
@@ -7207,7 +7456,7 @@ function renderDetalleEquipo(equipo) {
         </section>
       `
       : `
-        ${renderPartidosEquipoPorFase(partidosEquipo, equipo)}
+        ${renderPartidosEquipoPorFase(actividadesEquipo, equipo)}
       `}
   `;
   return;
@@ -7312,10 +7561,32 @@ function obtenerNombreLadoPartido(partido, lado) {
   return "Por definir";
 }
 
-function obtenerFechasLibresEquipo(equipo, zona) {
+function obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneo) {
+  if (!equipo || !torneo?.id || !window.TPPublicTournament) return [];
+
+  const opciones = {
+    torneoId: torneo.id,
+    getOfficialName: (nombreEquipo, clubId) =>
+      obtenerNombreOficialEquipo(nombreEquipo, clubId)
+  };
+  const derivados = window.TPPublicTournament.deriveRegularParticipants(
+    partidosTorneo,
+    opciones
+  );
+  const participante = derivados.participants.find(item =>
+    !item.conflictoZona && equipoCoincideConNombre(item.equipo, equipo)
+  );
+  const zona = participante?.zona ||
+    obtenerZonaEquipoTorneo(equipo, partidosTorneo);
+  const equiposZona = zona
+    ? window.TPPublicTournament.getTeamsByZone(derivados, zona)
+    : [];
+
+  if (!zona || equiposZona.length % 2 === 0) return [];
+
   const fechasZona = new Map();
 
-  state.partidos
+  partidosTorneo
     .filter(
       partido =>
         partido.tipo === "regular" &&
@@ -7330,22 +7601,22 @@ function obtenerFechasLibresEquipo(equipo, zona) {
 
   return [...fechasZona.entries()]
     .map(([fecha, partidos]) => {
-      const participantes = new Set(
-        partidos
-          .flatMap(partido => [partido.local, partido.visitante])
-          .filter(Boolean)
+      const libres = window.TPPublicTournament.getFreeParticipants(
+        derivados,
+        partidos,
+        zona,
+        opciones
       );
-      const cantidadEsperada = obtenerEquiposZonaTorneo(zona).length - 1;
+      const esLibre = libres.valid && libres.teams.some(item =>
+        equipoCoincideConNombre(item, equipo)
+      );
 
-      if (
-        participantes.size !== cantidadEsperada ||
-        obtenerEquipoLibre(zona, partidos) !== equipo
-      ) {
-        return null;
-      }
+      if (!esLibre) return null;
 
       return {
         tipoActividad: "libre",
+        tipo: "regular",
+        id: `libre-${torneo.id}-${zona}-${fecha}`,
         fecha,
         fecha_partido:
           partidos.find(partido => partido.fecha_partido)?.fecha_partido ||
@@ -7361,7 +7632,7 @@ function renderActividadLibre(actividad, equipo) {
       <span class="focus-team">${nombre(equipo)}</span>
       <strong>Libre</strong>
       <span>Sin partido</span>
-      <small>Fecha ${actividad.fecha}</small>
+      <small>Fecha ${actividad.fecha} &middot; Libre</small>
     </div>
   `;
 }
@@ -8221,9 +8492,11 @@ function actualizarEquipoComparadorDatos(lado, equipo) {
 
 function renderTeams() {
   const cont = document.getElementById('teamsContent');
+  const countLabel = document.getElementById('teamsCountLabel');
   if (!cont) return;
 
   if (errorCargaDatos && state.partidos.length === 0) {
+    if (countLabel) countLabel.textContent = "Clubes";
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar los equipos",
@@ -8234,6 +8507,7 @@ function renderTeams() {
   }
 
   if (!cargaPartidosFinalizada) {
+    if (countLabel) countLabel.textContent = "Clubes";
     cont.innerHTML = renderEstadoVista(
       "cargando",
       "Cargando equipos",
@@ -8242,20 +8516,25 @@ function renderTeams() {
     return;
   }
 
-  const equiposLiga = obtenerZonasTorneo()
-    .flatMap(zona => {
-      const equiposZona = obtenerEquiposZonaTorneo(zona);
-      const tablaZona = calcularTablaZona(zona);
-      const posiciones = new Map(
-        tablaZona.map(fila => [fila.equipo, fila])
-      );
-
-      return equiposZona.map(equipo => ({
-        equipo,
-        zona,
-        stats: posiciones.get(equipo)
-      }));
-    })
+  const derivados = obtenerParticipantesRegularesTorneo();
+  const equiposBase =
+    derivados.regularMatches.length > 0 && window.TPPublicTournament
+      ? window.TPPublicTournament.buildTeamList(derivados)
+      : obtenerZonasLegacy().flatMap(zona =>
+          obtenerEquiposZonaLegacy(zona).map(equipo => ({ equipo, zona }))
+        );
+  const tablasPorZona = new Map(
+    obtenerZonasTorneo().map(zona => [
+      zona,
+      new Map(calcularTablaZona(zona).map(fila => [fila.equipo, fila]))
+    ])
+  );
+  const equiposLiga = equiposBase
+    .map(({ equipo, zona }) => ({
+      equipo,
+      zona,
+      stats: tablasPorZona.get(zona)?.get(equipo)
+    }))
     .sort((a, b) =>
       nombre(a.equipo).localeCompare(
         nombre(b.equipo),
@@ -8265,12 +8544,18 @@ function renderTeams() {
     );
 
   if (equiposLiga.length === 0) {
+    if (countLabel) countLabel.textContent = "0 clubes";
     cont.innerHTML = renderEstadoVista(
       "vacio",
       "Sin equipos",
       "Todavía no hay clubes disponibles para este torneo."
     );
     return;
+  }
+
+  if (countLabel) {
+    countLabel.textContent =
+      `${equiposLiga.length} ${equiposLiga.length === 1 ? "club" : "clubes"}`;
   }
 
   cont.innerHTML = equiposLiga
@@ -8333,13 +8618,35 @@ async function obtenerPartidos() {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`
     };
+    const resTorneos = await fetch(
+      `${SUPABASE_URL}/rest/v1/torneos?select=*&order=anio.desc,tipo.desc`,
+      { headers }
+    );
+    const torneos = resTorneos.ok
+      ? await resTorneos.json()
+      : state.torneos;
+    const torneoVigente = obtenerTorneoActivo(torneos);
+    const torneoSeleccionado = obtenerTorneoSeleccionado(
+      torneos,
+      torneoVigente
+    );
+    const filtroTorneoActual = torneoSeleccionado?.id
+      ? `&torneo_id=eq.${encodeURIComponent(torneoSeleccionado.id)}`
+      : "";
+    const filtroGoleadores = torneoSeleccionado?.id
+      ? `&torneo_id=eq.${encodeURIComponent(torneoSeleccionado.id)}`
+      : "";
     const [
       res,
+      resPartidosTodos,
       resEventos,
       resClubes,
-      resTorneos,
       resGoleadores
     ] = await Promise.all([
+      fetch(
+        `${SUPABASE_URL}/rest/v1/partidos?select=*${filtroTorneoActual}&order=id.asc`,
+        { headers }
+      ),
       fetch(
         `${SUPABASE_URL}/rest/v1/partidos?select=*&order=id.asc`,
         { headers }
@@ -8353,11 +8660,7 @@ async function obtenerPartidos() {
         { headers }
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/torneos?select=*&order=anio.desc,tipo.desc`,
-        { headers }
-      ),
-      fetch(
-        `${SUPABASE_URL}/rest/v1/goleadores_oficiales?select=*&order=torneo_id.asc,posicion.asc`,
+        `${SUPABASE_URL}/rest/v1/goleadores_oficiales?select=*${filtroGoleadores}&order=torneo_id.asc,posicion.asc`,
         { headers }
       )
     ]);
@@ -8367,19 +8670,19 @@ async function obtenerPartidos() {
     }
 
     const data = await res.json();
+    const dataTodos = resPartidosTodos.ok
+      ? await resPartidosTodos.json()
+      : data;
 
     if (!Array.isArray(data)) {
       throw new Error("La respuesta de partidos no tiene el formato esperado");
     }
+    if (!Array.isArray(dataTodos)) {
+      throw new Error(
+        "La respuesta de partidos historicos no tiene el formato esperado"
+      );
+    }
 
-    const torneos = resTorneos.ok
-      ? await resTorneos.json()
-      : state.torneos;
-    const torneoVigente = obtenerTorneoActivo(torneos);
-    const torneoSeleccionado = obtenerTorneoSeleccionado(
-      torneos,
-      torneoVigente
-    );
     const eventos = resEventos.ok
       ? await resEventos.json()
       : state.eventosTodos;
@@ -8392,7 +8695,7 @@ async function obtenerPartidos() {
     ultimaCargaDatos = Date.now();
     state.torneos = Array.isArray(torneos) ? torneos : state.torneos;
     state.torneoVigente = torneoVigente;
-    state.partidosTodos = data;
+    state.partidosTodos = dataTodos;
     state.eventosTodos = Array.isArray(eventos) ? eventos : [];
     state.goleadoresOficialesTodos = Array.isArray(goleadores)
       ? goleadores
@@ -8405,6 +8708,12 @@ async function obtenerPartidos() {
     if (!resEventos.ok) {
       console.warn(
         `No se pudieron cargar las incidencias: ${resEventos.status}`
+      );
+    }
+    if (!resPartidosTodos.ok) {
+      console.warn(
+        `No se pudieron cargar los partidos historicos: ${resPartidosTodos.status}. ` +
+        "El historial queda limitado al torneo actual."
       );
     }
     if (!resClubes.ok) {

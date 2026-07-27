@@ -88,7 +88,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="/styles/main.css?v=56">
+<link rel="stylesheet" href="/styles/main.css?v=57">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -182,6 +182,12 @@
       <button type="button" class="tab" data-tab="playoffs">Playoffs</button>
       <button type="button" class="tab" data-tab="equipos">Equipos</button>
     </nav>
+
+    <div
+      id="previewTournamentNotice"
+      class="preview-tournament-notice"
+      hidden
+    ></div>
 
     <!-- CONTENT -->
     <main class="app-main">
@@ -284,7 +290,7 @@
         <div class="sec">
           <div class="sec-head">
             <h2 class="sec-title">Equipos</h2>
-            <span class="sec-link">21 clubes</span>
+            <span class="sec-link" id="teamsCountLabel">Clubes</span>
           </div>
         </div>
 
@@ -422,9 +428,10 @@
 <script src="/js/config.js?v=3"></script>
 <script src="/js/state.js"></script>
 <script src="/js/utils.js?v=7"></script>
+<script src="/js/public-tournament.js?v=2"></script>
 <script src="/js/api.js"></script>
 <script src="/js/router.js"></script>
 <script src="/js/analytics.js?v=2"></script>
-<script src="/js/app.js?v=64"></script>
+<script src="/js/app.js?v=67"></script>
 </body>
 </html>

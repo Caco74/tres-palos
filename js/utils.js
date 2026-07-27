@@ -10,6 +10,7 @@ const state = {
   torneos: [],
   torneoActivo: null,
   torneoVigente: null,
+  torneoPreview: null,
   torneoSeleccionadoId: null
 }; 
 
@@ -107,14 +108,9 @@ function aplicarClubes(clubes) {
   clubesPorNombre.clear();
   clubesPorClave.clear();
 
-  Object.keys(equiposPorZona).forEach(zona => {
-    equiposPorZona[zona].splice(0);
-  });
-
   clubes
     .filter(club => club.activo !== false)
     .sort((a, b) =>
-      Number(a.zona) - Number(b.zona) ||
       String(a.nombre_corto).localeCompare(
         String(b.nombre_corto),
         "es",
@@ -136,11 +132,6 @@ function aplicarClubes(clubes) {
 
       if (club.escudo_url) {
         escudos[club.nombre_oficial] = club.escudo_url;
-      }
-
-      const zona = Number(club.zona);
-      if (equiposPorZona[zona]) {
-        equiposPorZona[zona].push(club.nombre_oficial);
       }
     });
 
