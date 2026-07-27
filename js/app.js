@@ -267,6 +267,7 @@ function switchTab(id) {
 
   vistaActual = { id, navId: id };
   mostrarVista(id);
+  actualizarEncabezadoVistaActual();
   guardarVistaEnHistorial();
   registrarVistaPestana(id);
 }
@@ -512,6 +513,7 @@ function restaurarVistaDesdeHistorial(vista) {
   }
 
   mostrarVista(vista.id);
+  actualizarEncabezadoVistaActual();
 
   if (VISTAS_PRINCIPALES.includes(vista.id)) {
     registrarVistaPestana(vista.id, "historial");
@@ -610,6 +612,8 @@ function renderMatches() {
     );
     return;
   }
+
+  actualizarEncabezadoPartidos(etapa);
 
   if (etapa.tipo === "playoff") {
     renderPartidosPlayoff(etapa);
@@ -1515,10 +1519,7 @@ function obtenerPartidosRegularesVigentes() {
     .filter(
       partido =>
         partido.tipo === "regular" &&
-        (
-          partido.goles_local === null ||
-          partido.goles_visitante === null
-        )
+        partidoPendienteParaVista(partido)
     )
     .map(partido => Number(partido.fecha))
     .filter(Number.isFinite);
@@ -1565,6 +1566,18 @@ function partidoTieneResultado(partido) {
     partido.goles_visitante !== null &&
     partido.goles_visitante !== undefined
   );
+}
+
+function partidoResueltoParaVista(partido) {
+  if (window.TPPublicTournament?.isMatchResolved) {
+    return window.TPPublicTournament.isMatchResolved(partido);
+  }
+
+  return partidoTieneResultado(partido);
+}
+
+function partidoPendienteParaVista(partido) {
+  return !partidoResueltoParaVista(partido);
 }
 
 function obtenerDatoFaltantePartido(partido) {
@@ -2513,10 +2526,42 @@ function obtenerAgendaRegularInicio() {
     return { tipo: "regular", fase: null, partidos: [], pendientes: false };
   }
 
+  const proximosCalendario = window.TPPublicTournament
+    ?.getUpcomingCalendarMatches(
+      partidosRegulares,
+      {
+        torneoId: state.torneoActivo?.id || null,
+        limit: 4
+      }
+    ) || [];
+
+  if (proximosCalendario.length > 0) {
+    const fechasAgenda = [
+      ...new Set(
+        proximosCalendario
+          .map(partido => Number(partido.fecha))
+          .filter(Number.isFinite)
+      )
+    ].sort((a, b) => a - b);
+    const fechaPrincipal = fechasAgenda[0] || Number(proximosCalendario[0].fecha);
+    const etiqueta = fechasAgenda.length === 1
+      ? `Fecha ${fechasAgenda[0]}`
+      : "Próximos partidos";
+
+    return {
+      tipo: "regular",
+      fase: { valor: "regular", etiqueta },
+      clave: Number.isFinite(fechaPrincipal)
+        ? `fecha:${fechaPrincipal}`
+        : "fecha:1",
+      partidos: proximosCalendario,
+      pendientes: true,
+      mezclaFechas: fechasAgenda.length > 1
+    };
+  }
+
   const pendientes = partidosRegulares.filter(
-    partido =>
-      partido.goles_local === null ||
-      partido.goles_visitante === null
+    partido => partidoPendienteParaVista(partido)
   );
   const fechas = (pendientes.length > 0 ? pendientes : partidosRegulares)
     .map(partido => Number(partido.fecha))
@@ -2533,9 +2578,7 @@ function obtenerAgendaRegularInicio() {
     partido => Number(partido.fecha) === fecha
   );
   const pendientesFecha = partidosFecha.filter(
-    partido =>
-      partido.goles_local === null ||
-      partido.goles_visitante === null
+    partido => partidoPendienteParaVista(partido)
   );
   const partidosAgenda = pendientesFecha.length > 0
     ? pendientesFecha
@@ -2630,8 +2673,11 @@ function renderInicio() {
     return;
   }
 
-  const textoLinkAgenda =
-    agenda.tipo === "regular" ? "Ver fecha completa" : "Ver fase completa";
+  const textoLinkAgenda = agenda.tipo === "regular"
+    ? agenda.mezclaFechas
+      ? "Ver partidos"
+      : "Ver fecha completa"
+    : "Ver fase completa";
   const claveAgenda = agenda.clave || `fase:${agenda.fase.valor}`;
 
   cont.innerHTML = `
@@ -2745,7 +2791,8 @@ function actualizarResumenTorneo(agenda) {
     agenda.partidos.flatMap(p => [p.local, p.visitante]).filter(Boolean)
   );
 
-  document.getElementById("heroLabel").textContent = campeon
+  if (vistaActual.id === "inicio") {
+    document.getElementById("heroLabel").textContent = campeon
     ? `${obtenerNombreTorneoActivo()} · Torneo finalizado`
     : `${obtenerNombreTorneoActivo()} · ${etiquetaFase} · ${anio}`;
   const heroTitle = document.getElementById("heroTitle");
@@ -2753,6 +2800,7 @@ function actualizarResumenTorneo(agenda) {
     heroTitle.innerHTML = campeon
       ? `${escaparHtml(nombre(campeon))}<br><em>campeón</em>`
       : obtenerTituloHeroInicio(agenda.fase?.valor);
+  }
   }
   const tituloSeccion = document.getElementById("homeSectionTitle");
   if (tituloSeccion) {
@@ -2772,6 +2820,42 @@ function actualizarResumenTorneo(agenda) {
     equipos.size || "–";
   document.getElementById("sidebarYear").textContent = anio;
   actualizarPieTorneo(campeon ? "Torneo finalizado" : etiquetaFase, anio);
+}
+
+function actualizarEncabezadoPartidos(etapa = null) {
+  if (vistaActual.id !== "partidos") return;
+
+  const etapaVisible = etapa || obtenerEtapasDisponibles().find(
+    item => item.clave === etapaActual
+  );
+  if (!etapaVisible) return;
+
+  const anio = obtenerAnioTorneo();
+  const heroLabel = document.getElementById("heroLabel");
+  const heroTitle = document.getElementById("heroTitle");
+
+  if (heroLabel) {
+    heroLabel.textContent =
+      `${obtenerNombreTorneoActivo()} · ${etapaVisible.etiqueta} · ${anio}`;
+  }
+  if (heroTitle) {
+    heroTitle.innerHTML =
+      `Partidos<br><em>${escaparHtml(etapaVisible.etiqueta)}</em>`;
+  }
+
+  actualizarPieTorneo(etapaVisible.etiqueta, anio);
+}
+
+function actualizarEncabezadoVistaActual() {
+  if (!cargaPartidosFinalizada || errorCargaDatos) return;
+
+  if (vistaActual.id === "inicio") {
+    actualizarResumenTorneo(obtenerAgendaInicio());
+  }
+
+  if (vistaActual.id === "partidos") {
+    actualizarEncabezadoPartidos();
+  }
 }
 
 function obtenerTituloHeroInicio(fase) {
@@ -5541,6 +5625,19 @@ function obtenerEtapasDisponibles() {
 }
 
 function obtenerEtapaInicial(etapas) {
+  const etapaRegularInicial = window.TPPublicTournament
+    ?.getInitialRegularStageKey(
+      state.partidos,
+      obtenerOpcionesParticipantesTorneo()
+    );
+
+  if (
+    etapaRegularInicial &&
+    etapas.some(etapa => etapa.clave === etapaRegularInicial)
+  ) {
+    return etapaRegularInicial;
+  }
+
   const fasesConEquipos = FASES_PLAYOFF.filter(fase =>
     state.partidos.some(
       p =>
@@ -7262,6 +7359,51 @@ function agruparPartidosEquipoPorFase(partidosEquipo) {
   ];
 }
 
+function obtenerProximoPartidoEquipo(partidosEquipo) {
+  const partidosReales = partidosEquipo.filter(
+    partido => partido.tipoActividad !== "libre"
+  );
+
+  if (window.TPPublicTournament?.getNextPendingMatch) {
+    return window.TPPublicTournament.getNextPendingMatch(
+      partidosReales,
+      { regularOnly: false }
+    );
+  }
+
+  return partidosReales
+    .filter(partido => partidoPendienteParaVista(partido))
+    .sort(ordenarPartidosCronologicamente)[0] || null;
+}
+
+function renderResumenGrupoPartidosEquipo(grupo) {
+  const cantidadPartidos = grupo.partidos.filter(
+    partido => partido.tipoActividad !== "libre"
+  ).length;
+  const cantidadLibres = grupo.partidos.length - cantidadPartidos;
+  const cantidadFechas = new Set(
+    grupo.partidos
+      .map(partido => Number(partido.fecha))
+      .filter(Number.isFinite)
+  ).size;
+  const titulo = grupo.clave === "regular" && cantidadFechas > 0
+    ? `${cantidadFechas} ${cantidadFechas === 1 ? "fecha" : "fechas"}`
+    : `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`;
+  const detalle = [
+    `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`,
+    cantidadLibres > 0
+      ? `${cantidadLibres} ${cantidadLibres === 1 ? "libre" : "libres"}`
+      : ""
+  ].filter(Boolean).join(" · ");
+
+  return `
+    <span class="team-season-summary">
+      <strong>${titulo}</strong>
+      <small>${detalle}</small>
+    </span>
+  `;
+}
+
 function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
   if (partidosEquipo.length === 0) {
     return `
@@ -7276,30 +7418,26 @@ function renderPartidosEquipoPorFase(partidosEquipo, equipo) {
     `;
   }
 
+  const proximoPartido = obtenerProximoPartidoEquipo(partidosEquipo);
+  const proximoId = proximoPartido ? String(proximoPartido.id) : null;
+
   return agruparPartidosEquipoPorFase(partidosEquipo)
     .map(grupo => {
-      const cantidadPartidos = grupo.partidos.filter(
-        partido => partido.tipoActividad !== "libre"
-      ).length;
-      const cantidadLibres = grupo.partidos.length - cantidadPartidos;
-      const resumen = [
-        `${cantidadPartidos} ${cantidadPartidos === 1 ? "partido" : "partidos"}`,
-        cantidadLibres > 0
-          ? `${cantidadLibres} ${cantidadLibres === 1 ? "libre" : "libres"}`
-          : ""
-      ].filter(Boolean).join(" &middot; ");
-
       return `
         <section class="detail-section team-season-matches">
           <div class="detail-section-head">
             <h2>${escaparHtml(grupo.titulo)}</h2>
-            <span>${resumen}</span>
+            ${renderResumenGrupoPartidosEquipo(grupo)}
           </div>
           <div class="team-match-list">
             ${grupo.partidos.map(partido =>
               partido.tipoActividad === "libre"
                 ? renderActividadLibre(partido, equipo)
-                : renderMiniPartido(partido, equipo)
+                : renderMiniPartido(
+                    partido,
+                    equipo,
+                    proximoId !== null && String(partido.id) === proximoId
+                  )
             ).join("")}
           </div>
         </section>
@@ -7487,34 +7625,52 @@ function resultadoEquipoDetalle(partido, equipo) {
 }
 
 function renderMiniPartido(partido, equipo, proximo = false) {
-  const jugado =
-    partido.goles_local !== null &&
-    partido.goles_visitante !== null;
-  const centro = jugado
+  const finalizado = partidoResueltoParaVista(partido);
+  const tieneMarcador = partidoTieneResultado(partido);
+  const estadoTemporal = obtenerEstadoTemporalPartido(partido);
+  const centro = tieneMarcador
     ? `${partido.goles_local} - ${partido.goles_visitante}`
-    : formatearMomentoPartido(partido);
+    : finalizado
+      ? "Finalizado"
+      : "vs";
   const contexto = partido.tipo === "playoff"
     ? etiquetaFase(partido.fase)
     : `Fecha ${partido.fecha}`;
+  const etiquetaEstado = finalizado
+    ? "FINALIZADO"
+    : proximo
+      ? "PR&Oacute;XIMO"
+      : "";
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
   const nombreVisitante = obtenerNombreLadoPartido(partido, "visitante");
+  const detalle = finalizado
+    ? partido.fecha_partido
+      ? formatearFechaCompleta(partido.fecha_partido)
+      : "Partido finalizado"
+    : estadoTemporal.texto || formatearMomentoPartido(partido);
   const contextoCompleto = [
-    contexto,
+    detalle,
     partido.localia_pendiente ? "Localía a definir" : ""
   ].filter(Boolean).join(" · ");
 
   return `
     <button
       type="button"
-      class="team-match-row ${proximo ? "next" : ""}"
+      class="team-match-row ${finalizado ? "team-match-finished" : proximo ? "team-match-next" : "team-match-future"}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
     >
+      <span class="team-match-meta">
+        <span>${contexto}</span>
+        ${etiquetaEstado ? `<b>${etiquetaEstado}</b>` : ""}
+      </span>
+      <span class="team-match-line">
       <span class="${partido.local === equipo ? "focus-team" : ""}">
         ${nombreLocal}
       </span>
       <strong>${centro}</strong>
       <span class="${partido.visitante === equipo ? "focus-team" : ""}">
         ${nombreVisitante}
+      </span>
       </span>
       <small>${contextoCompleto}</small>
     </button>
@@ -7628,11 +7784,15 @@ function obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneo) {
 
 function renderActividadLibre(actividad, equipo) {
   return `
-    <div class="team-match-row team-activity-free">
-      <span class="focus-team">${nombre(equipo)}</span>
-      <strong>Libre</strong>
-      <span>Sin partido</span>
-      <small>Fecha ${actividad.fecha} &middot; Libre</small>
+    <div
+      class="team-match-row team-activity-free"
+      aria-label="Fecha ${actividad.fecha} libre de ${escaparHtml(nombre(equipo))}"
+    >
+      <span class="team-match-meta">
+        <span>Fecha ${actividad.fecha}</span>
+        <b>LIBRE</b>
+      </span>
+      <span class="team-free-line">Sin partido</span>
     </div>
   `;
 }

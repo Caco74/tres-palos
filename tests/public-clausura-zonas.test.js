@@ -112,6 +112,34 @@ function applySixLoadedResults(records) {
   });
 }
 
+function finishRegularDate(records, date) {
+  return records.map((record, index) => {
+    if (record.tipo !== "regular" || Number(record.fecha) !== Number(date)) {
+      return record;
+    }
+
+    return {
+      ...record,
+      estado: "finalizado",
+      goles_local: record.goles_local ?? index % 4,
+      goles_visitante: record.goles_visitante ?? (index + 1) % 3
+    };
+  });
+}
+
+function finishAllRegular(records) {
+  return records.map((record, index) => {
+    if (record.tipo !== "regular") return record;
+
+    return {
+      ...record,
+      estado: "finalizado",
+      goles_local: record.goles_local ?? index % 4,
+      goles_visitante: record.goles_visitante ?? (index + 2) % 3
+    };
+  });
+}
+
 function rowByName(table, expected) {
   const expectedName = normalize(expected);
   const row = table.find(item => normalize(item.equipo).includes(expectedName));
@@ -258,6 +286,43 @@ function runTests() {
   assert.deepEqual(libreZona3.teams.map(normalize), ["c a williams kemmis"]);
   results.push("Fecha 1 libres Argentino / ninguno / Kemmis: ok");
 
+  assert.equal(
+    PublicTournament.getInitialRegularStageKey(clausura, {
+      torneoId: TORNEO_CLAUSURA
+    }),
+    "fecha:1"
+  );
+  const fecha1Zonas13Cerradas = applySixLoadedResults(clausura);
+  assert.equal(
+    PublicTournament.getInitialRegularDate(fecha1Zonas13Cerradas, {
+      torneoId: TORNEO_CLAUSURA
+    }),
+    1
+  );
+  const fecha1Completa = finishRegularDate(fecha1Zonas13Cerradas, 1);
+  assert.equal(
+    PublicTournament.getInitialRegularStageKey(fecha1Completa, {
+      torneoId: TORNEO_CLAUSURA
+    }),
+    "fecha:2"
+  );
+  const otroTorneoPendiente = {
+    ...clausura[0],
+    id: 90001,
+    torneo_id: TORNEO_APERTURA,
+    estado: "programado",
+    goles_local: null,
+    goles_visitante: null
+  };
+  assert.equal(
+    PublicTournament.getInitialRegularStageKey(
+      fecha1Completa.concat(otroTorneoPendiente),
+      { torneoId: TORNEO_CLAUSURA }
+    ),
+    "fecha:2"
+  );
+  results.push("fecha inicial Clausura respeta menor fecha pendiente del torneo visualizado: ok");
+
   const americaClausura = matchesByTeam(clausura, "C.A. América");
   assert.equal(americaClausura.length, 10);
   assert.equal(americaClausura.every(match => Number(match.zona) === 2), true);
@@ -277,7 +342,109 @@ function runTests() {
   const almafuerteClausura = matchesByTeam(clausura, "C.A. Almafuerte");
   assert.equal(almafuerteClausura[0].fecha, 1);
   assert.equal(almafuerteClausura.at(-1).fecha, 14);
-  results.push("fichas Clausura: America 10 partidos sin libres y Almafuerte libres 2/9: ok");
+  const sportivoClausura = matchesByTeam(clausura, "Sportivo A. Club");
+  const adeoClausura = matchesByTeam(clausura, "AD Everton/Olimpia");
+  assert.equal(sportivoClausura.length, 12);
+  assert.equal(adeoClausura.length, 12);
+  assert.equal(freeDatesByTeam(clausura, derived, "Sportivo A. Club", 1).length, 2);
+  assert.equal(freeDatesByTeam(clausura, derived, "AD Everton/Olimpia", 1).length, 2);
+  results.push("fichas Clausura: Sportivo/ADEO 12+2, America 10+0 y Almafuerte libres 2/9: ok");
+
+  const calendarioMixtoInicio = [
+    {
+      id: 1,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 1,
+      fecha_partido: "2026-08-02",
+      hora: "16:00",
+      estado: "programado"
+    },
+    {
+      id: 2,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 2,
+      fecha_partido: "2026-08-02",
+      hora: "15:00",
+      estado: "programado"
+    },
+    {
+      id: 3,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 1,
+      fecha_partido: "2026-08-01",
+      hora: "16:00",
+      estado: "programado"
+    },
+    {
+      id: 4,
+      torneo_id: TORNEO_APERTURA,
+      tipo: "regular",
+      fecha: 1,
+      fecha_partido: "2026-07-30",
+      hora: "16:00",
+      estado: "programado"
+    }
+  ];
+  assert.deepEqual(
+    PublicTournament.getUpcomingCalendarMatches(calendarioMixtoInicio, {
+      torneoId: TORNEO_CLAUSURA,
+      limit: 3
+    }).map(match => match.fecha),
+    [1, 2, 1]
+  );
+  results.push("Inicio puede mezclar jornadas por calendario real sin contaminar torneo: ok");
+
+  const recorridoEquipo = [
+    {
+      id: 10,
+      tipo: "regular",
+      fecha: 1,
+      estado: "finalizado",
+      goles_local: 1,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-01",
+      hora: "16:00"
+    },
+    {
+      id: 11,
+      tipo: "regular",
+      fecha: 2,
+      estado: "programado",
+      goles_local: null,
+      goles_visitante: null,
+      fecha_partido: "2026-08-10",
+      hora: "16:00"
+    },
+    {
+      id: 12,
+      tipo: "regular",
+      fecha: 3,
+      estado: "programado",
+      goles_local: null,
+      goles_visitante: null,
+      fecha_partido: "2026-08-10",
+      hora: "15:00"
+    },
+    { id: "libre-1", tipoActividad: "libre", fecha: 4 }
+  ];
+  assert.equal(PublicTournament.isMatchResolved(recorridoEquipo[0]), true);
+  assert.equal(PublicTournament.isMatchResolved(recorridoEquipo[1]), false);
+  assert.equal(
+    PublicTournament.getNextPendingMatch(recorridoEquipo, {
+      regularOnly: false
+    }).id,
+    12
+  );
+  assert.deepEqual(
+    [...recorridoEquipo]
+      .sort((a, b) => Number(a.fecha) - Number(b.fecha))
+      .map(item => item.fecha),
+    [1, 2, 3, 4]
+  );
+  results.push("recorrido equipo: orden, FINALIZADO, PROXIMO unico y libre excluida: ok");
 
   const withResults = applySixLoadedResults(clausura);
   const derivedWithResults = PublicTournament.deriveRegularParticipants(withResults, {
@@ -352,13 +519,27 @@ function runTests() {
   assert.equal(mixedClausura.participants.length, 20);
   assert.equal(participantsByZone(mixedClausura, 1).length, 7);
   assertIncludesTeam(mixedApertura.participants.map(item => normalize(item.equipo)), "carcarana");
+  assert.equal(
+    PublicTournament.getInitialRegularStageKey(apertura, {
+      torneoId: TORNEO_APERTURA
+    }),
+    "fecha:14"
+  );
+  assert.equal(
+    PublicTournament.getInitialRegularStageKey(finishAllRegular(clausura), {
+      torneoId: TORNEO_CLAUSURA
+    }),
+    "fecha:14"
+  );
   results.push("Apertura historico no contamina Clausura y conserva Carcarana: ok");
 
   const appSource = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8");
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
+  const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/js\/public-tournament\.js\?v=2/);
-  assert.match(indexSource, /\/js\/app\.js\?v=67/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=58/);
+  assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
+  assert.match(indexSource, /\/js\/app\.js\?v=68/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.doesNotMatch(indexSource, />21 clubes</);
@@ -392,9 +573,28 @@ function runTests() {
   assert.match(extractFunction(appSource, "obtenerEquipoLibre"), /getFreeParticipants/);
   assert.match(extractFunction(appSource, "calcularTablaZona"), /buildZoneTable/);
   assert.match(extractFunction(appSource, "renderTeams"), /buildTeamList/);
+  assert.match(extractFunction(appSource, "obtenerEtapaInicial"), /getInitialRegularStageKey/);
+  assert.match(extractFunction(appSource, "actualizarNavegacionEtapas"), /etapa\.clave === etapaActual/);
+  assert.match(extractFunction(appSource, "selectStage"), /etapaActual = clave/);
+  assert.match(extractFunction(appSource, "changeStage"), /indexActual \+ dir/);
+  assert.match(extractFunction(appSource, "obtenerAgendaRegularInicio"), /getUpcomingCalendarMatches/);
+  assert.match(extractFunction(appSource, "actualizarEncabezadoPartidos"), /etapaVisible\.etiqueta/);
+  assert.match(extractFunction(appSource, "obtenerProximoPartidoEquipo"), /getNextPendingMatch/);
+  assert.match(extractFunction(appSource, "renderPartidosEquipoPorFase"), /proximoId/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-finished/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /FINALIZADO/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /PR&Oacute;XIMO/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-future/);
+  assert.doesNotMatch(extractFunction(appSource, "renderActividadLibre"), /<button|onclick|abrirPartido/);
+  assert.match(extractFunction(appSource, "renderActividadLibre"), /team-activity-free/);
+  assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /cantidadFechas/);
   assert.match(extractFunction(appSource, "aplicarDatosTorneo"), /filtrarPartidosPorTorneo/);
   assert.match(extractFunction(appSource, "obtenerPartidos"), /torneo_id=eq\.\$\{encodeURIComponent/);
   assert.doesNotMatch(extractFunction(utilsSource, "aplicarClubes"), /\.zona\b/);
+  assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
+  assert.match(styleSource, /\.team-match-line > span[\s\S]*text-overflow: ellipsis/);
+  assert.match(styleSource, /\.team-match-next[\s\S]*border-left/);
+  assert.match(styleSource, /\.team-activity-free[\s\S]*cursor: default/);
   assert.doesNotMatch(
     fs.readFileSync(path.join(ROOT, "js", "public-tournament.js"), "utf8"),
     /\b(fetch|insert|update|delete|upsert|rpc)\b/i

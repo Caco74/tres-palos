@@ -4043,53 +4043,156 @@ body.detail-mode .app-main {
   background: var(--loss);
 }
 
+.team-season-summary {
+  margin-left: auto;
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.detail-section-head .team-season-summary strong {
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.detail-section-head .team-season-summary small {
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .team-match-row {
   width: 100%;
-  min-height: 60px;
+  min-height: 64px;
   padding: 10px 12px;
   border: 0;
   border-bottom: 1px solid rgba(58,58,66,.65);
   background: transparent;
   color: var(--muted);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   font: inherit;
   font-size: 0.8rem;
-  text-align: center;
+  text-align: left;
 }
 
 .team-match-row:last-child {
   border-bottom: 0;
 }
 
-.team-match-row:hover,
-.team-match-row:focus-visible {
+button.team-match-row {
+  cursor: pointer;
+}
+
+button.team-match-row:hover,
+button.team-match-row:focus-visible {
   background: var(--card2);
 }
 
+.team-match-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.team-match-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-match-meta b {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.team-match-line {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.team-match-line > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-match-line > span:last-child {
+  text-align: right;
+}
+
 .team-match-row strong {
-  min-width: 64px;
+  min-width: 48px;
   padding: 5px 8px;
   border-radius: 6px;
   background: var(--bg2);
   color: var(--white);
   font-family: 'DM Mono', monospace;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
-.team-match-row.next strong {
+.team-match-finished {
+  background: rgba(255, 255, 255, .016);
+}
+
+.team-match-finished strong {
+  min-width: 58px;
+  background: rgba(255, 255, 255, .06);
+  font-size: 0.86rem;
+}
+
+.team-match-next {
+  padding-left: 9px;
+  border-left: 3px solid rgba(85, 167, 255, .78);
+  background: rgba(85, 167, 255, .055);
+}
+
+.team-match-next .team-match-meta b {
+  border-color: rgba(85, 167, 255, .42);
+  background: rgba(85, 167, 255, .1);
   color: var(--blue);
 }
 
-.team-match-row.next span:not(.focus-team) {
+.team-match-next .team-match-line {
   color: var(--white);
-  font-style: italic;
+}
+
+.team-match-future strong {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
 }
 
 .team-activity-free {
+  min-height: 50px;
   cursor: default;
+  opacity: .76;
   background: rgba(255, 255, 255, .018);
 }
 
@@ -4097,11 +4200,17 @@ body.detail-mode .app-main {
   background: rgba(255, 255, 255, .018);
 }
 
-.team-activity-free strong {
+.team-activity-free .team-match-meta b {
   color: var(--muted);
   border: 1px solid var(--border);
   background: transparent;
-  text-transform: uppercase;
+}
+
+.team-free-line {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.2;
 }
 
 .team-next-match .team-match-row {
@@ -4152,10 +4261,13 @@ body.detail-mode .app-main {
 }
 
 .team-match-row small {
-  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: 0.64rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-transform: uppercase;
 }
 
@@ -6594,6 +6706,26 @@ body.detail-mode .app-main {
 
   .team-season-note span {
     grid-row: auto;
+  }
+
+  .team-season-summary {
+    max-width: 52%;
+  }
+
+  .team-match-row {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .team-match-line {
+    gap: 6px;
+  }
+
+  .team-match-row strong {
+    min-width: 42px;
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 0.72rem;
   }
 
   .team-next-meta {
