@@ -7670,51 +7670,36 @@ function renderMiniPartido(partido, equipo, proximo = false) {
   const finalizado = partidoFinalizadoRecorridoEquipo(partido);
   const esProximo = proximo && !finalizado;
   const tieneMarcador = partidoTieneResultado(partido);
-  const estadoTemporal = obtenerEstadoTemporalPartido(partido);
   const centro = tieneMarcador
     ? `${partido.goles_local} - ${partido.goles_visitante}`
-    : "vs";
+    : ESTADOS_DATO.confirmar;
   const contexto = partido.tipo === "playoff"
     ? etiquetaFase(partido.fase)
     : `Fecha ${partido.fecha}`;
-  const etiquetaEstado = finalizado
-    ? "FINALIZADO"
+  const claseEstado = finalizado
+    ? "team-match-finished"
     : esProximo
-      ? "PR&Oacute;XIMO"
-      : "";
+      ? "team-match-next"
+      : "team-match-future";
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
   const nombreVisitante = obtenerNombreLadoPartido(partido, "visitante");
-  const contextoCompleto = finalizado
-    ? [
-        partido.fecha_partido
-          ? formatearFechaCompleta(partido.fecha_partido)
-          : ""
-      ].filter(Boolean).join(" · ")
-    : [
-        estadoTemporal.texto || formatearMomentoPartido(partido),
-        partido.localia_pendiente ? "Localía a definir" : ""
-      ].filter(Boolean).join(" · ");
 
   return `
     <button
       type="button"
-      class="team-match-row ${finalizado ? "team-match-finished" : esProximo ? "team-match-next" : "team-match-future"}"
+      class="team-match-row ${claseEstado}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
     >
-      <span class="team-match-meta">
-        <span>${contexto}</span>
-        ${etiquetaEstado ? `<b>${etiquetaEstado}</b>` : ""}
-      </span>
       <span class="team-match-line">
       <span class="${partido.local === equipo ? "focus-team" : ""}">
         ${nombreLocal}
       </span>
-      <strong>${centro}</strong>
+      <strong class="${tieneMarcador ? "team-match-score" : "team-match-pending"}">${centro}</strong>
       <span class="${partido.visitante === equipo ? "focus-team" : ""}">
         ${nombreVisitante}
       </span>
       </span>
-      ${contextoCompleto ? `<small>${contextoCompleto}</small>` : ""}
+      <small>${contexto}</small>
     </button>
   `;
 }
@@ -7825,16 +7810,18 @@ function obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneo) {
 }
 
 function renderActividadLibre(actividad, equipo) {
+  const equipoLibre = escaparHtml(nombre(equipo));
+
   return `
     <div
       class="team-match-row team-activity-free"
-      aria-label="Fecha ${actividad.fecha} libre de ${escaparHtml(nombre(equipo))}"
+      aria-label="Fecha ${actividad.fecha} libre de ${equipoLibre}"
     >
-      <span class="team-match-meta">
-        <span>Fecha ${actividad.fecha}</span>
-        <b>LIBRE</b>
+      <span class="team-free-line">
+        <span>${equipoLibre}</span>
+        <strong>LIBRE</strong>
       </span>
-      <span class="team-free-line">Sin partido</span>
+      <small>Fecha ${actividad.fecha} &middot; Libre</small>
     </div>
   `;
 }

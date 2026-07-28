@@ -198,6 +198,9 @@ function buildRenderMiniPartido(appSource) {
     obtenerEstadoTemporalPartido: partido => ({
       texto: partido.estadoTexto || "A confirmar"
     }),
+    ESTADOS_DATO: {
+      confirmar: "A confirmar"
+    },
     formatearMomentoPartido: partido => partido.estadoTexto || "A confirmar",
     etiquetaFase: fase => ({
       octavos: "Octavos de Final",
@@ -221,6 +224,25 @@ function buildRenderMiniPartido(appSource) {
   );
 
   return sandbox.renderMiniPartido;
+}
+
+function buildRenderActividadLibre(appSource) {
+  const sandbox = {
+    escaparHtml: value => String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;"),
+    nombre: value => value
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "renderActividadLibre")}
+     this.renderActividadLibre = renderActividadLibre;`,
+    sandbox
+  );
+
+  return sandbox.renderActividadLibre;
 }
 
 function runTests() {
@@ -516,7 +538,7 @@ function runTests() {
       .map(item => item.fecha),
     [1, 2, 3, 4]
   );
-  results.push("recorrido equipo: orden, FINALIZADO, PROXIMO unico y libre excluida: ok");
+  results.push("recorrido equipo: orden, proximo interno unico y libre excluida: ok");
 
   const withResults = applySixLoadedResults(clausura);
   const derivedWithResults = PublicTournament.deriveRegularParticipants(withResults, {
@@ -609,9 +631,9 @@ function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=59/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=62/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=71/);
+  assert.match(indexSource, /\/js\/app\.js\?v=72/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.match(indexSource, /Clasificaci&oacute;n/);
@@ -632,10 +654,10 @@ function runTests() {
     fecha_partido: "2026-06-06"
   }, "Sportivo A. Club");
   assert.match(regularFinalizado, /Fecha 3/);
-  assert.match(regularFinalizado, /FINALIZADO/);
-  assert.match(regularFinalizado, /<strong>0 - 0<\/strong>/);
-  assert.deepEqual(extractSmallTexts(regularFinalizado), ["06/06/26"]);
-  assert.doesNotMatch(regularFinalizado, /<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
+  assert.doesNotMatch(regularFinalizado, /FINALIZADO/);
+  assert.match(regularFinalizado, /<strong class="team-match-score">0 - 0<\/strong>/);
+  assert.deepEqual(extractSmallTexts(regularFinalizado), ["Fecha 3"]);
+  assert.doesNotMatch(regularFinalizado, /06\/06\/26/);
 
   const playoffFinalizado = renderMiniPartidoPrueba({
     id: 502,
@@ -649,9 +671,10 @@ function runTests() {
     fecha_partido: "2026-06-06"
   }, "Sportivo A. Club");
   assert.match(playoffFinalizado, /Cuartos de Final/);
-  assert.match(playoffFinalizado, /FINALIZADO/);
-  assert.deepEqual(extractSmallTexts(playoffFinalizado), ["06/06/26"]);
-  assert.doesNotMatch(playoffFinalizado, /<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
+  assert.doesNotMatch(playoffFinalizado, /FINALIZADO/);
+  assert.match(playoffFinalizado, /<strong class="team-match-score">2 - 1<\/strong>/);
+  assert.deepEqual(extractSmallTexts(playoffFinalizado), ["Cuartos de Final"]);
+  assert.doesNotMatch(playoffFinalizado, /06\/06\/26/);
 
   const finalizadoSinFecha = renderMiniPartidoPrueba({
     id: 503,
@@ -664,8 +687,8 @@ function runTests() {
     goles_visitante: 0,
     fecha_partido: null
   }, "Sportivo A. Club");
-  assert.match(finalizadoSinFecha, /FINALIZADO/);
-  assert.deepEqual(extractSmallTexts(finalizadoSinFecha), []);
+  assert.doesNotMatch(finalizadoSinFecha, /FINALIZADO/);
+  assert.deepEqual(extractSmallTexts(finalizadoSinFecha), ["Fecha 4"]);
   assert.doesNotMatch(finalizadoSinFecha, /Partido finalizado|<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
 
   const sportivoAperturaFecha3 = renderMiniPartidoPrueba({
@@ -680,9 +703,9 @@ function runTests() {
     fecha_partido: null
   }, "Sportivo A. Club");
   assert.match(sportivoAperturaFecha3, /Fecha 3/);
-  assert.match(sportivoAperturaFecha3, /FINALIZADO/);
-  assert.match(sportivoAperturaFecha3, /<strong>0 - 0<\/strong>/);
-  assert.deepEqual(extractSmallTexts(sportivoAperturaFecha3), []);
+  assert.doesNotMatch(sportivoAperturaFecha3, /FINALIZADO/);
+  assert.match(sportivoAperturaFecha3, /<strong class="team-match-score">0 - 0<\/strong>/);
+  assert.deepEqual(extractSmallTexts(sportivoAperturaFecha3), ["Fecha 3"]);
   assert.doesNotMatch(sportivoAperturaFecha3, /<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
 
   const futuroNeutral = renderMiniPartidoPrueba({
@@ -699,8 +722,8 @@ function runTests() {
   }, "Sportivo A. Club");
   assert.doesNotMatch(futuroNeutral, /FINALIZADO/);
   assert.doesNotMatch(futuroNeutral, /PR&Oacute;XIMO/);
-  assert.match(futuroNeutral, /<strong>vs<\/strong>/);
-  assert.deepEqual(extractSmallTexts(futuroNeutral), ["A confirmar"]);
+  assert.match(futuroNeutral, /<strong class="team-match-pending">A confirmar<\/strong>/);
+  assert.deepEqual(extractSmallTexts(futuroNeutral), ["Fecha 5"]);
 
   const proximo = renderMiniPartidoPrueba({
     id: 505,
@@ -714,9 +737,22 @@ function runTests() {
     goles_visitante: null,
     fecha_partido: null
   }, "Sportivo A. Club", true);
-  assert.match(proximo, /PR&Oacute;XIMO/);
+  assert.match(proximo, /team-match-next/);
+  assert.doesNotMatch(proximo, /PR&Oacute;XIMO/);
   assert.doesNotMatch(proximo, /FINALIZADO/);
-  results.push("recorrido equipo: estado finalizado unificado arriba y fechas debajo: ok");
+  assert.deepEqual(extractSmallTexts(proximo), ["Fecha 6"]);
+
+  const renderActividadLibrePrueba = buildRenderActividadLibre(appSource);
+  const libre = renderActividadLibrePrueba({
+    tipoActividad: "libre",
+    fecha: 4
+  }, "Sportivo A. Club");
+  assert.match(libre, /team-activity-free/);
+  assert.match(libre, /Sportivo A\. Club/);
+  assert.match(libre, /<strong>LIBRE<\/strong>/);
+  assert.deepEqual(extractSmallTexts(libre), ["Fecha 4 &middot; Libre"]);
+  assert.doesNotMatch(libre, /<button|onclick|abrirPartido/);
+  results.push("recorrido equipo: filas simples con marcador, A confirmar, fecha y libre compacto: ok");
 
   assert.match(appSource, /previewTorneoIdSolicitado[\s\S]{0,120}getPreviewTournamentId/);
   assert.match(extractFunction(appSource, "agregarParametroPreviewTorneo"), /preview_torneo/);
@@ -765,12 +801,18 @@ function runTests() {
   assert.match(extractFunction(appSource, "partidoFinalizadoRecorridoEquipo"), /partidoResueltoParaVista\(partido\) \|\| partidoTieneResultado\(partido\)/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-finished/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /const esProximo = proximo && !finalizado/);
-  assert.match(extractFunction(appSource, "renderMiniPartido"), /FINALIZADO/);
-  assert.match(extractFunction(appSource, "renderMiniPartido"), /PR&Oacute;XIMO/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /ESTADOS_DATO\.confirmar/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-pending/);
+  assert.doesNotMatch(extractFunction(appSource, "renderMiniPartido"), /FINALIZADO/);
+  assert.doesNotMatch(extractFunction(appSource, "renderMiniPartido"), /PR&Oacute;XIMO|PRÓXIMO/);
+  assert.doesNotMatch(extractFunction(appSource, "renderMiniPartido"), /team-match-meta/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-future/);
   assert.doesNotMatch(extractFunction(appSource, "renderMiniPartido"), /Partido finalizado|\? "Finalizado"/);
   assert.doesNotMatch(extractFunction(appSource, "renderActividadLibre"), /<button|onclick|abrirPartido/);
   assert.match(extractFunction(appSource, "renderActividadLibre"), /team-activity-free/);
+  assert.match(extractFunction(appSource, "renderActividadLibre"), /team-free-line/);
+  assert.match(extractFunction(appSource, "renderActividadLibre"), /&middot; Libre/);
+  assert.doesNotMatch(extractFunction(appSource, "renderActividadLibre"), /team-match-meta/);
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /cantidadFechas/);
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /grupo\.clave === "regular"/);
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /detalle \? `<small>\$\{detalle\}<\/small>` : ""/);
@@ -788,6 +830,7 @@ function runTests() {
   assert.match(styleSource, /\.team-match-line > span[\s\S]*text-overflow: ellipsis/);
   assert.match(styleSource, /\.team-match-next[\s\S]*border-left/);
   assert.match(styleSource, /\.team-activity-free[\s\S]*cursor: default/);
+  assert.match(styleSource, /\.team-match-row \.team-match-pending[\s\S]*font-size: clamp/);
   assert.match(styleSource, /\.mr-time\.tbd[\s\S]*font-size: clamp/);
   assert.match(styleSource, /\.match-detail-featured-state[\s\S]*max-width/);
   assert.match(styleSource, /\.match-detail-featured-meta \.home-featured-time strong[\s\S]*clamp/);

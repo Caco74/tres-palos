@@ -4084,17 +4084,17 @@ body.detail-mode .app-main {
 
 .team-match-row {
   width: 100%;
-  min-height: 64px;
-  padding: 10px 12px;
+  min-height: 54px;
+  padding: 8px 12px;
   border: 0;
   border-bottom: 1px solid rgba(58,58,66,.65);
   background: transparent;
   color: var(--muted);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  gap: 4px;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   text-align: left;
 }
 
@@ -4111,40 +4111,10 @@ button.team-match-row:focus-visible {
   background: var(--card2);
 }
 
-.team-match-meta {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-  font-size: 0.58rem;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.team-match-meta span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.team-match-meta b {
-  flex: 0 0 auto;
-  padding: 2px 5px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 4px;
-  color: var(--muted);
-  font-size: 0.52rem;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-
 .team-match-line {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) clamp(62px, 18vw, 80px) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   color: var(--text);
@@ -4162,14 +4132,18 @@ button.team-match-row:focus-visible {
 }
 
 .team-match-row strong {
-  min-width: 48px;
-  padding: 5px 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 4px 6px;
   border-radius: 6px;
   background: var(--bg2);
   color: var(--white);
   font-family: 'DM Mono', monospace;
   font-size: 0.78rem;
+  line-height: 1.1;
   text-align: center;
+  white-space: nowrap;
 }
 
 .team-match-finished {
@@ -4177,31 +4151,28 @@ button.team-match-row:focus-visible {
 }
 
 .team-match-finished strong {
-  min-width: 58px;
   background: rgba(255, 255, 255, .06);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .team-match-next {
-  padding-left: 9px;
-  border-left: 3px solid rgba(85, 167, 255, .78);
-  background: rgba(85, 167, 255, .055);
-}
-
-.team-match-next .team-match-meta b {
-  border-color: rgba(85, 167, 255, .42);
-  background: rgba(85, 167, 255, .1);
-  color: var(--blue);
-}
-
-.team-match-next .team-match-line {
-  color: var(--white);
+  padding-left: 10px;
+  border-left: 2px solid rgba(85, 167, 255, .45);
+  background: rgba(85, 167, 255, .035);
 }
 
 .team-match-future strong {
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
+}
+
+.team-match-row .team-match-pending {
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: clamp(0.5rem, 2.2vw, 0.62rem);
+  line-height: 1.08;
+  white-space: normal;
 }
 
 .team-activity-free {
@@ -4215,17 +4186,35 @@ button.team-match-row:focus-visible {
   background: rgba(255, 255, 255, .018);
 }
 
-.team-activity-free .team-match-meta b {
-  color: var(--muted);
-  border: 1px solid var(--border);
-  background: transparent;
-}
-
 .team-free-line {
   min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.team-free-line > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-free-line strong {
+  width: auto;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1;
 }
 
 .team-next-match .team-match-row {
@@ -4276,12 +4265,14 @@ button.team-match-row:focus-visible {
 }
 
 .team-match-row small {
+  display: block;
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
-  font-size: 0.64rem;
+  font-size: 0.6rem;
   line-height: 1.18;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: normal;
   word-break: normal;
@@ -6737,14 +6728,18 @@ button.team-match-row:focus-visible {
   }
 
   .team-match-line {
+    grid-template-columns: minmax(0, 1fr) clamp(72px, 21vw, 80px) minmax(0, 1fr);
     gap: 6px;
   }
 
   .team-match-row strong {
-    min-width: 42px;
     padding-left: 6px;
     padding-right: 6px;
     font-size: 0.72rem;
+  }
+
+  .team-match-row .team-match-pending {
+    font-size: clamp(0.48rem, 2.3vw, 0.56rem);
   }
 
   .team-next-meta {
