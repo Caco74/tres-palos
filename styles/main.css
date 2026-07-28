@@ -4084,15 +4084,15 @@ body.detail-mode .app-main {
 
 .team-match-row {
   width: 100%;
-  min-height: 54px;
-  padding: 8px 12px;
+  min-height: 62px;
+  padding: 11px 12px 14px;
   border: 0;
-  border-bottom: 1px solid rgba(58,58,66,.65);
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
   background: transparent;
   color: var(--muted);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
+  gap: 5px;
   font: inherit;
   font-size: 0.78rem;
   text-align: left;
@@ -4271,7 +4271,9 @@ button.team-match-row:focus-visible {
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: 0.6rem;
+  letter-spacing: 0.02em;
   line-height: 1.18;
+  opacity: .82;
   text-align: center;
   text-overflow: ellipsis;
   white-space: normal;

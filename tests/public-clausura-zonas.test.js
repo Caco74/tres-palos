@@ -631,7 +631,7 @@ function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=62/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=63/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
   assert.match(indexSource, /\/js\/app\.js\?v=72/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
@@ -827,6 +827,8 @@ function runTests() {
   assert.match(extractFunction(appSource, "obtenerPartidos"), /torneo_id=eq\.\$\{encodeURIComponent/);
   assert.doesNotMatch(extractFunction(utilsSource, "aplicarClubes"), /\.zona\b/);
   assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
+  assert.match(styleSource, /\.team-match-row \{[\s\S]*padding: 11px 12px 14px/);
+  assert.match(styleSource, /\.team-match-row \{[\s\S]*border-bottom: 1px solid rgba\(255, 255, 255, \.09\)/);
   assert.match(styleSource, /\.team-match-line > span[\s\S]*text-overflow: ellipsis/);
   assert.match(styleSource, /\.team-match-next[\s\S]*border-left/);
   assert.match(styleSource, /\.team-activity-free[\s\S]*cursor: default/);
@@ -835,6 +837,7 @@ function runTests() {
   assert.match(styleSource, /\.match-detail-featured-state[\s\S]*max-width/);
   assert.match(styleSource, /\.match-detail-featured-meta \.home-featured-time strong[\s\S]*clamp/);
   assert.match(styleSource, /\.team-match-row small[\s\S]*white-space: normal/);
+  assert.match(styleSource, /\.team-match-row small[\s\S]*letter-spacing: 0\.02em/);
   assert.match(styleSource, /\.t-pts[\s\S]*font-weight: 700/);
   assert.doesNotMatch(
     fs.readFileSync(path.join(ROOT, "js", "public-tournament.js"), "utf8"),
