@@ -1241,6 +1241,10 @@ button {
   font-family: 'DM Mono', monospace;
   font-size: 0.7rem;
   font-weight: 600;
+  line-height: 1.12;
+  overflow-wrap: normal;
+  text-align: center;
+  white-space: normal;
 }
 
 .home-moment.live {
@@ -1729,7 +1733,9 @@ button {
 .mr-time {
   width: 64px;
   min-width: 64px;
+  max-width: 64px;
   height: 48px;
+  box-sizing: border-box;
   text-align: center;
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1rem;
@@ -1751,8 +1757,16 @@ button {
   color: var(--blue);
   font-family: 'DM Mono', monospace;
   font-size: 0.56rem;
+  line-height: 1.12;
   background: transparent;
   border-color: transparent;
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: normal;
+}
+
+.mr-time.tbd {
+  font-size: clamp(0.52rem, 2.3vw, 0.58rem);
 }
 
 .mr-time.live {
@@ -2112,9 +2126,10 @@ button {
   gap: 7px;
 }
 
-.t-pts {
+.tabla td.t-pts {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1rem;
+  font-size: 1.08rem;
+  font-weight: 700;
   letter-spacing: 0.06em;
   color: #ff6575;
   background: rgba(255, 48, 69, .09);
@@ -4043,53 +4058,127 @@ body.detail-mode .app-main {
   background: var(--loss);
 }
 
+.team-season-summary {
+  margin-left: auto;
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.detail-section-head .team-season-summary strong {
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.detail-section-head .team-season-summary small {
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
 .team-match-row {
   width: 100%;
-  min-height: 60px;
-  padding: 10px 12px;
+  min-height: 62px;
+  padding: 11px 12px 14px;
   border: 0;
-  border-bottom: 1px solid rgba(58,58,66,.65);
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
   background: transparent;
   color: var(--muted);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
   font: inherit;
-  font-size: 0.8rem;
-  text-align: center;
+  font-size: 0.78rem;
+  text-align: left;
 }
 
 .team-match-row:last-child {
   border-bottom: 0;
 }
 
-.team-match-row:hover,
-.team-match-row:focus-visible {
+button.team-match-row {
+  cursor: pointer;
+}
+
+button.team-match-row:hover,
+button.team-match-row:focus-visible {
   background: var(--card2);
 }
 
+.team-match-line {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(62px, 18vw, 80px) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.team-match-line > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-match-line > span:last-child {
+  text-align: right;
+}
+
 .team-match-row strong {
-  min-width: 64px;
-  padding: 5px 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 4px 6px;
   border-radius: 6px;
   background: var(--bg2);
   color: var(--white);
   font-family: 'DM Mono', monospace;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.team-match-row.next strong {
-  color: var(--blue);
+.team-match-finished {
+  background: rgba(255, 255, 255, .016);
 }
 
-.team-match-row.next span:not(.focus-team) {
-  color: var(--white);
-  font-style: italic;
+.team-match-finished strong {
+  background: rgba(255, 255, 255, .06);
+  font-size: 0.82rem;
+}
+
+.team-match-next {
+  padding-left: 10px;
+  border-left: 2px solid rgba(85, 167, 255, .45);
+  background: rgba(85, 167, 255, .035);
+}
+
+.team-match-future strong {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+}
+
+.team-match-row .team-match-pending {
+  padding-left: 4px;
+  padding-right: 4px;
+  font-size: clamp(0.5rem, 2.2vw, 0.62rem);
+  line-height: 1.08;
+  white-space: normal;
 }
 
 .team-activity-free {
+  min-height: 50px;
   cursor: default;
+  opacity: .76;
   background: rgba(255, 255, 255, .018);
 }
 
@@ -4097,11 +4186,35 @@ body.detail-mode .app-main {
   background: rgba(255, 255, 255, .018);
 }
 
-.team-activity-free strong {
+.team-free-line {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
   color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.team-free-line > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-free-line strong {
+  width: auto;
+  min-width: 0;
+  padding: 3px 6px;
   border: 1px solid var(--border);
   background: transparent;
-  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1;
 }
 
 .team-next-match .team-match-row {
@@ -4152,10 +4265,19 @@ body.detail-mode .app-main {
 }
 
 .team-match-row small {
-  grid-column: 1 / -1;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
-  font-size: 0.64rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  line-height: 1.18;
+  opacity: .82;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: normal;
   text-transform: uppercase;
 }
 
@@ -6329,7 +6451,9 @@ body.detail-mode .app-main {
 }
 
 .mr-time {
+  width: 64px;
   min-width: 64px;
+  max-width: 64px;
   padding-top: 7px;
   padding-bottom: 7px;
 }
@@ -6353,8 +6477,8 @@ body.detail-mode .app-main {
   padding-bottom: 13px;
 }
 
-.t-pts {
-  font-size: 1.15rem;
+.tabla td.t-pts {
+  font-size: 1.22rem;
 }
 
 .fd {
@@ -6596,6 +6720,30 @@ body.detail-mode .app-main {
     grid-row: auto;
   }
 
+  .team-season-summary {
+    max-width: 52%;
+  }
+
+  .team-match-row {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .team-match-line {
+    grid-template-columns: minmax(0, 1fr) clamp(72px, 21vw, 80px) minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .team-match-row strong {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 0.72rem;
+  }
+
+  .team-match-row .team-match-pending {
+    font-size: clamp(0.48rem, 2.3vw, 0.56rem);
+  }
+
   .team-next-meta {
     grid-template-columns: 1fr 1fr;
   }
@@ -6638,9 +6786,15 @@ body.detail-mode .app-main {
 
   .mr-score,
   .mr-time {
+    width: 52px;
     min-width: 52px;
+    max-width: 52px;
     padding-left: 6px;
     padding-right: 6px;
+  }
+
+  .mr-time.tbd {
+    font-size: 0.52rem;
   }
 }
 
@@ -6868,11 +7022,14 @@ body.detail-mode .app-main {
 .home-featured-time strong {
   color: var(--white);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 2rem;
+  font-size: clamp(0.84rem, 5.2vw, 2rem);
   font-weight: 700;
   letter-spacing: 0;
-  line-height: .9;
-  white-space: nowrap;
+  line-height: 1;
+  max-width: 100%;
+  overflow-wrap: normal;
+  white-space: normal;
+  word-break: normal;
 }
 
 .home-featured-match.live .home-featured-dot {
@@ -6920,7 +7077,7 @@ body.detail-mode .app-main {
   }
 
   .home-featured-time strong {
-    font-size: 1.8rem;
+    font-size: clamp(0.78rem, 4.6vw, 1.8rem);
   }
 }
 
@@ -6934,13 +7091,17 @@ body.detail-mode .app-main {
 
 .match-detail-featured-state {
   flex: 0 0 auto;
+  max-width: min(46vw, 160px);
   color: var(--blue);
   font-family: 'DM Mono', monospace;
   font-size: .62rem;
   letter-spacing: 0;
   line-height: 1.2;
+  overflow-wrap: normal;
   text-align: right;
   text-transform: uppercase;
+  white-space: normal;
+  word-break: normal;
 }
 
 .match-detail-featured-state.live {
@@ -7001,6 +7162,11 @@ body.detail-mode .app-main {
 
 .match-detail-featured-meta {
   min-height: 74px;
+}
+
+.match-detail-featured-meta .home-featured-time strong {
+  font-size: clamp(0.78rem, 3.7vw, 1.2rem);
+  line-height: 1.05;
 }
 
 .match-detail-support {
@@ -7075,7 +7241,8 @@ body.detail-mode .app-main {
   }
 
   .match-detail-featured-state {
-    max-width: 112px;
+    max-width: 102px;
+    font-size: .58rem;
   }
 
   .match-detail-support {

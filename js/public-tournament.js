@@ -52,6 +52,11 @@
     });
   }
 
+  function toFiniteNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
   function hasTeamId(value) {
     const text = String(value ?? "").trim();
     return Boolean(text && text !== "0" && text.toLowerCase() !== "null");
@@ -70,6 +75,11 @@
 
   function isRegularMatch(match, tournamentId) {
     return match?.tipo === "regular" && hasTournament(match, tournamentId);
+  }
+
+  function getRegularMatches(matches, options = {}) {
+    const tournamentId = options.torneoId || options.tournamentId || null;
+    return (matches || []).filter(match => isRegularMatch(match, tournamentId));
   }
 
   function getMatchSide(match, side, options = {}) {
@@ -254,6 +264,149 @@
     );
   }
 
+  function normalizeMatchStatus(value) {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  const RESOLVED_MATCH_STATES = new Set([
+    "finalizado",
+    "finalizada",
+    "resuelto",
+    "resuelta",
+    "cerrado",
+    "cerrada",
+    "terminado",
+    "terminada",
+    "completado",
+    "completada",
+    "homologado",
+    "homologada"
+  ]);
+
+  function isMatchResolved(match) {
+    const status = normalizeMatchStatus(match?.estado);
+
+    if (status) return RESOLVED_MATCH_STATES.has(status);
+
+    return hasResult(match);
+  }
+
+  function getInitialRegularDate(matches, options = {}) {
+    const byDate = new Map();
+
+    getRegularMatches(matches, options).forEach(match => {
+      const date = Number(match.fecha);
+      if (!Number.isFinite(date)) return;
+
+      if (!byDate.has(date)) byDate.set(date, []);
+      byDate.get(date).push(match);
+    });
+
+    const dates = [...byDate.keys()].sort((a, b) => a - b);
+    if (dates.length === 0) return null;
+
+    const pendingDate = dates.find(date =>
+      byDate.get(date).some(match => !isMatchResolved(match))
+    );
+
+    return pendingDate ?? dates[dates.length - 1];
+  }
+
+  function getInitialRegularStageKey(matches, options = {}) {
+    const date = getInitialRegularDate(matches, options);
+    return date === null ? null : `fecha:${date}`;
+  }
+
+  function isValidMatchDate(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+    if (!match) return false;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
+  }
+
+  function compareMatchesByCalendar(a, b) {
+    const dateA = isValidMatchDate(a?.fecha_partido)
+      ? a.fecha_partido
+      : "9999-12-31";
+    const dateB = isValidMatchDate(b?.fecha_partido)
+      ? b.fecha_partido
+      : "9999-12-31";
+    const byDate = dateA.localeCompare(dateB);
+    if (byDate !== 0) return byDate;
+
+    const byTime = String(a?.hora || "23:59").localeCompare(
+      String(b?.hora || "23:59")
+    );
+    if (byTime !== 0) return byTime;
+
+    return (
+      toFiniteNumber(a?.fecha) - toFiniteNumber(b?.fecha) ||
+      toFiniteNumber(a?.id) - toFiniteNumber(b?.id) ||
+      compareText(a?.local, b?.local)
+    );
+  }
+
+  function matchPassesPendingFilters(match, options = {}) {
+    const tournamentId = options.torneoId || options.tournamentId || null;
+    const regularOnly = options.regularOnly !== false;
+
+    return (
+      match?.tipoActividad !== "libre" &&
+      (!regularOnly || match?.tipo === "regular") &&
+      hasTournament(match, tournamentId) &&
+      !isMatchResolved(match)
+    );
+  }
+
+  function getUpcomingCalendarMatches(matches, options = {}) {
+    const limit = Math.max(0, toFiniteNumber(options.limit, 0));
+    const upcoming = (matches || [])
+      .filter(match =>
+        matchPassesPendingFilters(match, options) &&
+        isValidMatchDate(match?.fecha_partido)
+      )
+      .sort(compareMatchesByCalendar);
+
+    return limit > 0 ? upcoming.slice(0, limit) : upcoming;
+  }
+
+  function getNextPendingMatch(matches, options = {}) {
+    const pending = (matches || [])
+      .filter(match =>
+        matchPassesPendingFilters(match, {
+          ...options,
+          regularOnly: options.regularOnly
+        })
+      );
+    const byCalendar = pending
+      .filter(match => isValidMatchDate(match?.fecha_partido))
+      .sort(compareMatchesByCalendar);
+
+    if (byCalendar.length > 0) return byCalendar[0];
+
+    return pending
+      .sort((a, b) =>
+        toFiniteNumber(a?.fecha, Number.MAX_SAFE_INTEGER) -
+          toFiniteNumber(b?.fecha, Number.MAX_SAFE_INTEGER) ||
+        compareMatchesByCalendar(a, b)
+      )[0] || null;
+  }
+
   function compareRows(a, b) {
     return (
       b.pts - a.pts ||
@@ -392,6 +545,15 @@
     resolvePreviewTournament,
     getTeamKey,
     getMatchSide,
+    hasMatchResult: hasResult,
+    normalizeMatchStatus,
+    isMatchResolved,
+    getInitialRegularDate,
+    getInitialRegularStageKey,
+    isValidMatchDate,
+    compareMatchesByCalendar,
+    getUpcomingCalendarMatches,
+    getNextPendingMatch,
     deriveRegularParticipants,
     getParticipantsByZone,
     getTeamsByZone,
