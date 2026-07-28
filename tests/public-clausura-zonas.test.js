@@ -184,6 +184,7 @@ function buildRenderMiniPartido(appSource) {
     partidoResueltoParaVista: partido =>
       ["finalizado", "resuelto"].includes(partido.estado) ||
       (
+        !partido.estado &&
         partido.goles_local !== null &&
         partido.goles_local !== undefined &&
         partido.goles_visitante !== null &&
@@ -213,7 +214,8 @@ function buildRenderMiniPartido(appSource) {
   };
 
   vm.runInNewContext(
-    `${extractFunction(appSource, "renderMiniPartido")}
+    `${extractFunction(appSource, "partidoFinalizadoRecorridoEquipo")}
+     ${extractFunction(appSource, "renderMiniPartido")}
      this.renderMiniPartido = renderMiniPartido;`,
     sandbox
   );
@@ -609,7 +611,7 @@ function runTests() {
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   assert.match(indexSource, /\/styles\/main\.css\?v=59/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=70/);
+  assert.match(indexSource, /\/js\/app\.js\?v=71/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.match(indexSource, /Clasificaci&oacute;n/);
@@ -665,6 +667,23 @@ function runTests() {
   assert.match(finalizadoSinFecha, /FINALIZADO/);
   assert.deepEqual(extractSmallTexts(finalizadoSinFecha), []);
   assert.doesNotMatch(finalizadoSinFecha, /Partido finalizado|<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
+
+  const sportivoAperturaFecha3 = renderMiniPartidoPrueba({
+    id: 506,
+    tipo: "regular",
+    fecha: 3,
+    estado: "programado",
+    local: "C.A. Montes de Oca",
+    visitante: "Sportivo A. Club",
+    goles_local: 0,
+    goles_visitante: 0,
+    fecha_partido: null
+  }, "Sportivo A. Club");
+  assert.match(sportivoAperturaFecha3, /Fecha 3/);
+  assert.match(sportivoAperturaFecha3, /FINALIZADO/);
+  assert.match(sportivoAperturaFecha3, /<strong>0 - 0<\/strong>/);
+  assert.deepEqual(extractSmallTexts(sportivoAperturaFecha3), []);
+  assert.doesNotMatch(sportivoAperturaFecha3, /<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
 
   const futuroNeutral = renderMiniPartidoPrueba({
     id: 504,
@@ -743,6 +762,7 @@ function runTests() {
   assert.match(extractFunction(appSource, "obtenerProximoPartidoEquipo"), /getNextPendingMatch/);
   assert.match(extractFunction(appSource, "renderPartidosEquipoPorFase"), /proximoId/);
   assert.match(extractFunction(appSource, "renderPartidosEquipoPorFase"), /obtenerProximoPartidoEquipo\(partidosEquipo, torneo\)/);
+  assert.match(extractFunction(appSource, "partidoFinalizadoRecorridoEquipo"), /partidoResueltoParaVista\(partido\) \|\| partidoTieneResultado\(partido\)/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-finished/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /const esProximo = proximo && !finalizado/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /FINALIZADO/);

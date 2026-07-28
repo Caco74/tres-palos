@@ -7662,8 +7662,12 @@ function resultadoEquipoDetalle(partido, equipo) {
   return "E";
 }
 
+function partidoFinalizadoRecorridoEquipo(partido) {
+  return partidoResueltoParaVista(partido) || partidoTieneResultado(partido);
+}
+
 function renderMiniPartido(partido, equipo, proximo = false) {
-  const finalizado = partidoResueltoParaVista(partido);
+  const finalizado = partidoFinalizadoRecorridoEquipo(partido);
   const esProximo = proximo && !finalizado;
   const tieneMarcador = partidoTieneResultado(partido);
   const estadoTemporal = obtenerEstadoTemporalPartido(partido);
