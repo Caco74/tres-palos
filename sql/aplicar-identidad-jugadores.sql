@@ -8,8 +8,24 @@ do $$
 declare
   v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';
   v_faltantes text;
-  v_apertura_partidos integer;
-  v_apertura_eventos integer;
+  v_jugadores_total integer;
+  v_jugadores_activos integer;
+  v_jugadores_inactivos integer;
+  v_jugadores_sin_nombre integer;
+  v_inscripciones_total integer;
+  v_inscripciones_duplicadas integer;
+  v_inscripciones_incompletas integer;
+  v_inscripciones_referencias_rotas integer;
+  v_eventos_total integer;
+  v_eventos_con_texto integer;
+  v_eventos_vinculados integer;
+  v_eventos_pendientes integer;
+  v_eventos_referencias_rotas integer;
+  v_autogoles integer;
+  v_goles integer;
+  v_goles_penal integer;
+  v_rojas integer;
+  v_goleadores_total integer;
 begin
   if v_autorizacion <> 'AUTORIZO IDENTIDAD JUGADORES' then
     raise exception
@@ -23,7 +39,8 @@ begin
       ('public.partidos'),
       ('public.jugadores'),
       ('public.inscripciones_jugadores'),
-      ('public.eventos_partido')
+      ('public.eventos_partido'),
+      ('public.goleadores_oficiales')
   )
   select string_agg(tabla, ', ' order by tabla)
   into v_faltantes
@@ -49,17 +66,30 @@ begin
       ('jugadores', 'nombre_completo'),
       ('jugadores', 'aliases'),
       ('jugadores', 'activo'),
+      ('jugadores', 'creado_en'),
+      ('jugadores', 'actualizado_en'),
       ('inscripciones_jugadores', 'id'),
       ('inscripciones_jugadores', 'jugador_id'),
       ('inscripciones_jugadores', 'club_id'),
       ('inscripciones_jugadores', 'torneo_id'),
+      ('inscripciones_jugadores', 'dorsal'),
       ('inscripciones_jugadores', 'estado'),
       ('eventos_partido', 'id'),
       ('eventos_partido', 'partido_id'),
       ('eventos_partido', 'tipo'),
       ('eventos_partido', 'jugador'),
+      ('eventos_partido', 'equipo'),
       ('eventos_partido', 'equipo_id'),
-      ('eventos_partido', 'inscripcion_jugador_id')
+      ('eventos_partido', 'inscripcion_jugador_id'),
+      ('eventos_partido', 'inscripcion_relacionada_id'),
+      ('eventos_partido', 'jugador_relacionado'),
+      ('goleadores_oficiales', 'id'),
+      ('goleadores_oficiales', 'torneo_id'),
+      ('goleadores_oficiales', 'posicion'),
+      ('goleadores_oficiales', 'equipo_id'),
+      ('goleadores_oficiales', 'equipo_nombre'),
+      ('goleadores_oficiales', 'jugador_nombre'),
+      ('goleadores_oficiales', 'goles')
   ),
   missing as (
     select columna.tabla, columna.columna
@@ -78,28 +108,255 @@ begin
     raise exception 'Faltan columnas requeridas: %.', v_faltantes;
   end if;
 
-  select count(*)
-  into v_apertura_partidos
-  from public.partidos
-  where torneo_id = 1;
-
-  if v_apertura_partidos <> 140 then
+  if not exists (
+    select 1
+    from pg_constraint con
+    join pg_class cls
+      on cls.oid = con.conrelid
+    join pg_namespace ns
+      on ns.oid = cls.relnamespace
+    where ns.nspname = 'public'
+      and cls.relname = 'inscripciones_jugadores'
+      and con.contype in ('u', 'p')
+      and (
+        select array_agg(att.attname order by key_row.ordinalidad)
+        from unnest(con.conkey) with ordinality as key_row(attnum, ordinalidad)
+        join pg_attribute att
+          on att.attrelid = con.conrelid
+         and att.attnum = key_row.attnum
+      ) = array['jugador_id', 'club_id', 'torneo_id']
+  ) then
     raise exception
-      'Conteo inesperado de Apertura 2026: % partidos.',
-      v_apertura_partidos;
+      'No se encontro la restriccion unica esperada en inscripciones_jugadores.';
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'jugadores'
+      and column_name = 'nombre_normalizado'
+  ) then
+    raise exception
+      'Produccion no coincide con la prevalidacion: jugadores.nombre_normalizado ya existe.';
+  end if;
+
+  if to_regclass('public.jugadores_aliases') is not null then
+    raise exception
+      'Produccion no coincide con la prevalidacion: jugadores_aliases ya existe.';
+  end if;
+
+  if to_regprocedure('public.tp_normalizar_nombre_jugador(text)') is not null then
+    raise exception
+      'Produccion no coincide con la prevalidacion: tp_normalizar_nombre_jugador(text) ya existe.';
+  end if;
+
+  if exists (
+    select 1
+    from pg_trigger trigger_row
+    join pg_class cls
+      on cls.oid = trigger_row.tgrelid
+    join pg_namespace ns
+      on ns.oid = cls.relnamespace
+    where ns.nspname = 'public'
+      and not trigger_row.tgisinternal
+      and trigger_row.tgname in (
+        'jugadores_normalizar_nombre',
+        'jugadores_aliases_normalizar',
+        'eventos_partido_validar_inscripcion_jugador'
+      )
+  ) then
+    raise exception
+      'Produccion no coincide con la prevalidacion: ya existen triggers de identidad.';
+  end if;
+
+  select
+    count(*),
+    count(*) filter (where activo is true),
+    count(*) filter (where activo is false),
+    count(*) filter (where btrim(coalesce(nombre_completo, '')) = '')
+  into
+    v_jugadores_total,
+    v_jugadores_activos,
+    v_jugadores_inactivos,
+    v_jugadores_sin_nombre
+  from public.jugadores;
+
+  if v_jugadores_total <> 27
+     or v_jugadores_activos <> 27
+     or v_jugadores_inactivos <> 0
+     or v_jugadores_sin_nombre <> 0 then
+    raise exception
+      'Conteos inesperados en jugadores: total %, activos %, inactivos %, sin nombre %.',
+      v_jugadores_total,
+      v_jugadores_activos,
+      v_jugadores_inactivos,
+      v_jugadores_sin_nombre;
+  end if;
+
+  select
+    count(*),
+    count(*) filter (
+      where jugador_id is null
+         or club_id is null
+         or torneo_id is null
+    )
+  into v_inscripciones_total, v_inscripciones_incompletas
+  from public.inscripciones_jugadores;
+
+  select count(*)
+  into v_inscripciones_duplicadas
+  from (
+    select jugador_id, club_id, torneo_id
+    from public.inscripciones_jugadores
+    group by jugador_id, club_id, torneo_id
+    having count(*) > 1
+  ) duplicado;
+
+  select count(*)
+  into v_inscripciones_referencias_rotas
+  from public.inscripciones_jugadores inscripcion
+  where not exists (
+      select 1
+      from public.jugadores jugador
+      where jugador.id = inscripcion.jugador_id
+    )
+    or not exists (
+      select 1
+      from public.clubes club
+      where club.id = inscripcion.club_id
+    )
+    or not exists (
+      select 1
+      from public.torneos torneo
+      where torneo.id = inscripcion.torneo_id
+    );
+
+  if v_inscripciones_total <> 27
+     or v_inscripciones_incompletas <> 0
+     or v_inscripciones_duplicadas <> 0
+     or v_inscripciones_referencias_rotas <> 0
+     or exists (
+       select 1
+       from public.inscripciones_jugadores
+       where torneo_id is distinct from 1
+     ) then
+    raise exception
+      'Conteos inesperados en inscripciones: total %, incompletas %, duplicadas %, rotas %.',
+      v_inscripciones_total,
+      v_inscripciones_incompletas,
+      v_inscripciones_duplicadas,
+      v_inscripciones_referencias_rotas;
+  end if;
+
+  if (
+    select count(*)
+    from public.partidos
+    where torneo_id = 1
+  ) <> 140 then
+    raise exception
+      'Conteo inesperado de Apertura 2026: se esperaban 140 partidos.';
+  end if;
+
+  select
+    count(*),
+    count(*) filter (where btrim(coalesce(jugador, '')) <> ''),
+    count(*) filter (where inscripcion_jugador_id is not null),
+    count(*) filter (where inscripcion_jugador_id is null),
+    count(*) filter (where lower(coalesce(tipo, '')) in ('gol_en_contra', 'autogol')),
+    count(*) filter (where tipo = 'gol'),
+    count(*) filter (where tipo = 'gol_penal'),
+    count(*) filter (where tipo = 'roja')
+  into
+    v_eventos_total,
+    v_eventos_con_texto,
+    v_eventos_vinculados,
+    v_eventos_pendientes,
+    v_autogoles,
+    v_goles,
+    v_goles_penal,
+    v_rojas
+  from public.eventos_partido;
+
+  if v_eventos_total <> 368
+     or v_eventos_con_texto <> 368
+     or v_eventos_vinculados <> 60
+     or v_eventos_pendientes <> 308
+     or v_autogoles <> 1
+     or v_goles <> 363
+     or v_goles_penal <> 1
+     or v_rojas <> 3 then
+    raise exception
+      'Conteos inesperados en eventos: total %, texto %, vinculados %, pendientes %, autogoles %, goles %, penales %, rojas %.',
+      v_eventos_total,
+      v_eventos_con_texto,
+      v_eventos_vinculados,
+      v_eventos_pendientes,
+      v_autogoles,
+      v_goles,
+      v_goles_penal,
+      v_rojas;
   end if;
 
   select count(*)
-  into v_apertura_eventos
+  into v_eventos_referencias_rotas
   from public.eventos_partido evento
-  join public.partidos partido
-    on partido.id = evento.partido_id
-  where partido.torneo_id = 1;
+  where (
+      evento.partido_id is not null
+      and not exists (
+        select 1
+        from public.partidos partido
+        where partido.id = evento.partido_id
+      )
+    )
+    or (
+      evento.equipo_id is not null
+      and not exists (
+        select 1
+        from public.clubes club
+        where club.id = evento.equipo_id
+      )
+    )
+    or (
+      evento.inscripcion_jugador_id is not null
+      and not exists (
+        select 1
+        from public.inscripciones_jugadores inscripcion
+        where inscripcion.id = evento.inscripcion_jugador_id
+      )
+    )
+    or (
+      evento.inscripcion_relacionada_id is not null
+      and not exists (
+        select 1
+        from public.inscripciones_jugadores inscripcion
+        where inscripcion.id = evento.inscripcion_relacionada_id
+      )
+    );
 
-  if v_apertura_eventos < 300 then
+  if v_eventos_referencias_rotas <> 0 then
     raise exception
-      'Conteo inesperado de eventos historicos de Apertura: %.',
-      v_apertura_eventos;
+      'Eventos con referencias rotas detectados: %.',
+      v_eventos_referencias_rotas;
+  end if;
+
+  if not exists (
+    select 1
+    from public.eventos_partido
+    where tipo = 'gol_en_contra'
+      and jugador = 'ANGELETTI JOAQUIN'
+  ) then
+    raise exception 'Autogol historico esperado no encontrado.';
+  end if;
+
+  select count(*)
+  into v_goleadores_total
+  from public.goleadores_oficiales;
+
+  if v_goleadores_total <> 4 then
+    raise exception
+      'Conteo inesperado de goleadores_oficiales: %.',
+      v_goleadores_total;
   end if;
 
   if exists (
@@ -119,13 +376,16 @@ create or replace function public.tp_normalizar_nombre_jugador(
 returns text
 language sql
 immutable
+parallel safe
+returns null on null input
+set search_path = pg_catalog
 as $$
-  select nullif(
+  select nullif(btrim(
     regexp_replace(
       regexp_replace(
         translate(
-          lower(btrim(coalesce(p_nombre, ''))),
-          'áàäâãéèëêíìïîóòöôõúùüûñç.',
+          lower(btrim(p_nombre)),
+          U&'\00E1\00E0\00E4\00E2\00E3\00E9\00E8\00EB\00EA\00ED\00EC\00EF\00EE\00F3\00F2\00F6\00F4\00F5\00FA\00F9\00FC\00FB\00F1\00E7.',
           'aaaaaeeeeiiiiooooouuuunc '
         ),
         '[^a-z0-9]+',
@@ -135,20 +395,71 @@ as $$
       '\s+',
       ' ',
       'g'
-    ),
+    )),
     ''
   );
+$$;
+
+do $$
+begin
+  if public.tp_normalizar_nombre_jugador(U&'JOAQU\00CDN  CARRIZO.') <> 'joaquin carrizo' then
+    raise exception 'Normalizacion inesperada para JOAQUIN CARRIZO con tilde y punto.';
+  end if;
+
+  if public.tp_normalizar_nombre_jugador(' J. Carrizo ') <> 'j carrizo' then
+    raise exception 'Normalizacion inesperada para J. Carrizo.';
+  end if;
+
+  if public.tp_normalizar_nombre_jugador(null) is not null then
+    raise exception 'Normalizacion inesperada para NULL.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.jugadores
+    where id in (11, 25)
+    group by public.tp_normalizar_nombre_jugador(nombre_completo)
+    having public.tp_normalizar_nombre_jugador(nombre_completo) = 'sanchez'
+       and array_agg(id order by id) = array[11::bigint, 25::bigint]
+  ) then
+    raise exception 'Homonimo Sanchez esperado no coincide con la prevalidacion.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.jugadores
+    where id in (20, 21)
+    group by public.tp_normalizar_nombre_jugador(nombre_completo)
+    having public.tp_normalizar_nombre_jugador(nombre_completo) = 'sarco'
+       and array_agg(id order by id) = array[20::bigint, 21::bigint]
+  ) then
+    raise exception 'Homonimo Sarco esperado no coincide con la prevalidacion.';
+  end if;
+end;
 $$;
 
 alter table public.jugadores
   add column if not exists nombre_normalizado text null;
 
-update public.jugadores
-set
-  nombre_normalizado = public.tp_normalizar_nombre_jugador(nombre_completo),
-  actualizado_en = now()
-where nombre_normalizado is distinct from
-  public.tp_normalizar_nombre_jugador(nombre_completo);
+do $$
+declare
+  v_backfill_jugadores integer;
+begin
+  update public.jugadores
+  set nombre_normalizado =
+    public.tp_normalizar_nombre_jugador(nombre_completo)
+  where nombre_normalizado is distinct from
+    public.tp_normalizar_nombre_jugador(nombre_completo);
+
+  get diagnostics v_backfill_jugadores = row_count;
+
+  if v_backfill_jugadores <> 27 then
+    raise exception
+      'Backfill inesperado de jugadores.nombre_normalizado: % filas.',
+      v_backfill_jugadores;
+  end if;
+end;
+$$;
 
 alter table public.jugadores
   alter column nombre_normalizado set not null;
@@ -175,6 +486,7 @@ alter table public.jugadores
 create or replace function public.tp_jugadores_normalizar_trigger()
 returns trigger
 language plpgsql
+set search_path = public, pg_catalog
 as $$
 begin
   new.nombre_normalizado :=
@@ -216,6 +528,7 @@ create table if not exists public.jugadores_aliases (
 create or replace function public.tp_jugadores_aliases_normalizar_trigger()
 returns trigger
 language plpgsql
+set search_path = public, pg_catalog
 as $$
 begin
   new.alias := btrim(new.alias);
@@ -328,11 +641,14 @@ create index if not exists inscripciones_torneo_club_estado_idx
 create or replace function public.tp_validar_evento_inscripcion_jugador()
 returns trigger
 language plpgsql
+set search_path = public, pg_catalog
 as $$
 declare
   v_partido record;
   v_inscripcion record;
 begin
+  -- Transicion: los eventos historicos pueden conservar solo texto.
+  -- La validacion actua cuando se informa una inscripcion por ID.
   select
     partido.id,
     partido.torneo_id,
@@ -422,24 +738,8 @@ revoke all on table public.jugadores_aliases
 grant select, insert, update, delete on table public.jugadores_aliases
   to service_role;
 
-do $$
-declare
-  v_sequence text;
-begin
-  select pg_get_serial_sequence(
-    'public.jugadores_aliases',
-    'id'
-  )
-  into v_sequence;
-
-  if v_sequence is not null then
-    execute format(
-      'grant usage, select on sequence %s to service_role',
-      v_sequence
-    );
-  end if;
-end;
-$$;
+grant usage, select on sequence public.jugadores_aliases_id_seq
+  to service_role;
 
 grant execute on function public.tp_normalizar_nombre_jugador(text)
   to anon, authenticated, service_role;

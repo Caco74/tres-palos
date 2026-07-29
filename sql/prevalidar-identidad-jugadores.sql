@@ -301,7 +301,7 @@ rls_json as (
 ),
 normalize_probe as (
   select
-    nullif(
+    nullif(btrim(
       regexp_replace(
         regexp_replace(
           translate(
@@ -316,7 +316,7 @@ normalize_probe as (
         '\s+',
         ' ',
         'g'
-      ),
+      )),
       ''
     ) as ejemplo_normalizado
 ),
@@ -326,7 +326,7 @@ jugadores_base as (
     jugador.nombre_completo,
     jugador.activo,
     nullif(btrim(coalesce(jugador.nombre_completo, '')), '') as nombre_limpio,
-    nullif(
+    nullif(btrim(
       regexp_replace(
         regexp_replace(
           translate(
@@ -341,7 +341,7 @@ jugadores_base as (
         '\s+',
         ' ',
         'g'
-      ),
+      )),
       ''
     ) as nombre_normalizado_calculado
   from public.jugadores jugador

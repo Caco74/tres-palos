@@ -1,195 +1,184 @@
-# Prevalidacion remota - identidad de jugadores
+# Prevalidacion manual - identidad de jugadores
 
-Fecha: 2026-07-29
+Fecha del informe: 2026-07-29
 Zona horaria: America/Buenos_Aires
 Rama: `db/identidad-jugadores`
-Entorno: workspace local `C:\Users\franc\Desktop\2026\Project003`
+Entorno validado: Supabase produccion
+Ejecucion: manual desde Supabase SQL Editor
+SQL usado: `sql/prevalidar-identidad-jugadores.sql`
 
 ## Resultado
 
-Estado: **REQUIERE CONFIGURACION SEGURA**
+Estado: **PREVALIDACION MANUAL CONFIRMADA**
 
-No se ejecuto `sql/prevalidar-identidad-jugadores.sql` contra Supabase
-produccion porque el entorno local no tiene credenciales seguras ni cliente SQL
-disponible.
-
-## Conexion remota
-
-Revision de credenciales disponibles:
-
-| variable / herramienta | estado |
-|---|---|
-| `SUPABASE_URL` | no disponible en entorno local |
-| `SUPABASE_SERVICE_ROLE_KEY` | no disponible en entorno local |
-| `SUPABASE_DB_URL` | no disponible en entorno local |
-| `DATABASE_URL` | no disponible en entorno local |
-| `POSTGRES_URL` | no disponible en entorno local |
-| `NETLIFY_AUTH_TOKEN` | no disponible en entorno local |
-| `NETLIFY_SITE_ID` | no disponible en entorno local |
-| `ADMIN_PASSWORD` | no disponible en entorno local |
-| `.env*` local | no presente |
-| `psql` | no instalado o no disponible en PATH |
-| `netlify` CLI | no instalado o no disponible en PATH |
-
-El proyecto obtiene credenciales seguras en produccion desde variables de
-entorno de Netlify. Las funciones administrativas esperan
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `ADMIN_PASSWORD`. Los scripts de
-respaldo que requieren service role tambien leen variables de entorno, sin
-guardarlas en Git.
-
-La anon key versionada en `js/config.js` no es una credencial segura y en la
-tarea anterior fallo para lectura remota con `Invalid API key`. No se uso para
-esta prevalidacion.
+El SQL se ejecuto dentro de una transaccion `READ ONLY` y devolvio una unica
+fila JSON. No se adjunta CSV porque la validacion fue reportada desde telefono;
+este informe registra los resultados confirmados por el usuario.
 
 ## Esquema remoto confirmado
 
-No confirmado. Bloqueante: falta una de estas rutas seguras:
+| area | resultado |
+|---|---|
+| `jugadores` | 27 registros, 27 activos, 0 inactivos. |
+| `inscripciones_jugadores` | 27 registros, todos en Apertura 2026 (`torneo_id = 1`). |
+| `eventos_partido` | 368 registros, 60 vinculados por ID, 308 pendientes. |
+| `goleadores_oficiales` | 4 registros, snapshot manual textual. |
+| referencias rotas | 0. |
+| autogoles | 1. |
 
-- conexion Postgres de solo lectura o credencial de base (`DATABASE_URL`,
-  `SUPABASE_DB_URL` o `POSTGRES_URL`) mas cliente SQL disponible;
-- o variables `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` junto con un
-  mecanismo seguro que ejecute exclusivamente la SQL de lectura;
-- o CLI/conector seguro de Netlify/Supabase que permita leer las variables de
-  entorno sin imprimirlas.
+Estructura auxiliar ausente en produccion:
 
-## Comparacion disponible sin conexion remota
-
-| fuente | estado | observacion |
-|---|---|---|
-| SQL versionado | auditado | `supabase/planteles.sql`, `supabase/incidencias.sql`, RLS/grants versionados y funciones Netlify. |
-| respaldo local Apertura 2026 | auditado | `respaldos/apertura-2026-respaldo-completo-20260715-165226.json`, fuera de Git. |
-| modelo propuesto | auditado | reutiliza `jugadores` e `inscripciones_jugadores`; agrega normalizacion y aliases. |
-| Supabase remoto real | no confirmado | bloqueado por credenciales seguras faltantes. |
-
-## Cantidades desde respaldo local Apertura
-
-| metrica | valor |
-|---|---:|
-| partidos Apertura | 140 |
-| eventos Apertura | 368 |
-| jugadores existentes | 27 |
-| inscripciones existentes | 27 |
-| goleadores oficiales snapshot | 4 |
-| eventos con `inscripcion_jugador_id` | 60 |
-| eventos sin `inscripcion_jugador_id` | 308 |
-| eventos con texto `jugador` | 368 |
-| nombres unicos exactos | 177 |
-| nombres unicos normalizados | 177 |
-| autogoles | 1 |
-| migrables automaticamente nuevos | 0 |
-| revision manual requerida | 308 |
-
-Homónimos canónicos ya existentes en el respaldo:
-
-- `Sanchez`: dos jugadores distintos en Porvenir y Carcarañá.
-- `Sarco`: dos jugadores distintos en Carcarañá y Montes de Oca.
+- `jugadores.nombre_normalizado`;
+- `jugadores_aliases`;
+- `tp_normalizar_nombre_jugador(text)`;
+- triggers auxiliares de normalizacion;
+- triggers nuevos de validacion relacionados con esta migracion.
 
 ## Jugadores
 
-Pendiente de confirmar remoto:
+- total: 27;
+- activos: 27;
+- inactivos: 0;
+- `nombre_normalizado`: no existe aun;
+- homonimos reales preservados: IDs 11 y 25 (`Sanchez`), IDs 20 y 21 (`Sarco`).
 
-- columnas actuales y tipos;
-- claves e indices efectivos;
-- politicas RLS efectivas;
-- cantidad actual;
-- nombres vacios;
-- duplicados exactos;
-- duplicados normalizados;
-- registros inactivos.
+Conclusion: `nombre_normalizado` no puede tener unicidad global. Debe servir
+para busqueda, candidatos y auditoria, no para fusionar identidades.
 
-Evidencia local/versionada:
+La migracion ajustada:
 
-- `jugadores` existe con `id`, `nombre_completo`, `aliases`, `activo`,
-  `creado_en`, `actualizado_en`;
-- no existe `nombre_normalizado` en el respaldo local;
-- el modelo no usa `nombre_normalizado` como identidad unica global.
+- agrega solo la columna `jugadores.nombre_normalizado`;
+- no recrea la tabla;
+- preserva IDs, `nombre_completo`, `aliases`, `activo`, `creado_en` y
+  `actualizado_en`;
+- hace backfill de `nombre_normalizado` para exactamente 27 jugadores;
+- no fusiona ni elimina jugadores.
 
 ## Inscripciones
 
-Pendiente de confirmar remoto:
+- total: 27;
+- duplicadas: 0;
+- incompletas: 0;
+- todas pertenecen a `torneo_id = 1`;
+- existe restriccion equivalente a `UNIQUE(jugador_id, club_id, torneo_id)`.
 
-- claves foraneas reales;
-- restriccion unica vigente;
-- cantidades por torneo y club;
-- duplicados;
-- filas sin jugador/club/torneo;
-- cambios de club entre torneos.
+La migracion ajustada:
 
-Evidencia local/versionada:
-
-- `inscripciones_jugadores` existe y referencia jugador, club y torneo;
-- la restriccion versionada actual es `unique(jugador_id, club_id, torneo_id)`;
-- una persona puede tener multiples inscripciones por torneo/club.
+- no inserta inscripciones;
+- no actualiza inscripciones;
+- no elimina inscripciones;
+- no cambia `jugador_id`, `club_id`, `torneo_id`, `dorsal` ni `estado`;
+- conserva el modelo jugador + club + torneo;
+- no impone una restriccion nueva que bloquee cambios de club entre torneos.
 
 ## Eventos historicos
 
-Pendiente de confirmar remoto:
+- total: 368;
+- con texto historico en `jugador`: 368;
+- con `inscripcion_jugador_id`: 60;
+- sin `inscripcion_jugador_id`: 308;
+- referencias rotas: 0;
+- nuevos vinculos automaticos seguros: 0;
+- revision manual futura: 308.
 
-- cantidad total real actual;
-- cantidad por torneo;
-- referencias rotas;
-- uso real actual de `inscripcion_relacionada_id`;
-- tipos de incidencia actuales;
-- semantica remota actual de autogoles.
+Tipos:
 
-Evidencia local/versionada:
+| tipo | cantidad |
+|---|---:|
+| `gol` | 363 |
+| `gol_en_contra` | 1 |
+| `gol_penal` | 1 |
+| `roja` | 3 |
 
-- Apertura respaldo: 368 eventos, 60 vinculados, 308 sin ID;
-- todos conservan texto `jugador`;
-- tipos detectados: `gol`, `gol_penal`, `gol_en_contra`, `roja`;
-- autogol historico auditado: evento `384`, Carcarañá 0-2 Sportivo,
-  `ANGELETTI JOAQUIN`, `equipo_id=57`, observacion indica que beneficia a
-  Sportivo.
+La migracion ajustada:
+
+- modifica 0 eventos;
+- inserta 0 eventos;
+- elimina 0 eventos;
+- crea 0 vinculos automaticos;
+- conserva los 60 vinculos existentes;
+- conserva los 308 pendientes;
+- conserva el texto historico de los 368;
+- conserva `inscripcion_relacionada_id`;
+- conserva tipos, partidos, equipos, minutos, resultados e IDs.
+
+## Autogol
+
+Autogol historico confirmado:
+
+- tipo: `gol_en_contra`;
+- jugador: `ANGELETTI JOAQUIN`;
+- partido: Carcarana vs Sportivo.
+
+La validacion futura no asume `inscripcion.club_id =
+eventos_partido.equipo_id`. El trigger preparado valida torneo y pertenencia a
+uno de los clubes del partido cuando hay una inscripcion por ID, y tolera
+eventos historicos que aun tienen solo texto.
 
 ## Goleadores oficiales
 
-Pendiente de confirmar remoto:
+- filas totales: 4;
+- snapshot manual;
+- dependencia textual: `jugador_nombre`;
+- uso de identidad por ID: todavia no.
 
-- estructura real actual;
-- cantidad por torneo;
-- coexistencia con futuras vistas por ID.
+La migracion ajustada no convierte, elimina, recalcula ni mezcla estas filas
+con estadisticas futuras.
 
-Evidencia local/versionada:
+## Aliases existentes
 
-- `goleadores_oficiales` es snapshot manual;
-- depende de `jugador_nombre` textual;
-- puede coexistir temporalmente con goleadores calculados por eventos si se
-  evita contar ambas fuentes en una misma vista.
+Conteo calculado desde el respaldo local Apertura 2026, consistente con la
+estructura confirmada de 27 jugadores:
 
-## Cambios exactos que aplicaria `sql/aplicar-identidad-jugadores.sql`
+| metrica | valor |
+|---|---:|
+| valores totales en `jugadores.aliases` | 0 |
+| valores vacios | 0 |
+| aliases validos | 0 |
+| duplicados exactos | 0 |
+| duplicados normalizados | 0 |
+| filas nuevas previstas | 0 |
 
-Bloqueos y validaciones:
+No se inventan aliases, iniciales ni abreviaturas. El array original
+`jugadores.aliases` no se elimina.
 
-- abre transaccion con `begin`;
-- falla hasta reemplazar `PENDIENTE_AUTORIZACION` por
-  `AUTORIZO IDENTIDAD JUGADORES`;
-- valida existencia de tablas requeridas;
-- valida columnas requeridas;
-- exige Apertura con 140 partidos;
-- exige al menos 300 eventos historicos de Apertura;
-- bloquea si hay mas de un torneo activo.
+## Problema corregido
 
-Funciones:
+La prevalidacion mostro que la normalizacion simulada devolvia:
 
-- crea o reemplaza `public.tp_normalizar_nombre_jugador(text)`;
-- crea trigger function `public.tp_jugadores_normalizar_trigger()`;
-- crea trigger function `public.tp_jugadores_aliases_normalizar_trigger()`;
-- crea trigger function `public.tp_validar_evento_inscripcion_jugador()`.
+`joaquin carrizo `
 
-Columnas:
+con espacio final.
 
-- agrega `public.jugadores.nombre_normalizado`.
+La funcion preparada se ajusto para aplicar `btrim` despues de todas las
+transformaciones. Resultado esperado:
 
-Backfills:
+`JOAQUIN CARRIZO.` con tilde en la I -> `joaquin carrizo`
 
-- completa `jugadores.nombre_normalizado` desde `nombre_completo`;
-- copia aliases existentes de `jugadores.aliases` a `jugadores_aliases`.
+## Cambios exactos que aplicaria la migracion protegida
 
-Tablas:
+Tablas nuevas:
 
-- crea `public.jugadores_aliases`.
+- `jugadores_aliases`.
 
-Indices:
+Columnas nuevas:
+
+- `jugadores.nombre_normalizado`.
+
+Funciones nuevas o reemplazadas:
+
+- `tp_normalizar_nombre_jugador(text)`;
+- `tp_jugadores_normalizar_trigger()`;
+- `tp_jugadores_aliases_normalizar_trigger()`;
+- `tp_validar_evento_inscripcion_jugador()`.
+
+Triggers nuevos:
+
+- `jugadores_normalizar_nombre`;
+- `jugadores_aliases_normalizar`;
+- `eventos_partido_validar_inscripcion_jugador`.
+
+Indices nuevos:
 
 - `jugadores_nombre_normalizado_idx`;
 - `jugadores_aliases_jugador_idx`;
@@ -200,94 +189,34 @@ Indices:
 - `inscripciones_jugador_torneo_idx`;
 - `inscripciones_torneo_club_estado_idx`.
 
-Claves y restricciones:
-
-- FK `eventos_partido.inscripcion_jugador_id` a
-  `inscripciones_jugadores(id)` con `ON DELETE RESTRICT`;
-- FK `eventos_partido.inscripcion_relacionada_id` a
-  `inscripciones_jugadores(id)` con `ON DELETE RESTRICT`;
-- FKs de `jugadores_aliases` a jugador, club y torneo con
-  `ON DELETE RESTRICT`;
-- check de `jugadores.nombre_normalizado`;
-- checks de alias no vacio.
-
-Triggers:
-
-- normaliza `jugadores.nombre_normalizado` antes de insert/update;
-- normaliza `jugadores_aliases.alias_normalizado` antes de insert/update;
-- valida que la inscripcion de un evento corresponda al torneo del partido y a
-  uno de los clubes participantes.
-
 RLS y permisos:
 
 - habilita RLS en `jugadores_aliases`;
-- no crea politica de lectura publica para aliases;
-- revoca permisos de `public`, `anon` y `authenticated`;
-- otorga lectura/escritura de aliases solo a `service_role`;
-- no expone service role.
+- no crea politica de lectura publica;
+- revoca permisos directos a `public`, `anon` y `authenticated`;
+- otorga acceso directo solo a `service_role`;
+- no modifica politicas de otras tablas.
 
-Confirmaciones del SQL:
+Backfill:
 
-- no borra datos;
-- no modifica resultados;
-- no cambia clubes;
-- no cambia torneos;
-- no cambia el torneo activo;
-- no vincula automaticamente los 308 casos manuales;
-- conserva `eventos_partido.jugador`;
-- no crea `UNIQUE(nombre_normalizado)` global;
-- soporta homonimos;
-- soporta cambios de club entre torneos mediante inscripciones separadas;
-- contempla autogol porque no exige `inscripcion.club_id = evento.equipo_id`.
-
-## RLS y aliases
-
-Decision revisada: `jugadores_aliases` no debe tener lectura anonima publica.
-No hay necesidad documentada del frontend publico para mostrar aliases. El
-frontend puede seguir leyendo `jugadores.nombre_completo` cuando corresponda;
-los aliases quedan como herramienta administrativa para conciliacion.
-
-## Diferencias encontradas
-
-Confirmadas localmente:
-
-- la tarea anterior habia propuesto lectura publica de aliases; se corrigio a
-  acceso solo administrativo;
-- el respaldo local contiene homonimos canonicos, por lo que
-  `UNIQUE(nombre_normalizado)` global seria incorrecto.
-
-No confirmadas remotamente por bloqueo:
-
-- si el esquema remoto actual ya tiene columnas nuevas o restricciones
-  distintas;
-- si los conteos remotos coinciden con el respaldo local;
-- si Clausura remoto ya tiene eventos cargados;
-- si existen aliases o normalizaciones aplicadas fuera del respaldo local.
+- completa `jugadores.nombre_normalizado` en 27 jugadores existentes;
+- no actualiza `actualizado_en`;
+- no toca eventos, inscripciones ni goleadores oficiales.
 
 ## Riesgos
 
-- Aplicar sin prevalidacion remota real podria fallar por drift de esquema.
-- Si el remoto tiene eventos Clausura ya cargados, la verificacion local queda
-  desactualizada.
-- Si existen transferencias dentro del mismo torneo, la restriccion actual de
-  inscripciones puede requerir revision antes de endurecer reglas.
-
-## Bloqueantes
-
-1. Falta credencial segura o conexion SQL para ejecutar
-   `sql/prevalidar-identidad-jugadores.sql`.
-2. Falta cliente SQL (`psql`) o herramienta equivalente disponible en el
-   entorno.
-3. No hay acceso local a variables Netlify para reutilizar service role sin
-   imprimir secretos.
+- La aplicacion sigue requiriendo autorizacion manual explicita.
+- Los 308 eventos pendientes necesitan revision manual futura; no deben
+  migrarse por similitud textual.
+- Los homonimos confirmados exigen evitar cualquier unicidad global por nombre
+  normalizado.
 
 ## Recomendacion final
 
-No autorizar `sql/aplicar-identidad-jugadores.sql` todavia.
+La migracion queda preparada para una futura autorizacion manual, sujeta a
+ejecutar primero un respaldo seguro y revisar `sql/aplicar-identidad-jugadores.sql`.
 
-Configurar una ruta segura de prevalidacion remota y reintentar. No pegar
-valores de credenciales en el chat; deben quedar en variables de entorno
-locales ignoradas por Git, en un gestor seguro o en el entorno de Netlify.
+No ejecutar aun una version desbloqueada desde este repositorio.
 
 ## Seguridad
 
@@ -296,7 +225,10 @@ locales ignoradas por Git, en un gestor seguro o en el entorno de Netlify.
 - DELETE remotos: 0
 - ALTER remoto: 0
 - CREATE remoto: 0
+- DROP remoto: 0
 - cambios RLS remotos: 0
 - eventos modificados: 0
 - jugadores creados: 0
+- inscripciones modificadas: 0
+- goleadores modificados: 0
 - datos deportivos modificados: 0

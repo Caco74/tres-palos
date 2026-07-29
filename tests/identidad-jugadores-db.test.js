@@ -9,9 +9,44 @@ const auditoria = require("../scripts/auditar-jugadores-historicos");
 const respaldo = require("../scripts/respaldar-identidad-jugadores");
 
 const ROOT = path.resolve(__dirname, "..");
+const CONFIRMED_PLAYERS = [
+  { id: 1, nombre: "F. Pizzichini" },
+  { id: 2, nombre: "Astrada" },
+  { id: 3, nombre: "B. Mart\u00ednez" },
+  { id: 4, nombre: "Mora" },
+  { id: 5, nombre: "Beloqui" },
+  { id: 6, nombre: "Gimenez" },
+  { id: 7, nombre: "Garino" },
+  { id: 8, nombre: "Correa" },
+  { id: 9, nombre: "Miramontes" },
+  { id: 10, nombre: "Galindo" },
+  { id: 11, nombre: "S\u00e1nchez" },
+  { id: 12, nombre: "Cantiani" },
+  { id: 13, nombre: "Angeleti" },
+  { id: 14, nombre: "Bulgarelli" },
+  { id: 15, nombre: "M. Aguero" },
+  { id: 16, nombre: "Zeballos" },
+  { id: 17, nombre: "Mauro Castellaro" },
+  { id: 18, nombre: "D\u00edaz" },
+  { id: 19, nombre: "De Gasperi" },
+  { id: 20, nombre: "Sarco" },
+  { id: 21, nombre: "Sarco" },
+  { id: 22, nombre: "Rojas" },
+  { id: 23, nombre: "Godoy" },
+  { id: 24, nombre: "Vitali" },
+  { id: 25, nombre: "S\u00e1nchez" },
+  { id: 26, nombre: "Zanabria" },
+  { id: 27, nombre: "Joel Barrios" }
+];
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+}
+
+function normalizeSqlModel(value) {
+  if (value === null || value === undefined) return null;
+  const normalized = auditoria.normalizePlayerName(value);
+  return normalized || null;
 }
 
 function stripSqlNoise(sql) {
@@ -95,6 +130,24 @@ function assertManualPrevalidationSql() {
   assertReadOnlySql("sql/prevalidar-identidad-jugadores.sql");
 }
 
+function assertSingleJsonReadOnlySql(relativePath, columnName) {
+  const sql = read(relativePath);
+  const stripped = stripSqlNoise(sql);
+  assert.match(
+    sql,
+    /^(?:\s|--[^\n]*\n)*BEGIN\s+TRANSACTION\s+READ\s+ONLY\s*;/i,
+    `${relativePath} debe iniciar con transaccion READ ONLY`
+  );
+  assert.match(sql, /COMMIT\s*;\s*$/i);
+  assert.equal(
+    (stripped.match(new RegExp(`\\bas\\s+${columnName}\\b`, "gi")) || []).length,
+    1,
+    `${relativePath} debe devolver una sola columna ${columnName}`
+  );
+  assert.match(stripped, /\bjsonb_build_object\s*\(/i);
+  assertReadOnlySql(relativePath);
+}
+
 function makeBaseData(overrides = {}) {
   const data = {
     torneos: [
@@ -164,15 +217,51 @@ function runTests() {
   const results = [];
 
   {
+    const normalizationCases = [
+      ["JOAQU\u00cdN  CARRIZO.", "joaquin carrizo"],
+      [" J. Carrizo ", "j carrizo"],
+      ["Joaqu\u00edn     Carrizo", "joaquin carrizo"],
+      ["Joaqu\u00edn Carrizo.", "joaquin carrizo"],
+      [".Joaqu\u00edn Carrizo", "joaquin carrizo"],
+      ["   Joaqu\u00edn Carrizo   ", "joaquin carrizo"],
+      ["Joaqu\u00edn     Carrizo", "joaquin carrizo"],
+      ["D\u00edaz S\u00e1nchez", "diaz sanchez"],
+      ["", null],
+      ["     ", null],
+      [null, null],
+      ["joaquin carrizo", "joaquin carrizo"]
+    ];
+
+    normalizationCases.forEach(([input, expected]) => {
+      const normalized = normalizeSqlModel(input);
+      assert.equal(normalized, expected);
+      assert.equal(normalizeSqlModel(normalized), expected);
+      if (normalized) {
+        assert.equal(normalized, normalized.trim());
+        assert.equal(/\s{2,}/.test(normalized), false);
+        assert.equal(normalized.includes("."), false);
+      }
+    });
     assert.equal(
-      auditoria.normalizePlayerName("JOAQUIN  CARRIZO"),
-      "joaquin carrizo"
+      CONFIRMED_PLAYERS.map(player => normalizeSqlModel(player.nombre)).filter(Boolean).length,
+      27
     );
-    assert.equal(
-      auditoria.normalizePlayerName("J. Carrizo"),
-      "j carrizo"
-    );
-    results.push("normalizacion reusable sin tildes, puntos ni dobles espacios: ok");
+    results.push("normalizacion SQL esperada cubre trim, tildes, puntos, NULL e idempotencia: ok");
+  }
+
+  {
+    const byNormalized = new Map();
+    CONFIRMED_PLAYERS.forEach(player => {
+      const normalized = normalizeSqlModel(player.nombre);
+      if (!byNormalized.has(normalized)) byNormalized.set(normalized, []);
+      byNormalized.get(normalized).push(player.id);
+    });
+
+    assert.deepEqual(byNormalized.get("sanchez"), [11, 25]);
+    assert.deepEqual(byNormalized.get("sarco"), [20, 21]);
+    assert.equal(byNormalized.get("sanchez").length, 2);
+    assert.equal(byNormalized.get("sarco").length, 2);
+    results.push("Sanchez y Sarco permanecen como homonimos separados: ok");
   }
 
   {
@@ -368,6 +457,10 @@ function runTests() {
 
   {
     assertManualPrevalidationSql();
+    assertSingleJsonReadOnlySql(
+      "sql/verificar-identidad-jugadores.sql",
+      "verificacion_identidad_jugadores"
+    );
     assertReadOnlySql("sql/prevalidar-identidad-jugadores.sql");
     assertReadOnlySql("sql/verificar-identidad-jugadores.sql");
 
@@ -375,6 +468,19 @@ function runTests() {
     assert.match(aplicar, /^\s*begin;/i);
     assert.match(aplicar, /PENDIENTE_AUTORIZACION/);
     assert.match(aplicar, /AUTORIZO IDENTIDAD JUGADORES/);
+    assert.match(aplicar, /returns null on null input/i);
+    assert.match(aplicar, /set search_path = pg_catalog/i);
+    assert.match(aplicar, /nullif\s*\(\s*btrim\s*\(/i);
+    assert.doesNotMatch(aplicar, /coalesce\s*\(\s*p_nombre\s*,/i);
+    assert.match(aplicar, /v_backfill_jugadores <> 27/);
+    assert.match(aplicar, /v_jugadores_total <> 27/);
+    assert.match(aplicar, /v_inscripciones_total <> 27/);
+    assert.match(aplicar, /v_eventos_total <> 368/);
+    assert.match(aplicar, /v_eventos_vinculados <> 60/);
+    assert.match(aplicar, /v_eventos_pendientes <> 308/);
+    assert.match(aplicar, /v_goleadores_total <> 4/);
+    assert.match(aplicar, /Homonimo Sanchez/);
+    assert.match(aplicar, /Homonimo Sarco/);
     assert.match(aplicar, /on delete restrict/i);
     assert.doesNotMatch(
       aplicar,
@@ -382,9 +488,19 @@ function runTests() {
     );
     assert.doesNotMatch(
       aplicar,
-      /\b(update|insert\s+into|delete\s+from)\s+public\.(eventos_partido|partidos|torneos|clubes)\b/i
+      /create\s+unique\s+index[\s\S]{0,160}nombre_normalizado/i
     );
+    assert.doesNotMatch(
+      aplicar,
+      /\b(update|insert\s+into|delete\s+from)\s+public\.(eventos_partido|partidos|torneos|clubes|inscripciones_jugadores|goleadores_oficiales)\b/i
+    );
+    const backfillBlock = aplicar.match(
+      /update\s+public\.jugadores[\s\S]*?get diagnostics/i
+    )[0];
+    assert.doesNotMatch(backfillBlock, /actualizado_en/i);
+    assert.doesNotMatch(aplicar, /\bexecute\s+format\b/i);
     assert.match(aplicar, /tp_validar_evento_inscripcion_jugador/);
+    assert.match(aplicar, /los eventos historicos pueden conservar solo texto/);
     assert.match(aplicar, /sin exigir que coincida con equipo_id/);
     assert.doesNotMatch(
       aplicar,
@@ -397,6 +513,14 @@ function runTests() {
     assert.match(
       read("sql/verificar-identidad-jugadores.sql"),
       /sin_lectura_publica_aliases/
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /aliases_desde_array_0/
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /eventos_pendientes_308/
     );
     results.push("prevalidacion manual READ ONLY genera un unico JSON sin efectos laterales: ok");
     results.push("SQL protegido conserva Apertura/Clausura y restringe borrados: ok");

@@ -1,95 +1,71 @@
 # Identidad unica de jugadores
 
-Este documento prepara la primera etapa para dejar de usar nombres libres como
-identidad principal en incidencias de Tres Palos. No aplica cambios en Supabase,
-no modifica el admin productivo y no cambia la web publica.
+Este documento resume la base tecnica preparada para dejar de usar nombres
+libres como identidad principal en incidencias de Tres Palos. En esta etapa no
+se aplica SQL remoto, no se modifica el admin productivo y no se cambia la web
+publica.
 
-## Auditoria del esquema actual
+## Esquema real confirmado
 
-La lectura remota con la anon key publica versionada fallo con `Invalid API key`.
-No hubo escrituras. El esquema real auditable en esta etapa surge del SQL
-versionado y del respaldo local completo del Apertura 2026 generado desde
-Supabase REST publico el 2026-07-15.
+La prevalidacion manual fue ejecutada en Supabase produccion desde SQL Editor
+con `sql/prevalidar-identidad-jugadores.sql`, dentro de una transaccion
+`READ ONLY`.
 
-| tabla | columnas relevantes | claves | uso actual |
-|---|---|---|---|
-| `torneos` | `id`, `anio`, `tipo`, `nombre`, `activo`, fechas | PK `id`, `unique(anio,tipo)` | Identifica Apertura 2026 (`id=1`) y Clausura 2026 (`id=2`). |
-| `clubes` | `id`, `nombre_oficial`, `nombre_corto`, `aliases`, `activo` | PK `id`, `nombre_oficial` unico | Identidad institucional usada por partidos, planteles e incidencias. |
-| `partidos` | `id`, `torneo_id`, `local_id`, `visitante_id`, resultado, estado | FK a `torneos` y `clubes` | Apertura tiene 140 partidos; Clausura esperado tiene 114. |
-| `jugadores` | `id`, `nombre_completo`, `aliases`, `activo`, timestamps | PK `id` | Ya existe como identidad permanente, pero sin normalizado auditado ni tabla de aliases. |
-| `inscripciones_jugadores` | `id`, `jugador_id`, `club_id`, `torneo_id`, `posicion`, `dorsal`, `estado` | PK `id`, FK a jugador/club/torneo, `unique(jugador_id,club_id,torneo_id)` | Representa participacion de una persona en club y torneo. |
-| `eventos_partido` | `id`, `partido_id`, `tipo`, `jugador`, `equipo`, `equipo_id`, `inscripcion_jugador_id`, `inscripcion_relacionada_id`, `jugador_relacionado` | PK `id`, FK a partido/club/inscripcion | Incidencias historicas conservan texto en `jugador`; 60/368 eventos de Apertura ya tienen `inscripcion_jugador_id`. |
-| `goleadores_oficiales` | `torneo_id`, `posicion`, `equipo_id`, `jugador_nombre`, `goles` | FK a torneo/club, `unique(torneo_id,posicion)` | Snapshot manual destacado; no reemplaza el calculo futuro desde eventos por ID. |
-| `respaldos_etapa` | JSON de partidos/incidencias/torneo completo | PK `id`, respaldo inmutable por trigger | Respaldo administrativo de cierres/restauraciones. |
-| `etapas_estado` | `torneo_id`, `tipo`, `valor`, `estado` | PK compuesta | Controla etapas cerradas/abiertas para admin. |
+| tabla | estado confirmado | uso actual |
+|---|---:|---|
+| `jugadores` | 27 filas, 27 activos, 0 inactivos | Identidad canonica existente. Todavia no tiene `nombre_normalizado`. |
+| `inscripciones_jugadores` | 27 filas, todas de Apertura 2026 (`torneo_id = 1`) | Vincula jugador, club y torneo. Tiene restriccion `unique(jugador_id, club_id, torneo_id)`. |
+| `eventos_partido` | 368 filas, 60 con `inscripcion_jugador_id`, 308 pendientes | Conserva texto historico en `jugador` para los 368 eventos. |
+| `goleadores_oficiales` | 4 filas | Snapshot manual por texto en `jugador_nombre`. |
 
-No hay tabla `personas` ni `planteles` separada. La estructura reutilizable es
-`jugadores` + `inscripciones_jugadores`.
+Referencias rotas confirmadas: 0. Autogoles confirmados: 1.
 
-## Modelo propuesto
+Estructura auxiliar aun ausente en produccion:
 
-La identidad canonica debe seguir siendo `public.jugadores`.
+- `jugadores.nombre_normalizado`;
+- `jugadores_aliases`;
+- `tp_normalizar_nombre_jugador(text)`;
+- triggers de normalizacion;
+- triggers nuevos de validacion de eventos.
 
-Cambios preparados en `sql/aplicar-identidad-jugadores.sql`:
+## Modelo
 
-- agregar `jugadores.nombre_normalizado`;
-- crear `tp_normalizar_nombre_jugador(text)`;
-- crear `jugadores_aliases`;
-- migrar aliases existentes del array `jugadores.aliases` hacia la tabla nueva;
-- mantener `jugadores.aliases` por compatibilidad durante la transicion;
-- reforzar indices de busqueda;
-- validar eventos por inscripcion sin exigir que `equipo_id` sea igual al club
-  del jugador.
+La identidad canonica sigue siendo `public.jugadores`.
 
-No se agrega `UNIQUE(nombre_normalizado)`. El respaldo ya muestra homonimos
-canonicos reales: `Sanchez` y `Sarco` existen como jugadores distintos en
-clubes distintos.
+La inscripcion sigue siendo `public.inscripciones_jugadores`, con la relacion
+jugador + club + torneo. Esto permite que una persona aparezca en torneos
+distintos y que cambie de club entre campeonatos sin perder su identidad.
 
-## Identidad e inscripciones
+Los eventos usan `eventos_partido.inscripcion_jugador_id` como referencia por
+ID cuando esta disponible. `eventos_partido.jugador` se conserva como snapshot
+historico y fallback de transicion.
 
-`jugadores` identifica a la persona. `inscripciones_jugadores` identifica su
-participacion en un club y torneo.
+No se agrega `UNIQUE(nombre_normalizado)`. La prevalidacion confirmo homonimos
+reales que deben mantenerse separados:
 
-El modelo permite:
+- IDs 11 y 25: `Sanchez`;
+- IDs 20 y 21: `Sarco`.
 
-- el mismo jugador en Apertura y Clausura;
-- cambio de club entre torneos;
-- desactivacion logica por `estado = 'inactivo'`;
-- correccion de `nombre_completo` en un unico lugar;
-- historial sin borrar identidades.
+## Normalizacion
 
-La restriccion actual `unique(jugador_id, club_id, torneo_id)` se conserva. Si
-se confirma transferencia dentro del mismo torneo, antes de aplicar una regla
-mas fuerte hay que decidir si una persona puede tener dos inscripciones activas
-con fechas no solapadas.
+`tp_normalizar_nombre_jugador(text)` se prepara para:
 
-## Eventos y autogoles
+- devolver `NULL` si recibe `NULL`;
+- pasar a minusculas;
+- eliminar tildes y diacriticos esperados;
+- eliminar puntos y puntuacion prevista;
+- reducir espacios interiores;
+- aplicar `btrim` final despues de todas las transformaciones.
 
-El repositorio ya usa `eventos_partido.inscripcion_jugador_id` como referencia
-principal para el protagonista. Es preferible no agregar `jugador_id` directo al
-evento para evitar redundancia: el jugador se obtiene desde la inscripcion.
+Ejemplo esperado:
 
-`eventos_partido.jugador` se conserva como snapshot historico y fallback.
+`JOAQUIN  CARRIZO.` con tilde en la I -> `joaquin carrizo`
 
-Autogol auditado:
+La normalizacion se usa para busqueda y candidatos, no como identidad global.
 
-- evento `384`;
-- partido `235`, Carcarana 0-2 Sportivo;
-- `tipo = gol_en_contra`;
-- `jugador = ANGELETTI JOAQUIN`;
-- `equipo_id = 57`, Carcarana;
-- observacion: autor de Carcarana, beneficia a Sportivo.
+## Aliases
 
-En el dato real actual, `equipo_id` representa el club del autor para el
-autogol, y la UI publica invierte el beneficiado al mostrar. La preparacion no
-impone `inscripcion.club_id = evento.equipo_id`; solo exige que la inscripcion
-pertenezca al torneo del partido y a uno de los clubes participantes. Esto
-permite mantener la convencion actual o cambiar a `equipo_id` beneficiado en
-una etapa futura sin romper identidad.
-
-## Alias y normalizacion
-
-`jugadores_aliases` queda preparado con:
+`jugadores_aliases` queda preparada para variantes historicas o externas:
 
 - `jugador_id`;
 - `alias`;
@@ -97,72 +73,100 @@ una etapa futura sin romper identidad.
 - `club_id` opcional;
 - `torneo_id` opcional;
 - `origen`;
-- `confirmado`.
+- `confirmado`;
+- auditoria basica.
 
-La normalizacion:
+No hay unicidad global por `alias_normalizado`. Un alias puede ser ambiguo y
+debe resolverse con contexto de jugador, club, torneo y revision manual.
 
-- pasa a minusculas;
-- elimina tildes;
-- elimina puntos;
-- colapsa espacios;
-- conserva siempre el texto original en eventos y aliases.
+El array actual `jugadores.aliases` se conserva. En el respaldo local de
+Apertura, coincidente con la estructura confirmada, la copia prevista es:
 
-Una coincidencia por similitud textual no crea ni fusiona jugadores. Produce
-candidatos para revision.
+| metrica | valor |
+|---|---:|
+| valores totales en `jugadores.aliases` | 0 |
+| valores vacios | 0 |
+| aliases validos | 0 |
+| duplicados exactos | 0 |
+| duplicados normalizados | 0 |
+| filas nuevas previstas en `jugadores_aliases` | 0 |
+
+La copia preparada usa la normalizacion y `ON CONFLICT DO NOTHING` para no
+duplicar filas en una ejecucion controlada.
+
+## Eventos y autogoles
+
+La migracion no modifica eventos:
+
+- eventos modificados: 0;
+- eventos insertados: 0;
+- eventos eliminados: 0;
+- vinculos automaticos nuevos: 0;
+- eventos vinculados conservados: 60;
+- eventos pendientes conservados: 308;
+- textos historicos conservados: 368.
+
+Tipos confirmados:
+
+- `gol`: 363;
+- `gol_en_contra`: 1;
+- `gol_penal`: 1;
+- `roja`: 3.
+
+El autogol historico confirmado es `gol_en_contra` con jugador
+`ANGELETTI JOAQUIN` en Carcarana vs Sportivo. El dato actual debe quedar sin
+cambios. El trigger preparado valida que una inscripcion informada pertenezca
+al torneo del partido y a uno de los clubes participantes, pero no exige
+`inscripcion.club_id = eventos_partido.equipo_id`. Esto evita romper autogoles
+u otras incidencias donde la semantica de `equipo_id` no coincide con el club
+del protagonista.
+
+Durante la transicion, el trigger tolera:
+
+- eventos con `inscripcion_jugador_id IS NULL`;
+- eventos historicos con texto libre;
+- eventos sin jugador aplicable;
+- tarjetas;
+- autogoles;
+- incidencias futuras con `inscripcion_relacionada_id`.
+
+## Goleadores oficiales
+
+`goleadores_oficiales` se conserva exactamente como snapshot manual:
+
+- filas modificadas: 0;
+- filas recalculadas: 0;
+- filas convertidas a ID: 0.
+
+Puede coexistir con estadisticas futuras por ID, siempre que no se mezclen dos
+fuentes para contar el mismo dato dos veces.
+
+## RLS y seguridad
+
+`jugadores_aliases` queda con RLS habilitado, sin lectura publica anonima y sin
+escritura publica. No se otorgan permisos directos a `anon` ni a
+`authenticated`; las operaciones administrativas deben pasar por servidor
+seguro con `service_role`.
+
+La lectura publica necesaria de `jugadores` e `inscripciones_jugadores` puede
+mantenerse segun las reglas existentes de la web publica.
 
 ## Admin futuro
 
-Flujo esperado, sin implementar todavia:
+Flujo esperado, aun no implementado:
 
 1. seleccionar torneo;
 2. seleccionar partido;
 3. seleccionar equipo;
-4. listar inscriptos de ese club y torneo;
+4. listar jugadores inscriptos en ese club y torneo;
 5. elegir jugador;
 6. elegir incidencia;
-7. guardar `inscripcion_jugador_id`.
+7. guardar la referencia por ID.
 
-Accion separada: `Jugador no encontrado`.
-
-Ese flujo debe buscar persona existente, permitir crear identidad canonica solo
-con confirmacion, crear inscripcion y evitar duplicados. No debe crear jugadores
-automaticamente por escribir un nombre.
-
-## Goleadores y tarjetas
-
-Hoy existen agrupaciones por texto en la web publica (`evento.jugador`) y un
-snapshot `goleadores_oficiales`. Durante la transicion:
-
-- eventos con `inscripcion_jugador_id` se agrupan por ID;
-- eventos sin ID se agrupan por texto normalizado + club como fallback;
-- cada evento se cuenta una sola vez;
-- autogoles no suman a goleadores;
-- tarjetas usan la misma identidad, no un modelo separado.
-
-## RLS y seguridad
-
-El SQL preparado:
-
-- habilita RLS en `jugadores_aliases`;
-- no permite lectura anonima publica de aliases;
-- no permite escrituras publicas anonimas;
-- deja lectura/escritura de aliases a `service_role`;
-- no expone claves;
-- no modifica politicas existentes de tablas productivas.
-
-La creacion/edicion sigue protegida por funciones Netlify con
-`SUPABASE_SERVICE_ROLE_KEY` en entorno.
-
-## Archivos de esta etapa
-
-- `sql/prevalidar-identidad-jugadores.sql`
-- `sql/aplicar-identidad-jugadores.sql`
-- `sql/verificar-identidad-jugadores.sql`
-- `scripts/auditar-jugadores-historicos.js`
-- `scripts/respaldar-identidad-jugadores.js`
-- `reports/identidad-jugadores-dry-run.md`
-- `reports/identidad-jugadores-mapeo-propuesto.json`
-- `tests/identidad-jugadores-db.test.js`
+Accion separada: `Jugador no encontrado`. Debe permitir buscar una persona
+existente, crear una identidad canonica solo con confirmacion, crear la
+inscripcion y evitar duplicados. No debe crear jugadores automaticamente por
+escribir un nombre.
 
 ## Estado de aplicacion
 
@@ -171,7 +175,9 @@ La creacion/edicion sigue protegida por funciones Netlify con
 - updates remotos: 0;
 - deletes remotos: 0;
 - jugadores reales creados: 0;
+- inscripciones modificadas: 0;
 - eventos modificados: 0;
+- goleadores modificados: 0;
 - resultados modificados: 0;
 - frontend publico modificado: 0;
 - admin productivo modificado: 0.
