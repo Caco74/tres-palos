@@ -25,9 +25,74 @@ function assertReadOnlySql(relativePath) {
   const stripped = stripSqlNoise(read(relativePath));
   assert.doesNotMatch(
     stripped,
-    /\b(insert|update|delete|alter|create|drop|truncate|grant|revoke|call)\b/i,
+    /\b(insert|update|delete|alter|create|drop|truncate|grant|revoke|call|execute)\b/i,
     `${relativePath} debe ser solo lectura`
   );
+  assert.doesNotMatch(
+    stripped,
+    /\b(enable|disable)\s+row\s+level\s+security\b|\b(create|alter|drop)\s+policy\b/i,
+    `${relativePath} no debe cambiar RLS`
+  );
+  assert.doesNotMatch(
+    stripped,
+    /\b(setval|nextval|alter\s+sequence|set\s+(role|session|local|search_path))\b/i,
+    `${relativePath} no debe cambiar secuencias, roles ni configuracion`
+  );
+}
+
+function assertManualPrevalidationSql() {
+  const sql = read("sql/prevalidar-identidad-jugadores.sql");
+  const stripped = stripSqlNoise(sql);
+
+  assert.match(
+    sql,
+    /^(?:\s|--[^\n]*\n)*BEGIN\s+TRANSACTION\s+READ\s+ONLY\s*;/i,
+    "la prevalidacion manual debe iniciar una transaccion READ ONLY"
+  );
+  assert.match(
+    sql,
+    /COMMIT\s*;\s*$/i,
+    "la prevalidacion manual debe finalizar con COMMIT"
+  );
+  assert.equal(
+    (stripped.match(/\bas\s+prevalidacion_identidad_jugadores\b/gi) || []).length,
+    1,
+    "la prevalidacion manual debe devolver una sola columna JSON final"
+  );
+  assert.equal(
+    (stripped.match(/\bselect\b/gi) || []).filter(Boolean).length > 0,
+    true,
+    "la prevalidacion manual debe producir una consulta SELECT"
+  );
+  assert.match(stripped, /\bjsonb_build_object\s*\(/i);
+  assert.match(sql, /'jugadores'/);
+  assert.match(sql, /'inscripciones_jugadores'/);
+  assert.match(sql, /'eventos_partido'/);
+  assert.match(sql, /'goleadores_oficiales'/);
+  assert.match(sql, /'estructura_auxiliar'/);
+  assert.match(sql, /'comparacion'/);
+  assert.match(sql, /'maximo_registros_por_muestra',\s*10/);
+  assert.doesNotMatch(
+    sql,
+    /\b(pg_get_constraintdef|indexdef|pg_indexes)\b/i,
+    "la prevalidacion manual no debe volcar DDL crudo de catalogos"
+  );
+  assert.doesNotMatch(
+    sql,
+    /[^\x00-\x7F]/,
+    "la prevalidacion manual debe mantenerse en ASCII para copia manual"
+  );
+  assert.doesNotMatch(
+    sql,
+    /\b(SUPABASE_[A-Z0-9_]*KEY|SERVICE_ROLE|ANON_KEY|JWT_SECRET|PASSWORD|DATABASE_URL)\b\s*[:=]/i,
+    "la prevalidacion manual no debe imprimir ni declarar secretos"
+  );
+  assert.doesNotMatch(
+    sql,
+    /eyJ[A-Za-z0-9_-]{20,}|postgres(?:ql)?:\/\/|@.*supabase\.(?:co|in)/i,
+    "la prevalidacion manual no debe incluir JWT ni connection strings"
+  );
+  assertReadOnlySql("sql/prevalidar-identidad-jugadores.sql");
 }
 
 function makeBaseData(overrides = {}) {
@@ -302,6 +367,7 @@ function runTests() {
   }
 
   {
+    assertManualPrevalidationSql();
     assertReadOnlySql("sql/prevalidar-identidad-jugadores.sql");
     assertReadOnlySql("sql/verificar-identidad-jugadores.sql");
 
@@ -332,6 +398,7 @@ function runTests() {
       read("sql/verificar-identidad-jugadores.sql"),
       /sin_lectura_publica_aliases/
     );
+    results.push("prevalidacion manual READ ONLY genera un unico JSON sin efectos laterales: ok");
     results.push("SQL protegido conserva Apertura/Clausura y restringe borrados: ok");
   }
 
