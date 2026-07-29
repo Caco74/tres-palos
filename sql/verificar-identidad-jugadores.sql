@@ -155,6 +155,18 @@ with checks as (
     'anon/authenticated/public no deben escribir aliases'
   union all
   select
+    'sin_lectura_publica_aliases',
+    not exists (
+      select 1
+      from information_schema.role_table_grants grant_row
+      where grant_row.table_schema = 'public'
+        and grant_row.table_name = 'jugadores_aliases'
+        and grant_row.grantee in ('anon', 'authenticated', 'public')
+        and grant_row.privilege_type = 'SELECT'
+    ),
+    'aliases no necesitan lectura publica anonima'
+  union all
+  select
     'trigger_evento_inscripcion',
     exists (
       select 1

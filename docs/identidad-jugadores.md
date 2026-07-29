@@ -144,9 +144,9 @@ snapshot `goleadores_oficiales`. Durante la transicion:
 El SQL preparado:
 
 - habilita RLS en `jugadores_aliases`;
-- permite lectura publica de aliases como informacion deportiva;
+- no permite lectura anonima publica de aliases;
 - no permite escrituras publicas anonimas;
-- deja escrituras a `service_role`;
+- deja lectura/escritura de aliases a `service_role`;
 - no expone claves;
 - no modifica politicas existentes de tablas productivas.
 

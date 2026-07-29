@@ -320,6 +320,18 @@ function runTests() {
     );
     assert.match(aplicar, /tp_validar_evento_inscripcion_jugador/);
     assert.match(aplicar, /sin exigir que coincida con equipo_id/);
+    assert.doesNotMatch(
+      aplicar,
+      /create\s+policy\s+jugadores_aliases_lectura_publica/i
+    );
+    assert.doesNotMatch(
+      aplicar,
+      /grant\s+select\s+on\s+table\s+public\.jugadores_aliases\s+to\s+anon/i
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /sin_lectura_publica_aliases/
+    );
     results.push("SQL protegido conserva Apertura/Clausura y restringe borrados: ok");
   }
 

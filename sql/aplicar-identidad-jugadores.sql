@@ -416,17 +416,8 @@ alter table public.jugadores_aliases enable row level security;
 drop policy if exists jugadores_aliases_lectura_publica
   on public.jugadores_aliases;
 
-create policy jugadores_aliases_lectura_publica
-on public.jugadores_aliases
-for select
-to anon, authenticated
-using (true);
-
 revoke all on table public.jugadores_aliases
   from public, anon, authenticated;
-
-grant select on table public.jugadores_aliases
-  to anon, authenticated;
 
 grant select, insert, update, delete on table public.jugadores_aliases
   to service_role;
@@ -475,7 +466,7 @@ comment on column public.jugadores.nombre_normalizado is
   'Nombre publico normalizado para busqueda y candidatos; no es identidad unica global.';
 
 comment on table public.jugadores_aliases is
-  'Variantes historicas o externas de nombres vinculadas a una identidad canonica.';
+  'Variantes historicas o externas de nombres vinculadas a una identidad canonica. Acceso solo administrativo.';
 
 comment on column public.eventos_partido.inscripcion_jugador_id is
   'Inscripcion del protagonista principal. El texto jugador se conserva como snapshot historico.';
