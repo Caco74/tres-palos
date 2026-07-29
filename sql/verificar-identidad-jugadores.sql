@@ -227,6 +227,53 @@ aliases_desde_array as (
   from public.jugadores jugador
   cross join lateral unnest(coalesce(jugador.aliases, array[]::text[])) alias(alias)
 ),
+hashes_posteriores as (
+  select jsonb_build_object(
+    'jugadores_historico', (
+      select md5(coalesce(string_agg(
+        jsonb_build_object(
+          'id', jugador.id,
+          'nombre_completo', jugador.nombre_completo,
+          'aliases', coalesce(jugador.aliases, array[]::text[]),
+          'activo', jugador.activo,
+          'creado_en', jugador.creado_en,
+          'actualizado_en', jugador.actualizado_en
+        )::text,
+        ''
+        order by jugador.id
+      ), ''))
+      from public.jugadores jugador
+    ),
+    'jugadores_con_nombre_normalizado', (
+      select md5(coalesce(string_agg(
+        jsonb_build_object(
+          'id', jugador.id,
+          'nombre_completo', jugador.nombre_completo,
+          'aliases', coalesce(jugador.aliases, array[]::text[]),
+          'activo', jugador.activo,
+          'creado_en', jugador.creado_en,
+          'actualizado_en', jugador.actualizado_en,
+          'nombre_normalizado', jugador.nombre_normalizado
+        )::text,
+        ''
+        order by jugador.id
+      ), ''))
+      from public.jugadores jugador
+    ),
+    'inscripciones_jugadores', (
+      select md5(coalesce(string_agg(to_jsonb(inscripcion)::text, '' order by id), ''))
+      from public.inscripciones_jugadores inscripcion
+    ),
+    'eventos_partido', (
+      select md5(coalesce(string_agg(to_jsonb(evento)::text, '' order by id), ''))
+      from public.eventos_partido evento
+    ),
+    'goleadores_oficiales', (
+      select md5(coalesce(string_agg(to_jsonb(goleador)::text, '' order by id), ''))
+      from public.goleadores_oficiales goleador
+    )
+  ) as data
+),
 checks as (
   select
     'jugadores_total_27' as chequeo,
@@ -541,7 +588,7 @@ select jsonb_build_object(
     )
     from checks
   ),
-  'resumen',
+  'conteos_deportivos',
   jsonb_build_object(
     'jugadores_total', (select count(*) from public.jugadores),
     'jugadores_normalizados', (
@@ -564,8 +611,144 @@ select jsonb_build_object(
       from public.eventos_partido
       where inscripcion_jugador_id is null
     ),
+    'autogoles', (
+      select count(*)
+      from public.eventos_partido
+      where lower(coalesce(tipo, '')) in ('gol_en_contra', 'autogol')
+    ),
+    'referencias_rotas', (select total from eventos_referencias_rotas),
     'goleadores_oficiales_total', (
       select count(*) from public.goleadores_oficiales
+    )
+  ),
+  'integridad',
+  jsonb_build_object(
+    'jugadores_ids_preservados', (select total from jugadores_diferencias) = 0,
+    'nombres_publicos_preservados', (select total from jugadores_diferencias) = 0,
+    'homonimos_preservados', jsonb_build_object(
+      'sanchez', (
+        select array_agg(id order by id)
+        from public.jugadores
+        where public.tp_normalizar_nombre_jugador(nombre_completo) = 'sanchez'
+      ),
+      'sarco', (
+        select array_agg(id order by id)
+        from public.jugadores
+        where public.tp_normalizar_nombre_jugador(nombre_completo) = 'sarco'
+      )
+    ),
+    'inscripciones_intactas', (select total from inscripciones_diferencias) = 0,
+    'eventos_intactos', (
+      (select count(*) from public.eventos_partido) = 368
+      and (select total from eventos_tipos_diferencias) = 0
+    ),
+    'texto_historico_intacto', (
+      select count(*)
+      from public.eventos_partido
+      where btrim(coalesce(jugador, '')) <> ''
+    ) = 368,
+    'tipos_eventos_intactos', (select total from eventos_tipos_diferencias) = 0,
+    'goleadores_oficiales_intactos', (select total from goleadores_diferencias) = 0
+  ),
+  'estructura_nueva',
+  jsonb_build_object(
+    'nombre_normalizado_existe', exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'jugadores'
+        and column_name = 'nombre_normalizado'
+    ),
+    'jugadores_normalizados', (
+      select count(*)
+      from public.jugadores
+      where nombre_normalizado is not null
+        and btrim(nombre_normalizado) <> ''
+    ),
+    'normalizados_con_espacios_borde', (
+      select count(*)
+      from public.jugadores
+      where nombre_normalizado is distinct from btrim(nombre_normalizado)
+    ),
+    'funcion_existe', to_regprocedure(
+      'public.tp_normalizar_nombre_jugador(text)'
+    ) is not null,
+    'jugadores_aliases_existe', to_regclass('public.jugadores_aliases') is not null,
+    'rls_aliases_habilitado', coalesce((
+      select relrowsecurity
+      from pg_class cls
+      join pg_namespace ns
+        on ns.oid = cls.relnamespace
+      where ns.nspname = 'public'
+        and cls.relname = 'jugadores_aliases'
+    ), false),
+    'lectura_publica_aliases', exists (
+      select 1
+      from information_schema.role_table_grants grant_row
+      where grant_row.table_schema = 'public'
+        and grant_row.table_name = 'jugadores_aliases'
+        and grant_row.grantee in ('anon', 'authenticated', 'public')
+        and grant_row.privilege_type = 'SELECT'
+    ),
+    'escritura_publica_aliases', exists (
+      select 1
+      from information_schema.role_table_grants grant_row
+      where grant_row.table_schema = 'public'
+        and grant_row.table_name = 'jugadores_aliases'
+        and grant_row.grantee in ('anon', 'authenticated', 'public')
+        and grant_row.privilege_type in ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')
+    ),
+    'indices_esperados', (
+      select count(*)
+      from (
+        values
+          ('public.jugadores_nombre_normalizado_idx'),
+          ('public.jugadores_aliases_jugador_idx'),
+          ('public.jugadores_aliases_busqueda_idx'),
+          ('public.jugadores_aliases_contexto_unico_idx'),
+          ('public.eventos_partido_inscripcion_idx'),
+          ('public.eventos_partido_inscripcion_relacionada_idx'),
+          ('public.inscripciones_jugador_torneo_idx'),
+          ('public.inscripciones_torneo_club_estado_idx')
+      ) expected(index_name)
+      where to_regclass(expected.index_name) is not null
+    ),
+    'triggers_esperados', (
+      select count(*)
+      from pg_trigger trigger_row
+      where trigger_row.tgname in (
+          'jugadores_normalizar_nombre',
+          'jugadores_aliases_normalizar',
+          'eventos_partido_validar_inscripcion_jugador'
+        )
+        and not trigger_row.tgisinternal
+    ),
+    'fks_eventos_esperadas', (
+      select count(*)
+      from pg_constraint con
+      where con.conrelid = 'public.eventos_partido'::regclass
+        and con.contype = 'f'
+        and con.conname in (
+          'eventos_partido_inscripcion_fk',
+          'eventos_partido_inscripcion_relacionada_fk'
+        )
+    ),
+    'unique_global_nombre_normalizado', exists (
+      select 1
+      from pg_index index_row
+      join pg_class table_cls
+        on table_cls.oid = index_row.indrelid
+      join pg_namespace ns
+        on ns.oid = table_cls.relnamespace
+      join lateral unnest(index_row.indkey) as index_key(attnum)
+        on true
+      join pg_attribute att
+        on att.attrelid = table_cls.oid
+       and att.attnum = index_key.attnum
+      where ns.nspname = 'public'
+        and table_cls.relname = 'jugadores'
+        and index_row.indisunique
+        and att.attname = 'nombre_normalizado'
     ),
     'aliases_desde_array_validos', (
       select valores_validos from aliases_desde_array
@@ -573,7 +756,9 @@ select jsonb_build_object(
     'aliases_filas', (
       select count(*) from public.jugadores_aliases
     )
-  )
+  ),
+  'hashes_posteriores',
+  (select data from hashes_posteriores)
 ) as verificacion_identidad_jugadores;
 
 COMMIT;

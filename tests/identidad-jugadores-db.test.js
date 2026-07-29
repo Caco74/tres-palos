@@ -148,6 +148,94 @@ function assertSingleJsonReadOnlySql(relativePath, columnName) {
   assertReadOnlySql(relativePath);
 }
 
+function assertManualBackupSql() {
+  const sql = read("sql/respaldar-identidad-jugadores-manual.sql");
+  assertSingleJsonReadOnlySql(
+    "sql/respaldar-identidad-jugadores-manual.sql",
+    "backup_identidad_jugadores"
+  );
+  assert.match(sql, /'metadata'/);
+  assert.match(sql, /'jugadores'/);
+  assert.match(sql, /'inscripciones_jugadores'/);
+  assert.match(sql, /'eventos_partido'/);
+  assert.match(sql, /'goleadores_oficiales'/);
+  assert.match(sql, /'estructura_previa'/);
+  assert.match(sql, /'hashes'/);
+  assert.match(sql, /md5\s*\(/i);
+  assert.match(sql, /jsonb_agg\s*\([\s\S]*order by id/i);
+  assert.doesNotMatch(
+    sql,
+    /\b(SUPABASE_[A-Z0-9_]*KEY|SERVICE_ROLE|ANON_KEY|JWT_SECRET|PASSWORD|DATABASE_URL)\b\s*[:=]/i
+  );
+}
+
+function assertAuthorizedApplySql() {
+  const protectedSql = read("sql/aplicar-identidad-jugadores.sql");
+  const authorizedSql = read("sql/aplicar-identidad-jugadores-autorizado.sql");
+  const stripped = stripSqlNoise(authorizedSql);
+
+  assert.match(authorizedSql, /ARCHIVO TEMPORAL AUTORIZADO PARA APLICACION MANUAL/);
+  assert.match(authorizedSql, /debe eliminarse del repositorio antes del merge/i);
+  assert.match(authorizedSql, /Ejecutar solo despues de descargar el respaldo/i);
+  assert.match(authorizedSql, /No seleccionar ni ejecutar fragmentos/i);
+  assert.match(authorizedSql, /no volver a ejecutarlo/i);
+  assert.match(authorizedSql, /v_autorizacion constant text := 'AUTORIZO IDENTIDAD JUGADORES';/);
+  assert.doesNotMatch(authorizedSql, /PENDIENTE_AUTORIZACION/);
+  assert.match(
+    authorizedSql,
+    /^(?:\s|--[^\n]*\n)*begin\s*;/i,
+    "el SQL autorizado debe iniciar una transaccion"
+  );
+  assert.match(authorizedSql, /commit\s*;\s*$/i);
+  assert.equal((stripped.match(/\bcommit\s*;/gi) || []).length, 1);
+  assert.match(protectedSql, /PENDIENTE_AUTORIZACION/);
+  assert.match(protectedSql, /Aplicacion bloqueada/);
+
+  [
+    /v_jugadores_total <> 27/,
+    /v_inscripciones_total <> 27/,
+    /v_eventos_total <> 368/,
+    /v_eventos_vinculados <> 60/,
+    /v_eventos_pendientes <> 308/,
+    /v_goleadores_total <> 4/,
+    /v_eventos_referencias_rotas <> 0/,
+    /jugadores\.nombre_normalizado ya existe/,
+    /jugadores_aliases ya existe/,
+    /tp_normalizar_nombre_jugador\(text\) ya existe/,
+    /Validacion final fallo: jugadores normalizados no es 27/,
+    /Validacion final fallo: eventos vinculados no es 60/,
+    /Validacion final fallo: eventos pendientes no es 308/,
+    /Validacion final fallo: autogol historico no preservado/,
+    /Validacion final fallo: homonimos Sanchez no preservados/,
+    /Validacion final fallo: homonimos Sarco no preservados/
+  ].forEach(pattern => assert.match(authorizedSql, pattern));
+
+  assert.doesNotMatch(
+    authorizedSql,
+    /\b(update|insert\s+into|delete\s+from)\s+public\.(eventos_partido|partidos|torneos|clubes|inscripciones_jugadores|goleadores_oficiales)\b/i
+  );
+  assert.doesNotMatch(
+    authorizedSql,
+    /\binsert\s+into\s+public\.jugadores\b/i
+  );
+  assert.doesNotMatch(
+    authorizedSql,
+    /\bdelete\s+from\s+public\.jugadores\b/i
+  );
+  assert.doesNotMatch(
+    authorizedSql,
+    /unique\s*\(\s*nombre_normalizado\s*\)/i
+  );
+  assert.doesNotMatch(
+    authorizedSql,
+    /create\s+unique\s+index[\s\S]{0,160}nombre_normalizado/i
+  );
+  assert.doesNotMatch(
+    authorizedSql,
+    /grant\s+.*on\s+table\s+public\.jugadores_aliases\s+to\s+(anon|authenticated)/i
+  );
+}
+
 function makeBaseData(overrides = {}) {
   const data = {
     torneos: [
@@ -456,7 +544,9 @@ function runTests() {
   }
 
   {
+    assertManualBackupSql();
     assertManualPrevalidationSql();
+    assertAuthorizedApplySql();
     assertSingleJsonReadOnlySql(
       "sql/verificar-identidad-jugadores.sql",
       "verificacion_identidad_jugadores"
@@ -522,7 +612,34 @@ function runTests() {
       read("sql/verificar-identidad-jugadores.sql"),
       /eventos_pendientes_308/
     );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /hashes_posteriores/
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /jugadores_historico/
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /inscripciones_jugadores/
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /eventos_partido/
+    );
+    assert.match(
+      read("sql/verificar-identidad-jugadores.sql"),
+      /goleadores_oficiales/
+    );
+    const guide = read("docs/aplicar-identidad-jugadores-manualmente.md");
+    assert.match(guide, /respaldar-identidad-jugadores-manual\.sql/);
+    assert.match(guide, /aplicar-identidad-jugadores-autorizado\.sql/);
+    assert.match(guide, /verificar-identidad-jugadores\.sql/);
+    assert.match(guide, /eliminar del repositorio `sql\/aplicar-identidad-jugadores-autorizado\.sql`/);
+    assert.match(guide, /No hacer merge/);
     results.push("prevalidacion manual READ ONLY genera un unico JSON sin efectos laterales: ok");
+    results.push("respaldo, aplicacion autorizada temporal y verificacion manual quedan probados: ok");
     results.push("SQL protegido conserva Apertura/Clausura y restringe borrados: ok");
   }
 
