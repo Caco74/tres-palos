@@ -60,16 +60,6 @@ function stripSqlLineComments(sql) {
   return sql.replace(/--[^\n]*/g, "").trim();
 }
 
-function normalizeApplySqlForComparison(sql) {
-  return stripSqlLineComments(sql)
-    .replace(
-      /v_autorizacion constant text := 'AUTORIZO IDENTIDAD JUGADORES';/g,
-      "v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';"
-    )
-    .replace(/\r\n/g, "\n")
-    .trim();
-}
-
 function firstMatchIndex(value, patterns) {
   return patterns
     .map(pattern => {
@@ -179,7 +169,6 @@ function assertSingleJsonReadOnlySql(relativePath, columnName) {
 function assertCatalogNameTypeSafety() {
   const sqlFiles = [
     "sql/aplicar-identidad-jugadores.sql",
-    "sql/aplicar-identidad-jugadores-autorizado.sql",
     "sql/prevalidar-identidad-jugadores.sql",
     "sql/verificar-identidad-jugadores.sql",
     "sql/respaldar-identidad-jugadores-manual.sql"
@@ -205,8 +194,7 @@ function assertCatalogNameTypeSafety() {
   });
 
   [
-    "sql/aplicar-identidad-jugadores.sql",
-    "sql/aplicar-identidad-jugadores-autorizado.sql"
+    "sql/aplicar-identidad-jugadores.sql"
   ].forEach(relativePath => {
     const sql = read(relativePath);
     assert.match(
@@ -247,37 +235,27 @@ function assertManualBackupSql() {
   );
 }
 
-function assertAuthorizedApplySql() {
+function assertProtectedApplySql() {
   const protectedSql = read("sql/aplicar-identidad-jugadores.sql");
-  const authorizedSql = read("sql/aplicar-identidad-jugadores-autorizado.sql");
-  const stripped = stripSqlNoise(authorizedSql);
+  const stripped = stripSqlNoise(protectedSql);
 
-  assert.match(authorizedSql, /ARCHIVO TEMPORAL AUTORIZADO PARA APLICACION MANUAL/);
-  assert.match(authorizedSql, /debe eliminarse del repositorio antes del merge/i);
-  assert.match(authorizedSql, /Ejecutar solo despues de descargar el respaldo/i);
-  assert.match(authorizedSql, /No seleccionar ni ejecutar fragmentos/i);
-  assert.match(authorizedSql, /no volver a ejecutarlo/i);
-  assert.match(authorizedSql, /v_autorizacion constant text := 'AUTORIZO IDENTIDAD JUGADORES';/);
-  assert.doesNotMatch(authorizedSql, /PENDIENTE_AUTORIZACION/);
+  assert.match(protectedSql, /Aplicacion protegida de identidad unica de jugadores/);
+  assert.match(protectedSql, /No ejecutar esta version/);
+  assert.match(protectedSql, /v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';/);
   assert.match(
-    authorizedSql,
+    protectedSql,
     /^(?:\s|--[^\n]*\n)*begin\s*;/i,
-    "el SQL autorizado debe iniciar una transaccion"
+    "el SQL protegido debe iniciar una transaccion"
   );
-  assert.match(authorizedSql, /commit\s*;\s*$/i);
+  assert.match(protectedSql, /commit\s*;\s*$/i);
   assert.equal((stripped.match(/\bcommit\s*;/gi) || []).length, 1);
   assert.match(protectedSql, /PENDIENTE_AUTORIZACION/);
   assert.match(protectedSql, /Aplicacion bloqueada/);
-  assert.equal(
-    normalizeApplySqlForComparison(authorizedSql),
-    normalizeApplySqlForComparison(protectedSql),
-    "el SQL autorizado debe mantener la misma logica que el protegido"
-  );
 
-  const constraintValidationIndex = authorizedSql.indexOf(
+  const constraintValidationIndex = protectedSql.indexOf(
     "select array_agg(att.attname::text order by key_row.ordinalidad)"
   );
-  const firstStructuralIndex = firstMatchIndex(authorizedSql, [
+  const firstStructuralIndex = firstMatchIndex(protectedSql, [
     /\ncreate\s+or\s+replace\s+function\b/i,
     /\nalter\s+table\b/i,
     /\ncreate\s+table\b/i,
@@ -286,7 +264,7 @@ function assertAuthorizedApplySql() {
     /\ngrant\b/i,
     /\nrevoke\b/i
   ]);
-  const commitIndex = authorizedSql.toLowerCase().lastIndexOf("commit;");
+  const commitIndex = protectedSql.toLowerCase().lastIndexOf("commit;");
 
   assert.notEqual(constraintValidationIndex, -1);
   assert.ok(
@@ -315,32 +293,111 @@ function assertAuthorizedApplySql() {
     /Validacion final fallo: autogol historico no preservado/,
     /Validacion final fallo: homonimos Sanchez no preservados/,
     /Validacion final fallo: homonimos Sarco no preservados/
-  ].forEach(pattern => assert.match(authorizedSql, pattern));
+  ].forEach(pattern => assert.match(protectedSql, pattern));
 
   assert.doesNotMatch(
-    authorizedSql,
+    protectedSql,
     /\b(update|insert\s+into|delete\s+from)\s+public\.(eventos_partido|partidos|torneos|clubes|inscripciones_jugadores|goleadores_oficiales)\b/i
   );
   assert.doesNotMatch(
-    authorizedSql,
+    protectedSql,
     /\binsert\s+into\s+public\.jugadores\b/i
   );
   assert.doesNotMatch(
-    authorizedSql,
+    protectedSql,
     /\bdelete\s+from\s+public\.jugadores\b/i
   );
   assert.doesNotMatch(
-    authorizedSql,
+    protectedSql,
     /unique\s*\(\s*nombre_normalizado\s*\)/i
   );
   assert.doesNotMatch(
-    authorizedSql,
+    protectedSql,
     /create\s+unique\s+index[\s\S]{0,160}nombre_normalizado/i
   );
   assert.doesNotMatch(
-    authorizedSql,
+    protectedSql,
     /grant\s+.*on\s+table\s+public\.jugadores_aliases\s+to\s+(anon|authenticated)/i
   );
+}
+
+function assertTemporaryAuthorizedFileRemoved() {
+  const relativePath = "sql/aplicar-identidad-jugadores-autorizado.sql";
+
+  assert.equal(
+    fs.existsSync(path.join(ROOT, relativePath)),
+    false,
+    "el SQL temporal autorizado no debe existir en el working tree"
+  );
+}
+
+function assertDocumentationAppliedAndVerified() {
+  const identityDoc = read("docs/identidad-jugadores.md");
+  const manualDoc = read("docs/aplicar-identidad-jugadores-manualmente.md");
+  const report = read("reports/identidad-jugadores-prevalidacion.md");
+  const combined = `${identityDoc}\n${manualDoc}\n${report}`;
+
+  assert.match(combined, /migracion fue aplicada manualmente/i);
+  assert.match(combined, /verificacion posterior devolvio `ok: true`/i);
+  assert.match(combined, /30 controles pasaron/i);
+  assert.match(combined, /eventos modificados: 0/i);
+  assert.match(combined, /inscripciones modificadas: 0/i);
+  assert.match(combined, /goleadores modificados: 0/i);
+  assert.match(combined, /308 eventos historicos continuan pendientes/i);
+  assert.match(combined, /inscripcion_jugador_id/i);
+  assert.match(combined, /panel administrativo todavia no fue adaptado/i);
+  assert.match(combined, /no se deben cargar nombres libres del Clausura/i);
+  assert.match(combined, /eaccea24a78762ecea616417356660c7/);
+  assert.match(combined, /09b3ea7a7e94e4c0fb505c40b762e09a/);
+  assert.match(combined, /c40a4eb88526fbb6bb377f2ab9507916/);
+  assert.match(combined, /593ed9ecd9ca732561c6a313ca9c3ba9/);
+  assert.match(combined, /5471416c0a96d480bb64fe5dfd24e88d/);
+}
+
+function listFiles(relativeDir) {
+  const absoluteDir = path.join(ROOT, relativeDir);
+  if (!fs.existsSync(absoluteDir)) return [];
+
+  return fs.readdirSync(absoluteDir, { withFileTypes: true }).flatMap(entry => {
+    const relativePath = path.join(relativeDir, entry.name).replace(/\\/g, "/");
+    if (entry.isDirectory()) return listFiles(relativePath);
+    return [relativePath];
+  });
+}
+
+function assertNoExportArtifactsOrSecrets() {
+  const reviewFiles = [
+    ...listFiles("docs"),
+    ...listFiles("reports"),
+    ...listFiles("scripts"),
+    ...listFiles("sql"),
+    ...listFiles("tests")
+  ];
+  const forbiddenArtifacts = reviewFiles.filter(relativePath =>
+    /\.csv$/i.test(relativePath) ||
+    /identidad-jugadores-pre-aplicacion-\d{8,}.*\.json$/i.test(relativePath)
+  );
+
+  assert.deepEqual(
+    forbiddenArtifacts,
+    [],
+    "no deben quedar CSV ni exportaciones temporales en los archivos del PR"
+  );
+
+  const identityFiles = reviewFiles.filter(relativePath =>
+    /^(docs|reports|scripts|sql|tests)\//.test(relativePath) &&
+    /identidad-jugadores|jugadores-historicos/.test(relativePath)
+  );
+  const secretPattern =
+    /\b(SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE|ANON_KEY|JWT_SECRET|DATABASE_URL|PASSWORD)\b\s*[:=]|eyJ[A-Za-z0-9_-]{20,}|postgres(?:ql)?:\/\/|Bearer\s+[A-Za-z0-9_.-]{20,}/i;
+
+  identityFiles.forEach(relativePath => {
+    assert.doesNotMatch(
+      read(relativePath),
+      secretPattern,
+      `${relativePath} no debe contener secretos ni credenciales`
+    );
+  });
 }
 
 function makeBaseData(overrides = {}) {
@@ -651,9 +708,10 @@ function runTests() {
   }
 
   {
+    assertTemporaryAuthorizedFileRemoved();
     assertManualBackupSql();
     assertManualPrevalidationSql();
-    assertAuthorizedApplySql();
+    assertProtectedApplySql();
     assertSingleJsonReadOnlySql(
       "sql/verificar-identidad-jugadores.sql",
       "verificacion_identidad_jugadores"
@@ -742,12 +800,14 @@ function runTests() {
     );
     const guide = read("docs/aplicar-identidad-jugadores-manualmente.md");
     assert.match(guide, /respaldar-identidad-jugadores-manual\.sql/);
-    assert.match(guide, /aplicar-identidad-jugadores-autorizado\.sql/);
+    assert.match(guide, /aplicar-identidad-jugadores\.sql/);
     assert.match(guide, /verificar-identidad-jugadores\.sql/);
-    assert.match(guide, /eliminar del repositorio `sql\/aplicar-identidad-jugadores-autorizado\.sql`/);
+    assert.match(guide, /archivo temporal autorizado fue eliminado/);
     assert.match(guide, /No hacer merge/);
+    assertDocumentationAppliedAndVerified();
+    assertNoExportArtifactsOrSecrets();
     results.push("prevalidacion manual READ ONLY genera un unico JSON sin efectos laterales: ok");
-    results.push("respaldo, aplicacion autorizada temporal y verificacion manual quedan probados: ok");
+    results.push("respaldo, aplicacion manual verificada y limpieza final quedan probados: ok");
     results.push("SQL protegido conserva Apertura/Clausura y restringe borrados: ok");
   }
 

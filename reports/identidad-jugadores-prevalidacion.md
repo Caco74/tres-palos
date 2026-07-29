@@ -211,12 +211,66 @@ Backfill:
 - Los homonimos confirmados exigen evitar cualquier unicidad global por nombre
   normalizado.
 
+## Aplicacion manual posterior
+
+La migracion fue aplicada manualmente en Supabase produccion desde SQL Editor.
+Codex no ejecuto SQL remoto en esta tarea.
+
+Despues de la aplicacion se ejecuto `sql/verificar-identidad-jugadores.sql`.
+La verificacion posterior devolvio `ok: true`; los 30 controles pasaron y los
+controles fallidos fueron 0.
+
+Resultado confirmado:
+
+| control | resultado |
+|---|---:|
+| jugadores | 27 |
+| jugadores normalizados | 27 |
+| inscripciones | 27 |
+| eventos | 368 |
+| eventos vinculados | 60 |
+| eventos pendientes | 308 |
+| goleadores oficiales | 4 |
+| autogoles | 1 |
+| referencias rotas | 0 |
+
+No se modificaron eventos, inscripciones, resultados ni goleadores. Los 308
+eventos historicos continuan pendientes de vinculacion manual.
+
+La estructura nueva quedo confirmada:
+
+- `jugadores.nombre_normalizado` existe;
+- `tp_normalizar_nombre_jugador(text)` existe;
+- `jugadores_aliases` existe;
+- filas de aliases: 0;
+- RLS de aliases habilitado;
+- aliases sin lectura publica;
+- aliases sin escritura publica;
+- indices esperados: 8;
+- triggers esperados: 3;
+- FKs esperadas en eventos: 2;
+- `UNIQUE(nombre_normalizado)` global: no.
+
+Hashes posteriores registrados:
+
+| area | hash |
+|---|---|
+| `eventos_partido` | `eaccea24a78762ecea616417356660c7` |
+| `inscripciones_jugadores` | `09b3ea7a7e94e4c0fb505c40b762e09a` |
+| `goleadores_oficiales` | `c40a4eb88526fbb6bb377f2ab9507916` |
+| jugadores historicos | `593ed9ecd9ca732561c6a313ca9c3ba9` |
+| jugadores con nombre normalizado | `5471416c0a96d480bb64fe5dfd24e88d` |
+
+El archivo temporal autorizado fue eliminado del repositorio. El SQL protegido
+`sql/aplicar-identidad-jugadores.sql` se conserva bloqueado contra ejecucion
+accidental.
+
 ## Recomendacion final
 
-La migracion queda preparada para una futura autorizacion manual, sujeta a
-ejecutar primero un respaldo seguro y revisar `sql/aplicar-identidad-jugadores.sql`.
-
-No ejecutar aun una version desbloqueada desde este repositorio.
+Dejar el Draft PR listo para revision final. El panel administrativo todavia no
+fue adaptado; los nuevos eventos del Clausura deberan crearse por
+`inscripcion_jugador_id` y no se deben cargar nombres libres del Clausura hasta
+completar el siguiente PR del admin.
 
 ## Seguridad
 

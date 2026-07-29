@@ -1,82 +1,116 @@
 # Aplicar identidad de jugadores manualmente
 
-Esta guia es para ejecutar la migracion desde Supabase SQL Editor. No usar
-credenciales en el chat y no ejecutar comandos desde Codex.
+Esta guia queda como registro operativo de la aplicacion manual ya realizada en
+Supabase produccion. No usar credenciales en el chat y no ejecutar comandos SQL
+desde Codex.
 
-## Reintento despues del fallo 42883
+## Estado final
 
-El intento manual anterior fallo en una validacion previa de
-`inscripciones_jugadores` por comparar `name[]` con `text[]`.
+La migracion fue aplicada manualmente desde Supabase SQL Editor.
 
-El error ocurrio dentro del primer bloque `DO`, antes de cualquier `ALTER`,
-`CREATE`, `GRANT`, `REVOKE`, cambio de RLS o `COMMIT`. PostgreSQL aborta la
-transaccion completa ante ese error, por lo que no deberia existir una
-aplicacion parcial confirmada.
-
-Antes de volver a ejecutar el SQL autorizado, ejecutar nuevamente la
-prevalidacion de solo lectura:
-
-`sql/prevalidar-identidad-jugadores.sql`
-
-Continuar solo si confirma que produccion sigue sin `jugadores.nombre_normalizado`,
-sin `jugadores_aliases`, sin `tp_normalizar_nombre_jugador(text)` y con los
-conteos deportivos esperados.
-
-## Paso 1: respaldo
-
-Ejecutar completo:
-
-`sql/respaldar-identidad-jugadores-manual.sql`
-
-Descargar el resultado como CSV y guardarlo fuera de Git. No continuar si el
-respaldo no se pudo descargar.
-
-## Paso 2: aplicacion
-
-Ejecutar completo:
-
-`sql/aplicar-identidad-jugadores-autorizado.sql`
-
-No seleccionar fragmentos.
-
-Si aparece un error:
-
-- no volver a ejecutarlo;
-- copiar unicamente el mensaje del error;
-- detener el proceso.
-
-## Paso 3: verificacion
-
-Ejecutar completo:
+Despues se ejecuto:
 
 `sql/verificar-identidad-jugadores.sql`
 
-Descargar el resultado como CSV.
+La verificacion posterior devolvio `ok: true`; los 30 controles pasaron y no
+hubo controles fallidos.
 
-## Paso 4: comparar
+## Archivos del PR
 
-Comparar las cantidades y hashes del respaldo con la verificacion posterior.
+Conservar:
 
-Valores esperados:
+- `sql/aplicar-identidad-jugadores.sql`;
+- `sql/prevalidar-identidad-jugadores.sql`;
+- `sql/verificar-identidad-jugadores.sql`;
+- `sql/respaldar-identidad-jugadores-manual.sql`;
+- scripts de auditoria y respaldo;
+- tests;
+- documentacion;
+- informes tecnicos.
 
-- jugadores: 27;
-- inscripciones: 27;
-- eventos: 368;
-- eventos vinculados: 60;
-- eventos pendientes: 308;
-- goleadores oficiales: 4;
-- autogoles: 1;
-- referencias rotas: 0.
+El archivo temporal autorizado fue eliminado del repositorio despues de la
+verificacion exitosa. El SQL protegido sigue existiendo y permanece bloqueado
+contra ejecucion accidental mediante `PENDIENTE_AUTORIZACION`.
 
-No hacer merge hasta que la verificacion sea aprobada.
+## Resultado verificado
 
-## Paso 5: limpieza
+| control | resultado |
+|---|---:|
+| `ok` | `true` |
+| controles ejecutados | 30 |
+| controles fallidos | 0 |
+| jugadores | 27 |
+| jugadores normalizados | 27 |
+| inscripciones | 27 |
+| eventos | 368 |
+| eventos vinculados | 60 |
+| eventos pendientes | 308 |
+| goleadores oficiales | 4 |
+| autogoles | 1 |
+| referencias rotas | 0 |
 
-Despues de una verificacion exitosa:
+No se modificaron eventos, inscripciones, resultados ni goleadores.
 
-- eliminar del repositorio `sql/aplicar-identidad-jugadores-autorizado.sql`;
-- conservar `sql/aplicar-identidad-jugadores.sql`;
-- conservar los SQL de respaldo y verificacion;
-- conservar documentacion y tests;
-- hacer un commit de limpieza;
-- recien entonces dejar el PR listo para revision.
+## Hashes posteriores registrados
+
+| area | hash |
+|---|---|
+| `eventos_partido` | `eaccea24a78762ecea616417356660c7` |
+| `inscripciones_jugadores` | `09b3ea7a7e94e4c0fb505c40b762e09a` |
+| `goleadores_oficiales` | `c40a4eb88526fbb6bb377f2ab9507916` |
+| jugadores historicos | `593ed9ecd9ca732561c6a313ca9c3ba9` |
+| jugadores con nombre normalizado | `5471416c0a96d480bb64fe5dfd24e88d` |
+
+## Confirmaciones de integridad
+
+La verificacion confirmo:
+
+- IDs de jugadores preservados;
+- nombres publicos preservados;
+- `Sanchez` IDs 11 y 25 preservados;
+- `Sarco` IDs 20 y 21 preservados;
+- inscripciones intactas;
+- eventos intactos;
+- tipos de eventos intactos;
+- texto historico intacto;
+- goleadores oficiales intactos;
+- autogol de `ANGELETTI JOAQUIN` preservado;
+- `UNIQUE(nombre_normalizado)` global: no;
+- `jugadores_aliases` con RLS habilitado;
+- aliases sin lectura publica;
+- aliases sin escritura publica.
+
+## Pendientes operativos
+
+Los 308 eventos historicos continuan pendientes de vinculacion manual. No
+migrarlos por similitud textual.
+
+Los nuevos eventos del Clausura deberan crearse por `inscripcion_jugador_id`.
+El panel administrativo todavia no fue adaptado. No se deben cargar nombres
+libres del Clausura hasta completar el siguiente PR del admin.
+
+## Respaldo y verificacion
+
+Los CSV de respaldo y verificacion no deben guardarse en Git.
+
+No guardar en Git:
+
+- CSV del respaldo;
+- CSV de verificacion;
+- datos exportados;
+- secretos;
+- credenciales.
+
+## Cierre del PR
+
+Antes de merge:
+
+- confirmar que `sql/aplicar-identidad-jugadores.sql` sigue protegido;
+- confirmar que el archivo temporal autorizado fue eliminado;
+- confirmar que respaldo, prevalidacion y verificacion siguen siendo
+  `READ ONLY`;
+- ejecutar suite completa y pruebas de identidad;
+- revisar secretos;
+- revisar alcance.
+
+No hacer merge hasta que el Draft PR sea aprobado.
