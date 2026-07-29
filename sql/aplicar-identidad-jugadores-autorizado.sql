@@ -130,12 +130,12 @@ begin
       and cls.relname = 'inscripciones_jugadores'
       and con.contype in ('u', 'p')
       and (
-        select array_agg(att.attname order by key_row.ordinalidad)
+        select array_agg(att.attname::text order by key_row.ordinalidad)
         from unnest(con.conkey) with ordinality as key_row(attnum, ordinalidad)
         join pg_attribute att
           on att.attrelid = con.conrelid
          and att.attnum = key_row.attnum
-      ) = array['jugador_id', 'club_id', 'torneo_id']
+      ) = array['jugador_id', 'club_id', 'torneo_id']::text[]
   ) then
     raise exception
       'No se encontro la restriccion unica esperada en inscripciones_jugadores.';
@@ -1015,4 +1015,5 @@ begin
   end if;
 end;
 $$;
+
 commit;

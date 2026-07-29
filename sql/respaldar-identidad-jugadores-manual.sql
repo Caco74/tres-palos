@@ -222,7 +222,7 @@ structure_indexes as (
   join pg_class index_cls
     on index_cls.oid = index_row.indexrelid
   left join lateral (
-    select jsonb_agg(att.attname order by key_row.ordinalidad) as data
+    select jsonb_agg(att.attname::text order by key_row.ordinalidad) as data
     from unnest(index_row.indkey)
       with ordinality as key_row(attnum, ordinalidad)
     join pg_attribute att

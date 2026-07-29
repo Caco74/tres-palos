@@ -119,12 +119,12 @@ begin
       and cls.relname = 'inscripciones_jugadores'
       and con.contype in ('u', 'p')
       and (
-        select array_agg(att.attname order by key_row.ordinalidad)
+        select array_agg(att.attname::text order by key_row.ordinalidad)
         from unnest(con.conkey) with ordinality as key_row(attnum, ordinalidad)
         join pg_attribute att
           on att.attrelid = con.conrelid
          and att.attnum = key_row.attnum
-      ) = array['jugador_id', 'club_id', 'torneo_id']
+      ) = array['jugador_id', 'club_id', 'torneo_id']::text[]
   ) then
     raise exception
       'No se encontro la restriccion unica esperada en inscripciones_jugadores.';
@@ -773,5 +773,236 @@ comment on column public.eventos_partido.inscripcion_jugador_id is
 
 comment on function public.tp_validar_evento_inscripcion_jugador() is
   'Valida torneo y participacion del club de la inscripcion sin exigir que coincida con equipo_id, para contemplar autogoles.';
+
+
+do $$
+declare
+  v_referencias_rotas integer;
+begin
+  if (select count(*) from public.jugadores) <> 27 then
+    raise exception 'Validacion final fallo: jugadores no es 27.';
+  end if;
+
+  if (
+    select count(*)
+    from public.jugadores
+    where nombre_normalizado is not null
+      and btrim(nombre_normalizado) <> ''
+  ) <> 27 then
+    raise exception 'Validacion final fallo: jugadores normalizados no es 27.';
+  end if;
+
+  if exists (
+    select 1
+    from public.jugadores
+    where nombre_normalizado is distinct from btrim(nombre_normalizado)
+  ) then
+    raise exception 'Validacion final fallo: hay nombres normalizados con espacios de borde.';
+  end if;
+
+  if public.tp_normalizar_nombre_jugador(U&'JOAQU\00CDN  CARRIZO.') <> 'joaquin carrizo' then
+    raise exception 'Validacion final fallo: normalizacion con tilde y punto.';
+  end if;
+
+  if public.tp_normalizar_nombre_jugador(null) is not null then
+    raise exception 'Validacion final fallo: la normalizacion no preserva NULL.';
+  end if;
+
+  if public.tp_normalizar_nombre_jugador('joaquin carrizo') <> 'joaquin carrizo' then
+    raise exception 'Validacion final fallo: normalizacion no idempotente.';
+  end if;
+
+  if (select count(*) from public.inscripciones_jugadores) <> 27 then
+    raise exception 'Validacion final fallo: inscripciones no es 27.';
+  end if;
+
+  if (select count(*) from public.eventos_partido) <> 368 then
+    raise exception 'Validacion final fallo: eventos no es 368.';
+  end if;
+
+  if (
+    select count(*)
+    from public.eventos_partido
+    where inscripcion_jugador_id is not null
+  ) <> 60 then
+    raise exception 'Validacion final fallo: eventos vinculados no es 60.';
+  end if;
+
+  if (
+    select count(*)
+    from public.eventos_partido
+    where inscripcion_jugador_id is null
+  ) <> 308 then
+    raise exception 'Validacion final fallo: eventos pendientes no es 308.';
+  end if;
+
+  if (
+    select count(*)
+    from public.eventos_partido
+    where btrim(coalesce(jugador, '')) <> ''
+  ) <> 368 then
+    raise exception 'Validacion final fallo: texto historico no es 368.';
+  end if;
+
+  if (select count(*) from public.goleadores_oficiales) <> 4 then
+    raise exception 'Validacion final fallo: goleadores_oficiales no es 4.';
+  end if;
+
+  if (
+    select count(*)
+    from public.eventos_partido
+    where tipo = 'gol_en_contra'
+      and jugador = 'ANGELETTI JOAQUIN'
+  ) <> 1 then
+    raise exception 'Validacion final fallo: autogol historico no preservado.';
+  end if;
+
+  select count(*)
+  into v_referencias_rotas
+  from public.eventos_partido evento
+  where (
+      evento.partido_id is not null
+      and not exists (
+        select 1 from public.partidos partido
+        where partido.id = evento.partido_id
+      )
+    )
+    or (
+      evento.equipo_id is not null
+      and not exists (
+        select 1 from public.clubes club
+        where club.id = evento.equipo_id
+      )
+    )
+    or (
+      evento.inscripcion_jugador_id is not null
+      and not exists (
+        select 1 from public.inscripciones_jugadores inscripcion
+        where inscripcion.id = evento.inscripcion_jugador_id
+      )
+    )
+    or (
+      evento.inscripcion_relacionada_id is not null
+      and not exists (
+        select 1 from public.inscripciones_jugadores inscripcion
+        where inscripcion.id = evento.inscripcion_relacionada_id
+      )
+    );
+
+  if v_referencias_rotas <> 0 then
+    raise exception 'Validacion final fallo: referencias rotas %.', v_referencias_rotas;
+  end if;
+
+  if (
+    select array_agg(id order by id)
+    from public.jugadores
+    where public.tp_normalizar_nombre_jugador(nombre_completo) = 'sanchez'
+  ) <> array[11::bigint, 25::bigint] then
+    raise exception 'Validacion final fallo: homonimos Sanchez no preservados.';
+  end if;
+
+  if (
+    select array_agg(id order by id)
+    from public.jugadores
+    where public.tp_normalizar_nombre_jugador(nombre_completo) = 'sarco'
+  ) <> array[20::bigint, 21::bigint] then
+    raise exception 'Validacion final fallo: homonimos Sarco no preservados.';
+  end if;
+
+  if exists (
+    select 1
+    from pg_index index_row
+    join pg_class table_cls
+      on table_cls.oid = index_row.indrelid
+    join pg_namespace ns
+      on ns.oid = table_cls.relnamespace
+    join lateral unnest(index_row.indkey) as index_key(attnum)
+      on true
+    join pg_attribute att
+      on att.attrelid = table_cls.oid
+     and att.attnum = index_key.attnum
+    where ns.nspname = 'public'
+      and table_cls.relname = 'jugadores'
+      and index_row.indisunique
+      and att.attname = 'nombre_normalizado'
+  ) then
+    raise exception 'Validacion final fallo: existe UNIQUE global por nombre_normalizado.';
+  end if;
+
+  if to_regclass('public.jugadores_aliases') is null then
+    raise exception 'Validacion final fallo: jugadores_aliases no existe.';
+  end if;
+
+  if not coalesce((
+    select relrowsecurity
+    from pg_class cls
+    join pg_namespace ns
+      on ns.oid = cls.relnamespace
+    where ns.nspname = 'public'
+      and cls.relname = 'jugadores_aliases'
+  ), false) then
+    raise exception 'Validacion final fallo: RLS de jugadores_aliases no esta habilitado.';
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.role_table_grants grant_row
+    where grant_row.table_schema = 'public'
+      and grant_row.table_name = 'jugadores_aliases'
+      and grant_row.grantee in ('anon', 'authenticated', 'public')
+      and grant_row.privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')
+  ) then
+    raise exception 'Validacion final fallo: jugadores_aliases tiene permisos publicos inesperados.';
+  end if;
+
+  if (select count(*) from public.jugadores_aliases) <> 0 then
+    raise exception 'Validacion final fallo: aliases migrados no es 0.';
+  end if;
+
+  if (
+    select count(*)
+    from (
+      values
+        ('public.jugadores_nombre_normalizado_idx'),
+        ('public.jugadores_aliases_jugador_idx'),
+        ('public.jugadores_aliases_busqueda_idx'),
+        ('public.jugadores_aliases_contexto_unico_idx'),
+        ('public.eventos_partido_inscripcion_idx'),
+        ('public.eventos_partido_inscripcion_relacionada_idx'),
+        ('public.inscripciones_jugador_torneo_idx'),
+        ('public.inscripciones_torneo_club_estado_idx')
+    ) expected(index_name)
+    where to_regclass(expected.index_name) is not null
+  ) <> 8 then
+    raise exception 'Validacion final fallo: indices esperados incompletos.';
+  end if;
+
+  if (
+    select count(*)
+    from pg_trigger trigger_row
+    where trigger_row.tgname in (
+        'jugadores_normalizar_nombre',
+        'jugadores_aliases_normalizar',
+        'eventos_partido_validar_inscripcion_jugador'
+      )
+      and not trigger_row.tgisinternal
+  ) <> 3 then
+    raise exception 'Validacion final fallo: triggers esperados incompletos.';
+  end if;
+
+  if (
+    select count(*)
+    from pg_constraint con
+    where con.conrelid = 'public.eventos_partido'::regclass
+      and con.contype = 'f'
+      and con.conname in (
+        'eventos_partido_inscripcion_fk',
+        'eventos_partido_inscripcion_relacionada_fk'
+      )
+  ) <> 2 then
+    raise exception 'Validacion final fallo: FKs esperadas incompletas.';
+  end if;
+end;
+$$;
 
 commit;

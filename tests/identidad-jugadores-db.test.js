@@ -56,6 +56,30 @@ function stripSqlNoise(sql) {
     .replace(/\$[A-Za-z0-9_]*\$[\s\S]*?\$[A-Za-z0-9_]*\$/g, "$$BODY$$");
 }
 
+function stripSqlLineComments(sql) {
+  return sql.replace(/--[^\n]*/g, "").trim();
+}
+
+function normalizeApplySqlForComparison(sql) {
+  return stripSqlLineComments(sql)
+    .replace(
+      /v_autorizacion constant text := 'AUTORIZO IDENTIDAD JUGADORES';/g,
+      "v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';"
+    )
+    .replace(/\r\n/g, "\n")
+    .trim();
+}
+
+function firstMatchIndex(value, patterns) {
+  return patterns
+    .map(pattern => {
+      const match = value.match(pattern);
+      return match ? match.index : -1;
+    })
+    .filter(index => index >= 0)
+    .reduce((minimum, index) => Math.min(minimum, index), Infinity);
+}
+
 function assertReadOnlySql(relativePath) {
   const stripped = stripSqlNoise(read(relativePath));
   assert.doesNotMatch(
@@ -106,6 +130,10 @@ function assertManualPrevalidationSql() {
   assert.match(sql, /'goleadores_oficiales'/);
   assert.match(sql, /'estructura_auxiliar'/);
   assert.match(sql, /'comparacion'/);
+  assert.match(sql, /'estado_esperado_post_fallo'/);
+  assert.match(sql, /'jugadores_nombre_normalizado'/);
+  assert.match(sql, /'jugadores_aliases'/);
+  assert.match(sql, /'tp_normalizar_nombre_jugador'/);
   assert.match(sql, /'maximo_registros_por_muestra',\s*10/);
   assert.doesNotMatch(
     sql,
@@ -146,6 +174,56 @@ function assertSingleJsonReadOnlySql(relativePath, columnName) {
   );
   assert.match(stripped, /\bjsonb_build_object\s*\(/i);
   assertReadOnlySql(relativePath);
+}
+
+function assertCatalogNameTypeSafety() {
+  const sqlFiles = [
+    "sql/aplicar-identidad-jugadores.sql",
+    "sql/aplicar-identidad-jugadores-autorizado.sql",
+    "sql/prevalidar-identidad-jugadores.sql",
+    "sql/verificar-identidad-jugadores.sql",
+    "sql/respaldar-identidad-jugadores-manual.sql"
+  ];
+
+  sqlFiles.forEach(relativePath => {
+    const sql = read(relativePath);
+    assert.doesNotMatch(
+      sql,
+      /array_agg\s*\(\s*att\.attname\s+order\b/i,
+      `${relativePath} no debe agregar pg_attribute.attname como name[]`
+    );
+    assert.doesNotMatch(
+      sql,
+      /array_agg\s*\(\s*att\.attname(?!::text)[\s\S]{0,220}\)\s*=\s*array\[/i,
+      `${relativePath} no debe comparar name[] con arrays literales`
+    );
+    assert.doesNotMatch(
+      sql,
+      /att\.attname\s*=\s*[^'\n;]+::text\b/i,
+      `${relativePath} no debe comparar pg_attribute.attname directamente con text`
+    );
+  });
+
+  [
+    "sql/aplicar-identidad-jugadores.sql",
+    "sql/aplicar-identidad-jugadores-autorizado.sql"
+  ].forEach(relativePath => {
+    const sql = read(relativePath);
+    assert.match(
+      sql,
+      /array_agg\s*\(\s*att\.attname::text\s+order by key_row\.ordinalidad\s*\)[\s\S]{0,260}=\s*array\['jugador_id', 'club_id', 'torneo_id'\]::text\[\]/i,
+      `${relativePath} debe validar la constraint de inscripciones como text[] ordenado`
+    );
+  });
+
+  assert.match(
+    read("sql/prevalidar-identidad-jugadores.sql"),
+    /jsonb_agg\s*\(\s*att\.attname::text\s+order by key_row\.ordinalidad\s*\)/i
+  );
+  assert.match(
+    read("sql/respaldar-identidad-jugadores-manual.sql"),
+    /jsonb_agg\s*\(\s*att\.attname::text\s+order by key_row\.ordinalidad\s*\)/i
+  );
 }
 
 function assertManualBackupSql() {
@@ -190,6 +268,35 @@ function assertAuthorizedApplySql() {
   assert.equal((stripped.match(/\bcommit\s*;/gi) || []).length, 1);
   assert.match(protectedSql, /PENDIENTE_AUTORIZACION/);
   assert.match(protectedSql, /Aplicacion bloqueada/);
+  assert.equal(
+    normalizeApplySqlForComparison(authorizedSql),
+    normalizeApplySqlForComparison(protectedSql),
+    "el SQL autorizado debe mantener la misma logica que el protegido"
+  );
+
+  const constraintValidationIndex = authorizedSql.indexOf(
+    "select array_agg(att.attname::text order by key_row.ordinalidad)"
+  );
+  const firstStructuralIndex = firstMatchIndex(authorizedSql, [
+    /\ncreate\s+or\s+replace\s+function\b/i,
+    /\nalter\s+table\b/i,
+    /\ncreate\s+table\b/i,
+    /\ncreate\s+(?:unique\s+)?index\b/i,
+    /\ncreate\s+trigger\b/i,
+    /\ngrant\b/i,
+    /\nrevoke\b/i
+  ]);
+  const commitIndex = authorizedSql.toLowerCase().lastIndexOf("commit;");
+
+  assert.notEqual(constraintValidationIndex, -1);
+  assert.ok(
+    constraintValidationIndex < firstStructuralIndex,
+    "la validacion de constraint debe ejecutarse antes de cambios estructurales"
+  );
+  assert.ok(
+    constraintValidationIndex < commitIndex,
+    "la validacion de constraint debe ejecutarse antes del COMMIT"
+  );
 
   [
     /v_jugadores_total <> 27/,
@@ -551,6 +658,7 @@ function runTests() {
       "sql/verificar-identidad-jugadores.sql",
       "verificacion_identidad_jugadores"
     );
+    assertCatalogNameTypeSafety();
     assertReadOnlySql("sql/prevalidar-identidad-jugadores.sql");
     assertReadOnlySql("sql/verificar-identidad-jugadores.sql");
 

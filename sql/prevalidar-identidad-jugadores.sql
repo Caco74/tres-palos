@@ -119,7 +119,7 @@ constraints_catalog as (
     con.conname as nombre,
     con.contype as tipo,
     coalesce((
-      select jsonb_agg(att.attname order by key_row.ordinalidad)
+      select jsonb_agg(att.attname::text order by key_row.ordinalidad)
       from unnest(con.conkey) with ordinality as key_row(attnum, ordinalidad)
       join pg_attribute att
         on att.attrelid = con.conrelid
@@ -127,7 +127,7 @@ constraints_catalog as (
     ), '[]'::jsonb) as columnas,
     referenced_cls.relname as tabla_referenciada,
     coalesce((
-      select jsonb_agg(att.attname order by key_row.ordinalidad)
+      select jsonb_agg(att.attname::text order by key_row.ordinalidad)
       from unnest(con.confkey) with ordinality as key_row(attnum, ordinalidad)
       join pg_attribute att
         on att.attrelid = con.confrelid
@@ -194,7 +194,7 @@ indexes_catalog as (
     index_row.indisunique as es_unico,
     index_row.indisvalid as es_valido,
     coalesce(
-      jsonb_agg(att.attname order by index_key.ordinalidad)
+      jsonb_agg(att.attname::text order by index_key.ordinalidad)
         filter (where att.attname is not null),
       '[]'::jsonb
     ) as columnas,
@@ -1061,6 +1061,81 @@ select jsonb_build_object(
   'goleadores_oficiales', (select data from goleadores_resumen),
   'estructura_auxiliar', (select data from auxiliary_structure),
   'comparacion', (select data from comparison_signals),
+  'estado_esperado_post_fallo', jsonb_build_object(
+    'objetivo',
+    'confirmar que produccion sigue en estado previo a la migracion',
+    'conteos_esperados', jsonb_build_object(
+      'jugadores', 27,
+      'jugadores_activos', 27,
+      'inscripciones_jugadores', 27,
+      'eventos_partido', 368,
+      'eventos_con_inscripcion_jugador_id', 60,
+      'eventos_sin_inscripcion_jugador_id', 308,
+      'eventos_con_texto_historico', 368,
+      'goleadores_oficiales', 4,
+      'autogoles', 1,
+      'referencias_rotas', 0
+    ),
+    'estructura_nueva_detectada', jsonb_build_object(
+      'jugadores_nombre_normalizado', exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'jugadores'
+          and column_name = 'nombre_normalizado'
+      ),
+      'jugadores_aliases', to_regclass('public.jugadores_aliases') is not null,
+      'tp_normalizar_nombre_jugador', to_regprocedure(
+        'public.tp_normalizar_nombre_jugador(text)'
+      ) is not null,
+      'funciones_auxiliares', (
+        select count(*)
+        from (
+          values
+            ('public.tp_jugadores_normalizar_trigger()'),
+            ('public.tp_jugadores_aliases_normalizar_trigger()'),
+            ('public.tp_validar_evento_inscripcion_jugador()')
+        ) expected(regprocedure_name)
+        where to_regprocedure(expected.regprocedure_name) is not null
+      ),
+      'triggers_nuevos', (
+        select count(*)
+        from pg_trigger trigger_row
+        where trigger_row.tgname in (
+            'jugadores_normalizar_nombre',
+            'jugadores_aliases_normalizar',
+            'eventos_partido_validar_inscripcion_jugador'
+          )
+          and not trigger_row.tgisinternal
+      ),
+      'indices_nuevos', (
+        select count(*)
+        from (
+          values
+            ('public.jugadores_nombre_normalizado_idx'),
+            ('public.jugadores_aliases_jugador_idx'),
+            ('public.jugadores_aliases_busqueda_idx'),
+            ('public.jugadores_aliases_contexto_unico_idx'),
+            ('public.eventos_partido_inscripcion_idx'),
+            ('public.eventos_partido_inscripcion_relacionada_idx'),
+            ('public.inscripciones_jugador_torneo_idx'),
+            ('public.inscripciones_torneo_club_estado_idx')
+        ) expected(index_name)
+        where to_regclass(expected.index_name) is not null
+      )
+    ),
+    'estado_pre_migracion_probable', (
+      not exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'jugadores'
+          and column_name = 'nombre_normalizado'
+      )
+      and to_regclass('public.jugadores_aliases') is null
+      and to_regprocedure('public.tp_normalizar_nombre_jugador(text)') is null
+    )
+  ),
   'privacidad', jsonb_build_object(
     'incluye_secretos', false,
     'incluye_connection_strings', false,

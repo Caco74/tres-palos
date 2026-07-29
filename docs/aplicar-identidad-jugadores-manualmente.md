@@ -3,6 +3,25 @@
 Esta guia es para ejecutar la migracion desde Supabase SQL Editor. No usar
 credenciales en el chat y no ejecutar comandos desde Codex.
 
+## Reintento despues del fallo 42883
+
+El intento manual anterior fallo en una validacion previa de
+`inscripciones_jugadores` por comparar `name[]` con `text[]`.
+
+El error ocurrio dentro del primer bloque `DO`, antes de cualquier `ALTER`,
+`CREATE`, `GRANT`, `REVOKE`, cambio de RLS o `COMMIT`. PostgreSQL aborta la
+transaccion completa ante ese error, por lo que no deberia existir una
+aplicacion parcial confirmada.
+
+Antes de volver a ejecutar el SQL autorizado, ejecutar nuevamente la
+prevalidacion de solo lectura:
+
+`sql/prevalidar-identidad-jugadores.sql`
+
+Continuar solo si confirma que produccion sigue sin `jugadores.nombre_normalizado`,
+sin `jugadores_aliases`, sin `tp_normalizar_nombre_jugador(text)` y con los
+conteos deportivos esperados.
+
 ## Paso 1: respaldo
 
 Ejecutar completo:
