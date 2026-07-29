@@ -1,0 +1,3641 @@
+{
+  "metadata": {
+    "generated_at": "2026-07-29T01:45:34.472Z",
+    "tournament_id": 1,
+    "source": "C:/Users/franc/Desktop/2026/Project003/respaldos/apertura-2026-respaldo-completo-20260715-165226.json",
+    "remote_http_methods": [
+      "GET"
+    ],
+    "remote_writes": 0,
+    "nota": "Propuesta de mapeo para revision. No fusiona ni crea jugadores por similitud textual."
+  },
+  "resumen": {
+    "eventos_migrables_automaticamente": 0,
+    "eventos_requieren_revision": 308,
+    "jugadores_reales_creados": 0,
+    "eventos_modificados": 0
+  },
+  "auto_vinculables": [],
+  "revision_manual": [
+    {
+      "jugador": "TOMBOLINI CARLOS DAMIAN",
+      "jugador_normalizado": "tombolini carlos damian",
+      "status": "sin_coincidencia",
+      "eventos": 13,
+      "clubes": [
+        "Sport C. Cañadense"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 49,
+          "partido_id": 100,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 74,
+          "partido_id": 107,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 75,
+          "partido_id": 107,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        }
+      ]
+    },
+    {
+      "jugador": "BENITEZ CRISTIAN ALFREDO",
+      "jugador_normalizado": "benitez cristian alfredo",
+      "status": "sin_coincidencia",
+      "eventos": 6,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 44,
+          "partido_id": 94,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        },
+        {
+          "evento_id": 91,
+          "partido_id": 113,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        },
+        {
+          "evento_id": 140,
+          "partido_id": 133,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "BORINI JULIO CESAR",
+      "jugador_normalizado": "borini julio cesar",
+      "status": "sin_coincidencia",
+      "eventos": 6,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 71,
+          "partido_id": 106,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 123,
+          "partido_id": 124,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 209,
+          "partido_id": 155,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "CARRIZO LAUREANO JOAQUIN",
+      "jugador_normalizado": "carrizo laureano joaquin",
+      "status": "sin_coincidencia",
+      "eventos": 6,
+      "clubes": [
+        "Sport C. Cañadense"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 50,
+          "partido_id": 100,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 98,
+          "partido_id": 115,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 181,
+          "partido_id": 145,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        }
+      ]
+    },
+    {
+      "jugador": "JOMINY FRANCO MARCELO",
+      "jugador_normalizado": "jominy franco marcelo",
+      "status": "sin_coincidencia",
+      "eventos": 6,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 105,
+          "partido_id": 117,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        },
+        {
+          "evento_id": 156,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        },
+        {
+          "evento_id": 157,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "MOLINA JOAQUIN",
+      "jugador_normalizado": "molina joaquin",
+      "status": "sin_coincidencia",
+      "eventos": 6,
+      "clubes": [
+        "C.A. Almafuerte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 110,
+          "partido_id": 120,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        },
+        {
+          "evento_id": 111,
+          "partido_id": 120,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        },
+        {
+          "evento_id": 135,
+          "partido_id": 130,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        }
+      ]
+    },
+    {
+      "jugador": "BOCCHIETTI MAXIMILIANO CARLOS",
+      "jugador_normalizado": "bocchietti maximiliano carlos",
+      "status": "sin_coincidencia",
+      "eventos": 5,
+      "clubes": [
+        "C.A. Carcarañá"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 61,
+          "partido_id": 103,
+          "tipo": "gol",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        },
+        {
+          "evento_id": 121,
+          "partido_id": 123,
+          "tipo": "gol",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        },
+        {
+          "evento_id": 173,
+          "partido_id": 143,
+          "tipo": "gol",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        }
+      ]
+    },
+    {
+      "jugador": "CANAL AXEL JOEL",
+      "jugador_normalizado": "canal axel joel",
+      "status": "sin_coincidencia",
+      "eventos": 5,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 142,
+          "partido_id": 134,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        },
+        {
+          "evento_id": 170,
+          "partido_id": 143,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        },
+        {
+          "evento_id": 196,
+          "partido_id": 151,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "CAVALLIN SEBASTIAN",
+      "jugador_normalizado": "cavallin sebastian",
+      "status": "sin_coincidencia",
+      "eventos": 5,
+      "clubes": [
+        "C.A. Correa"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 66,
+          "partido_id": 105,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 114,
+          "partido_id": 122,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 270,
+          "partido_id": 176,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        }
+      ]
+    },
+    {
+      "jugador": "MARTINEZ VALENTIN ANGEL",
+      "jugador_normalizado": "martinez valentin angel",
+      "status": "sin_coincidencia",
+      "eventos": 5,
+      "clubes": [
+        "Sportivo A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 81,
+          "partido_id": 110,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        },
+        {
+          "evento_id": 129,
+          "partido_id": 127,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        },
+        {
+          "evento_id": 160,
+          "partido_id": 139,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "SANTILLAN ARIEL JULIAN",
+      "jugador_normalizado": "santillan ariel julian",
+      "status": "sin_coincidencia",
+      "eventos": 5,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 78,
+          "partido_id": 107,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        },
+        {
+          "evento_id": 102,
+          "partido_id": 116,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        },
+        {
+          "evento_id": 205,
+          "partido_id": 154,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "COLOMBO JUAN IGNACIO",
+      "jugador_normalizado": "colombo juan ignacio",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 79,
+          "partido_id": 108,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 104,
+          "partido_id": 116,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 124,
+          "partido_id": 125,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "DURAN THIAGO",
+      "jugador_normalizado": "duran thiago",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "C.A. Barraca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 73,
+          "partido_id": 106,
+          "tipo": "gol",
+          "equipo_id": 63,
+          "equipo": "C.A. Barraca"
+        },
+        {
+          "evento_id": 126,
+          "partido_id": 125,
+          "tipo": "gol",
+          "equipo_id": 63,
+          "equipo": "C.A. Barraca"
+        },
+        {
+          "evento_id": 148,
+          "partido_id": 137,
+          "tipo": "gol",
+          "equipo_id": 63,
+          "equipo": "C.A. Barraca"
+        }
+      ]
+    },
+    {
+      "jugador": "JARA AGUSTIN NAHUEL",
+      "jugador_normalizado": "jara agustin nahuel",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 108,
+          "partido_id": 117,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 224,
+          "partido_id": 160,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 287,
+          "partido_id": 180,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "LENARDON JOAQUIN ALEJANDRO",
+      "jugador_normalizado": "lenardon joaquin alejandro",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 208,
+          "partido_id": 155,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 232,
+          "partido_id": 162,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 249,
+          "partido_id": 169,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "LEONETTI AGUSTIN TOMAS",
+      "jugador_normalizado": "leonetti agustin tomas",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 62,
+          "partido_id": 103,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        },
+        {
+          "evento_id": 93,
+          "partido_id": 114,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        },
+        {
+          "evento_id": 115,
+          "partido_id": 122,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "QUIROGA VALENTIN",
+      "jugador_normalizado": "quiroga valentin",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "Sportivo A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 59,
+          "partido_id": 101,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        },
+        {
+          "evento_id": 351,
+          "partido_id": 208,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        },
+        {
+          "evento_id": 369,
+          "partido_id": 217,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "RIVAS LUIS ALEXIS",
+      "jugador_normalizado": "rivas luis alexis",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "C.A. Correa"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 167,
+          "partido_id": 142,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 168,
+          "partido_id": 142,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 220,
+          "partido_id": 159,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        }
+      ]
+    },
+    {
+      "jugador": "SOSA AYRTON",
+      "jugador_normalizado": "sosa ayrton",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 159,
+          "partido_id": 139,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        },
+        {
+          "evento_id": 239,
+          "partido_id": 165,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        },
+        {
+          "evento_id": 240,
+          "partido_id": 165,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "SOTO LUCIANO MARCELO",
+      "jugador_normalizado": "soto luciano marcelo",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 125,
+          "partido_id": 125,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 222,
+          "partido_id": 160,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 346,
+          "partido_id": 205,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "TOIA GINO ALEJANDRO",
+      "jugador_normalizado": "toia gino alejandro",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "Sportivo A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 58,
+          "partido_id": 101,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        },
+        {
+          "evento_id": 187,
+          "partido_id": 148,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        },
+        {
+          "evento_id": 289,
+          "partido_id": 181,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "TRUCCO JULIAN NICOLAS",
+      "jugador_normalizado": "trucco julian nicolas",
+      "status": "sin_coincidencia",
+      "eventos": 4,
+      "clubes": [
+        "Sport C. Cañadense"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 77,
+          "partido_id": 107,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 180,
+          "partido_id": 145,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 226,
+          "partido_id": 161,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        }
+      ]
+    },
+    {
+      "jugador": "ANGELETTI JOAQUIN",
+      "jugador_normalizado": "angeletti joaquin",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. Carcarañá"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 302,
+          "partido_id": 186,
+          "tipo": "gol",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        },
+        {
+          "evento_id": 377,
+          "partido_id": 226,
+          "tipo": "gol",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        },
+        {
+          "evento_id": 384,
+          "partido_id": 235,
+          "tipo": "gol_en_contra",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        }
+      ]
+    },
+    {
+      "jugador": "AYALA BRUNO IVAN",
+      "jugador_normalizado": "ayala bruno ivan",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 48,
+          "partido_id": 95,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 282,
+          "partido_id": 179,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 283,
+          "partido_id": 179,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "CANARIO CESAR ALEXIS",
+      "jugador_normalizado": "canario cesar alexis",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 68,
+          "partido_id": 105,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 269,
+          "partido_id": 175,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 322,
+          "partido_id": 193,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "FONSECA KEVIN DAVID",
+      "jugador_normalizado": "fonseca kevin david",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. San Jerónimo"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 46,
+          "partido_id": 97,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        },
+        {
+          "evento_id": 97,
+          "partido_id": 114,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        },
+        {
+          "evento_id": 276,
+          "partido_id": 177,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        }
+      ]
+    },
+    {
+      "jugador": "LASCARES EMANUEL",
+      "jugador_normalizado": "lascares emanuel",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 248,
+          "partido_id": 168,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 342,
+          "partido_id": 204,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 343,
+          "partido_id": 204,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "MORGADES FRANCO",
+      "jugador_normalizado": "morgades franco",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 94,
+          "partido_id": 114,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        },
+        {
+          "evento_id": 117,
+          "partido_id": 122,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        },
+        {
+          "evento_id": 277,
+          "partido_id": 177,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "MUZZIO NICOLAS",
+      "jugador_normalizado": "muzzio nicolas",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. Correa"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 65,
+          "partido_id": 105,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 145,
+          "partido_id": 135,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 146,
+          "partido_id": 135,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        }
+      ]
+    },
+    {
+      "jugador": "PANIAGUA DIEGO",
+      "jugador_normalizado": "paniagua diego",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 147,
+          "partido_id": 136,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 233,
+          "partido_id": 162,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 234,
+          "partido_id": 162,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "RUIZ DIEGO FERNANDO",
+      "jugador_normalizado": "ruiz diego fernando",
+      "status": "sin_coincidencia",
+      "eventos": 3,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 199,
+          "partido_id": 153,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        },
+        {
+          "evento_id": 200,
+          "partido_id": 153,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        },
+        {
+          "evento_id": 245,
+          "partido_id": 167,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "ARBALLO BRUNO EMANUEL",
+      "jugador_normalizado": "arballo bruno emanuel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 225,
+          "partido_id": 160,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 327,
+          "partido_id": 197,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "ARGAÑA NICOLAS ANDRES",
+      "jugador_normalizado": "argana nicolas andres",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 54,
+          "partido_id": 96,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 69,
+          "partido_id": 106,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "BENITEZ MARCOS",
+      "jugador_normalizado": "benitez marcos",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 149,
+          "partido_id": 137,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 212,
+          "partido_id": 156,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "BERTORELLO SANTINO",
+      "jugador_normalizado": "bertorello santino",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 70,
+          "partido_id": 106,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 368,
+          "partido_id": 215,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "BLANCO ALEXIS BRUNO D.",
+      "jugador_normalizado": "blanco alexis bruno d",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 130,
+          "partido_id": 127,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        },
+        {
+          "evento_id": 309,
+          "partido_id": 190,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "BOSCO LUCA",
+      "jugador_normalizado": "bosco luca",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 355,
+          "partido_id": 209,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        },
+        {
+          "evento_id": 382,
+          "partido_id": 231,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "BRAVO FERNANDO JESUS",
+      "jugador_normalizado": "bravo fernando jesus",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 51,
+          "partido_id": 96,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        },
+        {
+          "evento_id": 206,
+          "partido_id": 154,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "CEZAR JEREMIAS",
+      "jugador_normalizado": "cezar jeremias",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 192,
+          "partido_id": 149,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        },
+        {
+          "evento_id": 371,
+          "partido_id": 218,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "CLAVERO AGUSTIN",
+      "jugador_normalizado": "clavero agustin",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Unión Tortugas"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 163,
+          "partido_id": 140,
+          "tipo": "gol",
+          "equipo_id": 62,
+          "equipo": "C.A. Unión Tortugas"
+        },
+        {
+          "evento_id": 356,
+          "partido_id": 209,
+          "tipo": "gol",
+          "equipo_id": 62,
+          "equipo": "C.A. Unión Tortugas"
+        }
+      ]
+    },
+    {
+      "jugador": "DAMIANI ALEJO",
+      "jugador_normalizado": "damiani alejo",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 297,
+          "partido_id": 184,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        },
+        {
+          "evento_id": 360,
+          "partido_id": 211,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "DE SALVIA EMANUEL",
+      "jugador_normalizado": "de salvia emanuel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 178,
+          "partido_id": 145,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 259,
+          "partido_id": 171,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "DEL GIORNO CARLOS",
+      "jugador_normalizado": "del giorno carlos",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 47,
+          "partido_id": 95,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 213,
+          "partido_id": 156,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "DI PAOLA MARCO",
+      "jugador_normalizado": "di paola marco",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 207,
+          "partido_id": 154,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        },
+        {
+          "evento_id": 362,
+          "partido_id": 214,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "GALLARDO AGUSTIN ELIAS",
+      "jugador_normalizado": "gallardo agustin elias",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 153,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        },
+        {
+          "evento_id": 204,
+          "partido_id": 154,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "GIMENEZ SOSA JULIAN",
+      "jugador_normalizado": "gimenez sosa julian",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Almafuerte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 133,
+          "partido_id": 130,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        },
+        {
+          "evento_id": 264,
+          "partido_id": 174,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        }
+      ]
+    },
+    {
+      "jugador": "GOMEZ EMILIANO MARTIN",
+      "jugador_normalizado": "gomez emiliano martin",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 186,
+          "partido_id": 147,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        },
+        {
+          "evento_id": 258,
+          "partido_id": 171,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "GOMEZ ENZO MATIAS",
+      "jugador_normalizado": "gomez enzo matias",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 106,
+          "partido_id": 117,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        },
+        {
+          "evento_id": 350,
+          "partido_id": 207,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "GOROCITO RODRIGO ALEJANDRO",
+      "jugador_normalizado": "gorocito rodrigo alejandro",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "Argentino A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 292,
+          "partido_id": 182,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        },
+        {
+          "evento_id": 320,
+          "partido_id": 192,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "GUTIERREZ JUAN CRUZ",
+      "jugador_normalizado": "gutierrez juan cruz",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "Argentino A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 261,
+          "partido_id": 173,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        },
+        {
+          "evento_id": 290,
+          "partido_id": 182,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "HERRERA FERNANDO",
+      "jugador_normalizado": "herrera fernando",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Barraca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 72,
+          "partido_id": 106,
+          "tipo": "gol",
+          "equipo_id": 63,
+          "equipo": "C.A. Barraca"
+        },
+        {
+          "evento_id": 306,
+          "partido_id": 188,
+          "tipo": "gol",
+          "equipo_id": 63,
+          "equipo": "C.A. Barraca"
+        }
+      ]
+    },
+    {
+      "jugador": "IGLESIAS LEONARDO",
+      "jugador_normalizado": "iglesias leonardo",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 107,
+          "partido_id": 117,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 128,
+          "partido_id": 126,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "JAIMES FRANCO",
+      "jugador_normalizado": "jaimes franco",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 176,
+          "partido_id": 144,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 247,
+          "partido_id": 168,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "JALIF JAIR ANUAR",
+      "jugador_normalizado": "jalif jair anuar",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "Argentino A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 56,
+          "partido_id": 99,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        },
+        {
+          "evento_id": 321,
+          "partido_id": 192,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "LEGUIZAMON ALEXANDER LEONEL",
+      "jugador_normalizado": "leguizamon alexander leonel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Montes de Oca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 194,
+          "partido_id": 150,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        },
+        {
+          "evento_id": 310,
+          "partido_id": 191,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        }
+      ]
+    },
+    {
+      "jugador": "MEYER KEVIN NAHUEL",
+      "jugador_normalizado": "meyer kevin nahuel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 141,
+          "partido_id": 133,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        },
+        {
+          "evento_id": 273,
+          "partido_id": 176,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "MILESSI RAMIRO",
+      "jugador_normalizado": "milessi ramiro",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 172,
+          "partido_id": 143,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        },
+        {
+          "evento_id": 221,
+          "partido_id": 159,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "MORA ULISES",
+      "jugador_normalizado": "mora ulises",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 237,
+          "partido_id": 165,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        },
+        {
+          "evento_id": 238,
+          "partido_id": 165,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "OSHEA MARIANO",
+      "jugador_normalizado": "oshea mariano",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. San Jerónimo"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 96,
+          "partido_id": 114,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        },
+        {
+          "evento_id": 195,
+          "partido_id": 151,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        }
+      ]
+    },
+    {
+      "jugador": "PASCO HUINCA LUCAS MATIAS",
+      "jugador_normalizado": "pasco huinca lucas matias",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 45,
+          "partido_id": 97,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 216,
+          "partido_id": 158,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "PASCUALETTO FACUNDO",
+      "jugador_normalizado": "pascualetto facundo",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 152,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        },
+        {
+          "evento_id": 331,
+          "partido_id": 198,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "PETETTA LUCAS GABRIEL",
+      "jugador_normalizado": "petetta lucas gabriel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 103,
+          "partido_id": 116,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        },
+        {
+          "evento_id": 223,
+          "partido_id": 160,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "PIERPAOLI JULIAN",
+      "jugador_normalizado": "pierpaoli julian",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Correa"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 92,
+          "partido_id": 113,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        },
+        {
+          "evento_id": 218,
+          "partido_id": 159,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        }
+      ]
+    },
+    {
+      "jugador": "PRINCIPE FEDERICO",
+      "jugador_normalizado": "principe federico",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 67,
+          "partido_id": 105,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 88,
+          "partido_id": 112,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "RESSIA AGUSTIN CARLOS",
+      "jugador_normalizado": "ressia agustin carlos",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 87,
+          "partido_id": 112,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 175,
+          "partido_id": 144,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "ROCHA DIEGO ARMANDO",
+      "jugador_normalizado": "rocha diego armando",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 164,
+          "partido_id": 140,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        },
+        {
+          "evento_id": 354,
+          "partido_id": 209,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "RUIZ DIAZ THIAGO",
+      "jugador_normalizado": "ruiz diaz thiago",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Montes de Oca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 337,
+          "partido_id": 200,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        },
+        {
+          "evento_id": 357,
+          "partido_id": 210,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        }
+      ]
+    },
+    {
+      "jugador": "SCAGLIA JUAN PABLO",
+      "jugador_normalizado": "scaglia juan pablo",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Almafuerte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 84,
+          "partido_id": 111,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        },
+        {
+          "evento_id": 134,
+          "partido_id": 130,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        }
+      ]
+    },
+    {
+      "jugador": "SISTERNA LUCAS NAHUEL",
+      "jugador_normalizado": "sisterna lucas nahuel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 113,
+          "partido_id": 121,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        },
+        {
+          "evento_id": 267,
+          "partido_id": 175,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "SORIANO VALENTIN",
+      "jugador_normalizado": "soriano valentin",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 137,
+          "partido_id": 132,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        },
+        {
+          "evento_id": 372,
+          "partido_id": 218,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "SOSA JOAQUIN PABLO",
+      "jugador_normalizado": "sosa joaquin pablo",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 53,
+          "partido_id": 96,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        },
+        {
+          "evento_id": 252,
+          "partido_id": 169,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "TORESI MATIAS ANDRES",
+      "jugador_normalizado": "toresi matias andres",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 182,
+          "partido_id": 146,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        },
+        {
+          "evento_id": 183,
+          "partido_id": 146,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "TORRES RODRIGO EZEQUIEL",
+      "jugador_normalizado": "torres rodrigo ezequiel",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "Sport C. Cañadense"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 99,
+          "partido_id": 115,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 279,
+          "partido_id": 178,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        }
+      ]
+    },
+    {
+      "jugador": "VERA ALEXANDER TOMAS",
+      "jugador_normalizado": "vera alexander tomas",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 341,
+          "partido_id": 204,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        },
+        {
+          "evento_id": 380,
+          "partido_id": 227,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "YACHINI LUCAS JESUS",
+      "jugador_normalizado": "yachini lucas jesus",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "C.A. Montes de Oca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 131,
+          "partido_id": 128,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        },
+        {
+          "evento_id": 166,
+          "partido_id": 141,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        }
+      ]
+    },
+    {
+      "jugador": "ZACCONE GERONIMO",
+      "jugador_normalizado": "zaccone geronimo",
+      "status": "sin_coincidencia",
+      "eventos": 2,
+      "clubes": [
+        "Sport C. Cañadense"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 211,
+          "partido_id": 156,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        },
+        {
+          "evento_id": 229,
+          "partido_id": 161,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        }
+      ]
+    },
+    {
+      "jugador": "ALMADA DIEGO OSCAR",
+      "jugador_normalizado": "almada diego oscar",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 109,
+          "partido_id": 117,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "AMARILLA LUCAS",
+      "jugador_normalizado": "amarilla lucas",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 52,
+          "partido_id": 96,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "ARAMBURU LAUTARO AGUSTIN",
+      "jugador_normalizado": "aramburu lautaro agustin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 202,
+          "partido_id": 153,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "BALBI LAUTARO",
+      "jugador_normalizado": "balbi lautaro",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 298,
+          "partido_id": 185,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "BORDON DENIS LEONEL",
+      "jugador_normalizado": "bordon denis leonel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. San Jerónimo"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 169,
+          "partido_id": 142,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        }
+      ]
+    },
+    {
+      "jugador": "CABRERA RENZO JAVIER",
+      "jugador_normalizado": "cabrera renzo javier",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 257,
+          "partido_id": 171,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "CARDOZO ALEXIS MARCOS",
+      "jugador_normalizado": "cardozo alexis marcos",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 118,
+          "partido_id": 122,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "CASTRO BRIAN EZEQUIEL",
+      "jugador_normalizado": "castro brian ezequiel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 332,
+          "partido_id": 198,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "DE TOMASI PEDRO",
+      "jugador_normalizado": "de tomasi pedro",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 64,
+          "partido_id": 104,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "DIAZ DIEGO DAVID",
+      "jugador_normalizado": "diaz diego david",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 231,
+          "partido_id": 162,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "DREUS MATIAS",
+      "jugador_normalizado": "dreus matias",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 100,
+          "partido_id": 116,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "ELLISON PATRICIO JULIAN",
+      "jugador_normalizado": "ellison patricio julian",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Argentino A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 334,
+          "partido_id": 199,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "Eric Castillo",
+      "jugador_normalizado": "eric castillo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 10,
+          "partido_id": 201,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "FIGUEROA LORENZO GASTON",
+      "jugador_normalizado": "figueroa lorenzo gaston",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 317,
+          "partido_id": 191,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "FLU FACUNDO FEDERICO",
+      "jugador_normalizado": "flu facundo federico",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 101,
+          "partido_id": 116,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "GALARETTO PABLO",
+      "jugador_normalizado": "galaretto pablo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 198,
+          "partido_id": 152,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "GALLARDO FRANCO",
+      "jugador_normalizado": "gallardo franco",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 63,
+          "partido_id": 104,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "GERMI MAURICIO",
+      "jugador_normalizado": "germi mauricio",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 367,
+          "partido_id": 215,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "GIALLET GERARDO GUSTAVO",
+      "jugador_normalizado": "giallet gerardo gustavo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 329,
+          "partido_id": 198,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "GIORDANO SANTIAGO NICOLAS",
+      "jugador_normalizado": "giordano santiago nicolas",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Sport C. Cañadense"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 280,
+          "partido_id": 178,
+          "tipo": "gol",
+          "equipo_id": 47,
+          "equipo": "Sport C. Cañadense"
+        }
+      ]
+    },
+    {
+      "jugador": "GIORGINI AGUSTIN HERNAN",
+      "jugador_normalizado": "giorgini agustin hernan",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 154,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "GONZALEZ DIEGO",
+      "jugador_normalizado": "gonzalez diego",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 89,
+          "partido_id": 112,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "GONZALEZ FRANCISCO",
+      "jugador_normalizado": "gonzalez francisco",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 82,
+          "partido_id": 111,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "GUZMAN MIQUEAS BENJAMIN",
+      "jugador_normalizado": "guzman miqueas benjamin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 151,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "JUAREZ LEONEL AGUSTIN",
+      "jugador_normalizado": "juarez leonel agustin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 365,
+          "partido_id": 214,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "Julio Borini",
+      "jugador_normalizado": "julio borini",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "ADEO"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 1,
+          "partido_id": 196,
+          "tipo": "gol",
+          "equipo_id": null,
+          "equipo": "ADEO"
+        }
+      ]
+    },
+    {
+      "jugador": "LAULHE-LATTANTE JAVIER M.",
+      "jugador_normalizado": "laulhe lattante javier m",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Unión Tortugas"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 335,
+          "partido_id": 200,
+          "tipo": "gol",
+          "equipo_id": 62,
+          "equipo": "C.A. Unión Tortugas"
+        }
+      ]
+    },
+    {
+      "jugador": "Lautaro Luna",
+      "jugador_normalizado": "lautaro luna",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 11,
+          "partido_id": 201,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano"
+        }
+      ]
+    },
+    {
+      "jugador": "LAVINI FACUNDO",
+      "jugador_normalizado": "lavini facundo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 250,
+          "partido_id": 169,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    },
+    {
+      "jugador": "LEIVA EFRAIN ROBERTO",
+      "jugador_normalizado": "leiva efrain roberto",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Almafuerte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 112,
+          "partido_id": 120,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        }
+      ]
+    },
+    {
+      "jugador": "LOPEZ MAXIMO",
+      "jugador_normalizado": "lopez maximo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 139,
+          "partido_id": 133,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "Luca Bosco",
+      "jugador_normalizado": "luca bosco",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 9,
+          "partido_id": 201,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "LUCERO BAUTISTA ESTEBAN",
+      "jugador_normalizado": "lucero bautista esteban",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Unión Tortugas"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 242,
+          "partido_id": 165,
+          "tipo": "gol",
+          "equipo_id": 62,
+          "equipo": "C.A. Unión Tortugas"
+        }
+      ]
+    },
+    {
+      "jugador": "LUDUEÑA URIEL ELIAS",
+      "jugador_normalizado": "luduena uriel elias",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Unión Tortugas"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 336,
+          "partido_id": 200,
+          "tipo": "gol",
+          "equipo_id": 62,
+          "equipo": "C.A. Unión Tortugas"
+        }
+      ]
+    },
+    {
+      "jugador": "LUNA LAUTARO AGUSTIN",
+      "jugador_normalizado": "luna lautaro agustin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 353,
+          "partido_id": 208,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "MAIDANA AXEL",
+      "jugador_normalizado": "maidana axel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Barraca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 127,
+          "partido_id": 125,
+          "tipo": "gol",
+          "equipo_id": 63,
+          "equipo": "C.A. Barraca"
+        }
+      ]
+    },
+    {
+      "jugador": "MARTINEZ MATIAS TOMAS",
+      "jugador_normalizado": "martinez matias tomas",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 150,
+          "partido_id": 137,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "Mauro Vega",
+      "jugador_normalizado": "mauro vega",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "ADEO"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 2,
+          "partido_id": 196,
+          "tipo": "gol",
+          "equipo_id": null,
+          "equipo": "ADEO"
+        }
+      ]
+    },
+    {
+      "jugador": "MEDINA YAMIL NICOLAS",
+      "jugador_normalizado": "medina yamil nicolas",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 359,
+          "partido_id": 211,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "MONTERO EZEQUIEL",
+      "jugador_normalizado": "montero ezequiel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 307,
+          "partido_id": 188,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "MOREIRA BAUMGRATZ VITOR",
+      "jugador_normalizado": "moreira baumgratz vitor",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Unión C.S.D."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 179,
+          "partido_id": 145,
+          "tipo": "gol",
+          "equipo_id": 56,
+          "equipo": "C.A. Unión C.S.D."
+        }
+      ]
+    },
+    {
+      "jugador": "MUÑOZ LEANDRO ISRAEL",
+      "jugador_normalizado": "munoz leandro israel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 116,
+          "partido_id": 122,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "MUZZIO ALEJO",
+      "jugador_normalizado": "muzzio alejo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Correa"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 219,
+          "partido_id": 159,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        }
+      ]
+    },
+    {
+      "jugador": "NAVARRO JUAN CRUZ",
+      "jugador_normalizado": "navarro juan cruz",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 83,
+          "partido_id": 111,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "OBELAR VALENTIN",
+      "jugador_normalizado": "obelar valentin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. San Jerónimo"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 119,
+          "partido_id": 123,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        }
+      ]
+    },
+    {
+      "jugador": "OCAMPO MAURICIO",
+      "jugador_normalizado": "ocampo mauricio",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 285,
+          "partido_id": 180,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "ONEGA GENARO LUCAS",
+      "jugador_normalizado": "onega genaro lucas",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Sportivo A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 161,
+          "partido_id": 139,
+          "tipo": "gol",
+          "equipo_id": 43,
+          "equipo": "Sportivo A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "ORYNIAK JULIAN AGUSTIN",
+      "jugador_normalizado": "oryniak julian agustin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Carcarañá"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 243,
+          "partido_id": 166,
+          "tipo": "gol",
+          "equipo_id": 57,
+          "equipo": "C.A. Carcarañá"
+        }
+      ]
+    },
+    {
+      "jugador": "PAOLI BRUNO",
+      "jugador_normalizado": "paoli bruno",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Montes de Oca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 381,
+          "partido_id": 227,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        }
+      ]
+    },
+    {
+      "jugador": "PAOLI FRANCO",
+      "jugador_normalizado": "paoli franco",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 294,
+          "partido_id": 184,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "PASINATO SANTIAGO",
+      "jugador_normalizado": "pasinato santiago",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 361,
+          "partido_id": 214,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "PIEVE MARTIN JESUS",
+      "jugador_normalizado": "pieve martin jesus",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 349,
+          "partido_id": 206,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "PIN PATRICIO",
+      "jugador_normalizado": "pin patricio",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Argentino A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 318,
+          "partido_id": 192,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "PIÑERO JOAQUIN JULIO",
+      "jugador_normalizado": "pinero joaquin julio",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Defensores"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 286,
+          "partido_id": 180,
+          "tipo": "gol",
+          "equipo_id": 44,
+          "equipo": "C.A. Defensores"
+        }
+      ]
+    },
+    {
+      "jugador": "POLLACHINI SANCHEZ GERARDO",
+      "jugador_normalizado": "pollachini sanchez gerardo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 90,
+          "partido_id": 112,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "PORCHIETTI ALEJO",
+      "jugador_normalizado": "porchietti alejo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 138,
+          "partido_id": 132,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "RAMIREZ ALVARO",
+      "jugador_normalizado": "ramirez alvaro",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Argentino A. Club"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 132,
+          "partido_id": 129,
+          "tipo": "gol",
+          "equipo_id": 55,
+          "equipo": "Argentino A. Club"
+        }
+      ]
+    },
+    {
+      "jugador": "REYNOSO ENZO GABRIEL",
+      "jugador_normalizado": "reynoso enzo gabriel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. El Porvenir del Norte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 274,
+          "partido_id": 176,
+          "tipo": "gol",
+          "equipo_id": 45,
+          "equipo": "C.A. El Porvenir del Norte"
+        }
+      ]
+    },
+    {
+      "jugador": "RIQUELME RODRIGO",
+      "jugador_normalizado": "riquelme rodrigo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Correa"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 324,
+          "partido_id": 195,
+          "tipo": "gol",
+          "equipo_id": 53,
+          "equipo": "C.A. Correa"
+        }
+      ]
+    },
+    {
+      "jugador": "RODRIGUEZ EMILIANO",
+      "jugador_normalizado": "rodriguez emiliano",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 246,
+          "partido_id": 168,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "ROLON AXEL",
+      "jugador_normalizado": "rolon axel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 177,
+          "partido_id": 144,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "ROMERO EZEQUIEL",
+      "jugador_normalizado": "romero ezequiel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 155,
+          "partido_id": 138,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "ROMERO VALENTIN",
+      "jugador_normalizado": "romero valentin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 57,
+          "partido_id": 99,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "RUBIANI MATIAS",
+      "jugador_normalizado": "rubiani matias",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 315,
+          "partido_id": 191,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "RUIZ DIAZ GABRIEL ARNALDO",
+      "jugador_normalizado": "ruiz diaz gabriel arnaldo",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 260,
+          "partido_id": 172,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "RUIZ MELGAREJO OSCAR",
+      "jugador_normalizado": "ruiz melgarejo oscar",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Almafuerte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 85,
+          "partido_id": 111,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        }
+      ]
+    },
+    {
+      "jugador": "SANTILLAN MARCELO ANDRES",
+      "jugador_normalizado": "santillan marcelo andres",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. América"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 288,
+          "partido_id": 180,
+          "tipo": "gol",
+          "equipo_id": 58,
+          "equipo": "C.A. América"
+        }
+      ]
+    },
+    {
+      "jugador": "SARACHO BRUNO",
+      "jugador_normalizado": "saracho bruno",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 364,
+          "partido_id": 214,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "SELLOS LAUTARO NICOLAS",
+      "jugador_normalizado": "sellos lautaro nicolas",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Williams Kemmis"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 191,
+          "partido_id": 149,
+          "tipo": "gol",
+          "equipo_id": 51,
+          "equipo": "C.A. Williams Kemmis"
+        }
+      ]
+    },
+    {
+      "jugador": "SOSA FABRICIO URIEL",
+      "jugador_normalizado": "sosa fabricio uriel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. San Jerónimo"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 275,
+          "partido_id": 177,
+          "tipo": "gol",
+          "equipo_id": 60,
+          "equipo": "C.A. San Jerónimo"
+        }
+      ]
+    },
+    {
+      "jugador": "SOSA JOAQUIN CARLOS",
+      "jugador_normalizado": "sosa joaquin carlos",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 174,
+          "partido_id": 144,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "TAVERNA VALENTIN",
+      "jugador_normalizado": "taverna valentin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Def. Sportsman"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 95,
+          "partido_id": 114,
+          "tipo": "gol",
+          "equipo_id": 54,
+          "equipo": "Def. Sportsman"
+        }
+      ]
+    },
+    {
+      "jugador": "TEVEZ CLAUDIO JOAQUIN",
+      "jugador_normalizado": "tevez claudio joaquin",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. N.O. Boys"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 363,
+          "partido_id": 214,
+          "tipo": "gol",
+          "equipo_id": 59,
+          "equipo": "C.A. N.O. Boys"
+        }
+      ]
+    },
+    {
+      "jugador": "TITTONI LUCIANO GABRIEL",
+      "jugador_normalizado": "tittoni luciano gabriel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Campaña"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 217,
+          "partido_id": 158,
+          "tipo": "gol",
+          "equipo_id": 52,
+          "equipo": "C.A. Campaña"
+        }
+      ]
+    },
+    {
+      "jugador": "VALENTI MATEO THIAGO",
+      "jugador_normalizado": "valenti mateo thiago",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Cosmopolita"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 295,
+          "partido_id": 184,
+          "tipo": "gol",
+          "equipo_id": 49,
+          "equipo": "C.A. Cosmopolita"
+        }
+      ]
+    },
+    {
+      "jugador": "VALLES RODRIGO D.",
+      "jugador_normalizado": "valles rodrigo d",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "Belgrano A.C."
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 241,
+          "partido_id": 165,
+          "tipo": "gol",
+          "equipo_id": 61,
+          "equipo": "Belgrano A.C."
+        }
+      ]
+    },
+    {
+      "jugador": "VIDELA CORIA LEONEL",
+      "jugador_normalizado": "videla coria leonel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Almafuerte"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 236,
+          "partido_id": 164,
+          "tipo": "gol",
+          "equipo_id": 50,
+          "equipo": "C.A. Almafuerte"
+        }
+      ]
+    },
+    {
+      "jugador": "YACHINI ROMAN",
+      "jugador_normalizado": "yachini roman",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "C.A. Montes de Oca"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 136,
+          "partido_id": 131,
+          "tipo": "gol",
+          "equipo_id": 48,
+          "equipo": "C.A. Montes de Oca"
+        }
+      ]
+    },
+    {
+      "jugador": "ZURITA GUILLERMO EZEQUIEL",
+      "jugador_normalizado": "zurita guillermo ezequiel",
+      "status": "sin_coincidencia",
+      "eventos": 1,
+      "clubes": [
+        "AD Everton/Olimpia"
+      ],
+      "ejemplos": [
+        {
+          "evento_id": 184,
+          "partido_id": 146,
+          "tipo": "gol",
+          "equipo_id": 46,
+          "equipo": "AD Everton/Olimpia"
+        }
+      ]
+    }
+  ],
+  "homonimos_canonicos_existentes": [
+    {
+      "normalized": "sanchez",
+      "players": [
+        {
+          "id": 11,
+          "nombre_completo": "Sánchez",
+          "inscripciones": [
+            {
+              "id": 11,
+              "club_id": 45,
+              "torneo_id": 1,
+              "club": "Porvenir"
+            }
+          ]
+        },
+        {
+          "id": 25,
+          "nombre_completo": "Sánchez",
+          "inscripciones": [
+            {
+              "id": 25,
+              "club_id": 57,
+              "torneo_id": 1,
+              "club": "Carcarañá"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "normalized": "sarco",
+      "players": [
+        {
+          "id": 20,
+          "nombre_completo": "Sarco",
+          "inscripciones": [
+            {
+              "id": 20,
+              "club_id": 57,
+              "torneo_id": 1,
+              "club": "Carcarañá"
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "nombre_completo": "Sarco",
+          "inscripciones": [
+            {
+              "id": 21,
+              "club_id": 48,
+              "torneo_id": 1,
+              "club": "Montes de Oca"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "autogoles": [
+    {
+      "id": 384,
+      "partido_id": 235,
+      "tipo": "gol_en_contra",
+      "tipo_normalizado": "gol_en_contra",
+      "jugador": "ANGELETTI JOAQUIN",
+      "jugador_normalizado": "angeletti joaquin",
+      "equipo_id": 57,
+      "equipo": "C.A. Carcarañá",
+      "torneo_id": 1,
+      "fecha": null,
+      "fase": "final",
+      "local_id": 57,
+      "visitante_id": 43,
+      "inscripcion_jugador_id": null,
+      "status": "sin_coincidencia",
+      "canAutoMigrate": false,
+      "candidates": []
+    }
+  ]
+}
