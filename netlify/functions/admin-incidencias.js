@@ -19,6 +19,21 @@ const PERIODS = new Set([
 ]);
 
 const TOURNAMENT_SELECT = "id,anio,tipo,nombre,activo";
+const ENROLLMENT_PLAYER_SELECT = [
+  "id",
+  "jugador_id",
+  "club_id",
+  "torneo_id",
+  "posicion",
+  "dorsal",
+  "estado",
+  "fecha_desde",
+  "fecha_hasta",
+  "jugador:jugadores(id,nombre_completo,nombre_normalizado,activo)"
+].join(",");
+const PLAYER_SELECT =
+  "id,nombre_completo,nombre_normalizado,aliases,activo";
+const CANDIDATE_LIMIT = 40;
 
 exports.handler = async event => {
   if (event.httpMethod === "OPTIONS") {
@@ -34,18 +49,37 @@ exports.handler = async event => {
 
   try {
     if (event.httpMethod === "GET") {
+      const scope = event.queryStringParameters?.scope || "";
+      if (scope === "jugadores") {
+        return await listEventPlayers(event);
+      }
+      if (scope === "buscar-jugador") {
+        return await searchPlayerCandidates(event);
+      }
       return await listEvents(event);
     }
 
     if (["POST", "PATCH"].includes(event.httpMethod)) {
       const body = parseBody(event);
       if (
+        event.httpMethod === "POST" &&
+        body.action === "crear-inscripcion-jugador"
+      ) {
+        return await createEnrollmentForExistingPlayer(body);
+      }
+      if (
+        event.httpMethod === "POST" &&
+        body.action === "crear-jugador-inscripcion"
+      ) {
+        return await createPlayerAndEnrollment(body);
+      }
+      if (
         event.httpMethod === "PATCH" &&
         body.action === "reordenar"
       ) {
         return await reorderEvents(body);
       }
-      return await saveEvent(event);
+      return await saveEvent(event, body);
     }
 
     if (event.httpMethod === "DELETE") {
@@ -170,8 +204,148 @@ async function listEvents(event) {
   return json(200, { incidencias, torneo: tournament });
 }
 
-async function saveEvent(event) {
-  const body = parseBody(event);
+async function listEventPlayers(event) {
+  const context = await getEventContext(event.queryStringParameters || {});
+  const includeIds = parseIncludeIds(
+    event.queryStringParameters?.include_ids
+  );
+  const enrollments = await getEnrollmentsForEventContext(
+    context,
+    includeIds
+  );
+
+  return json(200, {
+    torneo_id: context.tournamentId,
+    partido_id: context.match.id,
+    equipo_id: context.teamId,
+    inscripciones: enrollments
+  });
+}
+
+async function searchPlayerCandidates(event) {
+  const params = event.queryStringParameters || {};
+  const context = await getEventContext(params);
+  const name = cleanText(params.nombre || params.q);
+
+  if (!name) {
+    throw validationError("Ingresa un nombre para buscar.");
+  }
+
+  const result = await findPlayerCandidates({
+    name,
+    tournamentId: context.tournamentId,
+    teamId: context.teamId
+  });
+
+  return json(200, {
+    torneo_id: context.tournamentId,
+    partido_id: context.match.id,
+    equipo_id: context.teamId,
+    nombre: name,
+    nombre_normalizado: result.normalized,
+    candidatos: result.candidates,
+    advertencia: result.candidates.length > 0
+      ? "Puede existir un jugador con un nombre similar."
+      : null
+  });
+}
+
+async function getEventContext(source) {
+  const tournamentId = getTournamentId(source.torneo_id);
+  const tournament = await assertTournamentExists(tournamentId);
+  const matchId = requiredId(source.partido_id, "Partido invalido.");
+  const match = await getMatch(matchId);
+
+  if (!match) throw httpError(404, "NOT_FOUND", "Partido no encontrado.");
+  assertMatchTournament(match, tournamentId);
+
+  const teamId = requiredId(source.equipo_id, "Equipo invalido.");
+  assertTeamBelongsToMatch(match, teamId);
+
+  return {
+    tournament,
+    tournamentId,
+    match,
+    teamId
+  };
+}
+
+function assertTeamBelongsToMatch(match, teamId) {
+  if (![match.local_id, match.visitante_id].some(
+    id => String(id) === String(teamId)
+  )) {
+    throw validationError(
+      "El equipo debe ser local o visitante del partido."
+    );
+  }
+}
+
+function parseIncludeIds(value) {
+  if (!value) return [];
+  return String(value)
+    .split(",")
+    .map(item => optionalId(item))
+    .filter(Boolean);
+}
+
+async function getEnrollmentsForEventContext(context, includeIds = []) {
+  const response = await supabaseFetch(
+    "/rest/v1/inscripciones_jugadores" +
+    `?select=${ENROLLMENT_PLAYER_SELECT}` +
+    `&torneo_id=eq.${encodeURIComponent(context.tournamentId)}` +
+    `&club_id=eq.${encodeURIComponent(context.teamId)}` +
+    "&order=id.asc"
+  );
+  const rows = await parseSupabaseResponse(response);
+  const include = new Set(includeIds.map(id => String(id)));
+
+  return (Array.isArray(rows) ? rows : [])
+    .filter(enrollment =>
+      enrollmentIsAvailableForSelection(enrollment, include)
+    )
+    .map(normalizeEnrollment)
+    .sort(compareEnrollmentsByPlayerName);
+}
+
+function enrollmentIsAvailableForSelection(enrollment, includeIds) {
+  const included = includeIds.has(String(enrollment?.id));
+  if (included) return true;
+  return enrollment?.estado !== "inactivo" &&
+    enrollment?.jugador?.activo !== false;
+}
+
+function normalizeEnrollment(enrollment) {
+  return {
+    id: enrollment.id,
+    jugador_id: enrollment.jugador_id,
+    club_id: enrollment.club_id,
+    torneo_id: enrollment.torneo_id,
+    posicion: enrollment.posicion || "sin_definir",
+    dorsal: enrollment.dorsal ?? null,
+    estado: enrollment.estado || "por_verificar",
+    fecha_desde: enrollment.fecha_desde || null,
+    fecha_hasta: enrollment.fecha_hasta || null,
+    jugador: enrollment.jugador
+      ? {
+          id: enrollment.jugador.id,
+          nombre_completo: enrollment.jugador.nombre_completo,
+          nombre_normalizado: enrollment.jugador.nombre_normalizado || null,
+          activo: enrollment.jugador.activo !== false
+        }
+      : null
+  };
+}
+
+function compareEnrollmentsByPlayerName(a, b) {
+  return String(a?.jugador?.nombre_completo || "").localeCompare(
+    String(b?.jugador?.nombre_completo || ""),
+    "es",
+    { sensitivity: "base" }
+  ) || Number(a?.id || 0) - Number(b?.id || 0);
+}
+
+async function saveEvent(event, parsedBody = null) {
+  const body = parsedBody || parseBody(event);
   const tournamentId = getTournamentId(body.torneo_id);
   await assertTournamentExists(tournamentId);
   const eventId = optionalId(body.id);
@@ -203,33 +377,44 @@ async function saveEvent(event) {
 
   await assertStageOpen(match);
 
-  const input = sanitizeInput(body, match);
+  const input = sanitizeInput(body, match, existing);
   let enrollment = null;
+  const legacyWithoutEnrollment = Boolean(
+    eventId &&
+    !existing?.inscripcion_jugador_id &&
+    cleanText(existing?.jugador) &&
+    !input.inscripcion_jugador_id
+  );
 
   if (input.inscripcion_jugador_id) {
     enrollment = await getEnrollment(
       input.inscripcion_jugador_id,
       match,
-      input.equipo_id
+      input.equipo_id,
+      {
+        allowInactive:
+          existing &&
+          String(existing.inscripcion_jugador_id || "") ===
+            String(input.inscripcion_jugador_id)
+      }
     );
-  } else if (
-    body.crear_desde_texto === true &&
-    cleanText(existing?.jugador)
-  ) {
-    enrollment = await createProvisionalEnrollment({
-      name: cleanText(existing.jugador),
-      clubId: input.equipo_id,
-      tournamentId: match.torneo_id,
-      source: input.fuente
-    });
-    input.inscripcion_jugador_id = enrollment.id;
+  } else if (!legacyWithoutEnrollment) {
+    throw validationError(
+      "Selecciona una inscripcion de jugador para la incidencia."
+    );
   }
 
   const relatedEnrollment = input.inscripcion_relacionada_id
     ? await getEnrollment(
         input.inscripcion_relacionada_id,
         match,
-        input.equipo_id
+        input.equipo_id,
+        {
+          allowInactive:
+            existing &&
+            String(existing.inscripcion_relacionada_id || "") ===
+              String(input.inscripcion_relacionada_id)
+        }
       )
     : null;
 
@@ -245,14 +430,10 @@ async function saveEvent(event) {
     : cleanText(existing?.jugador);
   input.jugador_relacionado = relatedEnrollment
     ? relatedEnrollment.jugador.nombre_completo
-    : null;
+    : legacyWithoutEnrollment
+      ? cleanText(existing?.jugador_relacionado)
+      : null;
   input.actualizado_en = new Date().toISOString();
-
-  if (!eventId) {
-    input.jugador = enrollment
-      ? enrollment.jugador.nombre_completo
-      : "Jugador no informado";
-  }
 
   const method = eventId ? "PATCH" : "POST";
   const path = eventId
@@ -318,6 +499,364 @@ async function persistEvent(path, method, input) {
       periodoOmitido: true
     };
   }
+}
+
+async function createEnrollmentForExistingPlayer(body) {
+  const context = await getEventContext(body);
+  if (body.busqueda_previa !== true) {
+    throw validationError("Busca la persona antes de crear la inscripcion.");
+  }
+  if (body.confirmar_inscripcion !== true) {
+    throw validationError("Confirma la creacion de la inscripcion.");
+  }
+
+  const playerId = requiredId(body.jugador_id, "Jugador invalido.");
+  const player = await getPlayer(playerId);
+  if (!player) throw httpError(404, "NOT_FOUND", "Jugador no encontrado.");
+  if (player.activo === false) {
+    throw validationError("El jugador no esta habilitado.");
+  }
+
+  const existing = await findEnrollment(
+    playerId,
+    context.teamId,
+    context.tournamentId
+  );
+  if (existing) {
+    return json(200, {
+      mensaje: "Ya existe una inscripcion para este jugador.",
+      existente: true,
+      jugador: player,
+      inscripcion: normalizeEnrollment({
+        ...existing,
+        jugador: player
+      })
+    });
+  }
+
+  const inserted = await insertEnrollmentForPlayer({
+    playerId,
+    clubId: context.teamId,
+    tournamentId: context.tournamentId,
+    source: cleanText(body.fuente),
+    notes: "Creado desde Jugador no encontrado en incidencias."
+  });
+
+  return json(201, {
+    mensaje: "Inscripcion creada.",
+    existente: false,
+    jugador: player,
+    inscripcion: normalizeEnrollment({
+      ...inserted,
+      jugador: player
+    })
+  });
+}
+
+async function createPlayerAndEnrollment(body) {
+  const context = await getEventContext(body);
+  if (body.busqueda_previa !== true) {
+    throw validationError("Busca la persona antes de crear un jugador nuevo.");
+  }
+  if (body.confirmar_creacion !== true) {
+    throw validationError("Confirma la creacion del jugador.");
+  }
+
+  const name = cleanText(body.nombre_completo);
+  if (!name) {
+    throw validationError("El nombre del jugador es obligatorio.");
+  }
+
+  const candidates = await findPlayerCandidates({
+    name,
+    tournamentId: context.tournamentId,
+    teamId: context.teamId
+  });
+  if (
+    candidates.candidates.length > 0 &&
+    body.confirmar_homonimo !== true
+  ) {
+    throw validationError(
+      "Puede existir un jugador con un nombre similar. Revisa los candidatos antes de crear otra persona."
+    );
+  }
+
+  const response = await supabaseFetch(
+    "/rest/v1/rpc/admin_guardar_inscripcion_jugador",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        p_inscripcion_id: null,
+        p_jugador_id: null,
+        p_nombre_completo: name,
+        p_aliases: [],
+        p_club_id: context.teamId,
+        p_torneo_id: context.tournamentId,
+        p_posicion: "sin_definir",
+        p_dorsal: null,
+        p_estado: "por_verificar",
+        p_fecha_desde: null,
+        p_fecha_hasta: null,
+        p_fuente: cleanText(body.fuente),
+        p_observaciones:
+          "Creado desde Jugador no encontrado en incidencias."
+      })
+    }
+  );
+  const result = await parseSupabaseResponse(response);
+
+  return json(201, {
+    mensaje: "Jugador e inscripcion creados.",
+    jugador: result.jugador,
+    inscripcion: normalizeEnrollment({
+      ...result.inscripcion,
+      jugador: result.jugador
+    })
+  });
+}
+
+async function getPlayer(id) {
+  const response = await supabaseFetch(
+    "/rest/v1/jugadores" +
+    `?select=${PLAYER_SELECT}` +
+    `&id=eq.${encodeURIComponent(id)}` +
+    "&limit=1"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows[0] || null : null;
+}
+
+async function insertEnrollmentForPlayer({
+  playerId,
+  clubId,
+  tournamentId,
+  source,
+  notes
+}) {
+  try {
+    const response = await supabaseFetch(
+      "/rest/v1/inscripciones_jugadores?select=*",
+      {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          jugador_id: playerId,
+          club_id: clubId,
+          torneo_id: tournamentId,
+          posicion: "sin_definir",
+          dorsal: null,
+          estado: "por_verificar",
+          fecha_desde: null,
+          fecha_hasta: null,
+          fuente: source,
+          observaciones: notes
+        })
+      }
+    );
+    const rows = await parseSupabaseResponse(response);
+    return Array.isArray(rows) ? rows[0] || null : rows;
+  } catch (error) {
+    if (error.code !== "23505") throw error;
+    return await findEnrollment(playerId, clubId, tournamentId);
+  }
+}
+
+async function findPlayerCandidates({ name, tournamentId, teamId }) {
+  const normalized = await normalizePlayerNameWithDatabase(name);
+  if (!normalized) {
+    return { normalized: null, candidates: [] };
+  }
+
+  const [
+    exactPlayers,
+    partialPlayers,
+    exactAliases,
+    partialAliases
+  ] = await Promise.all([
+    fetchPlayers(
+      `&nombre_normalizado=eq.${encodeURIComponent(normalized)}`
+    ),
+    normalized.length >= 3
+      ? fetchPlayers(
+          `&nombre_normalizado=ilike.*${encodeURIComponent(normalized)}*`
+        )
+      : [],
+    fetchAliases(
+      `&alias_normalizado=eq.${encodeURIComponent(normalized)}`
+    ),
+    normalized.length >= 3
+      ? fetchAliases(
+          `&alias_normalizado=ilike.*${encodeURIComponent(normalized)}*`
+        )
+      : []
+  ]);
+
+  const byPlayer = new Map();
+  exactPlayers.forEach(player =>
+    addCandidate(byPlayer, player, "nombre normalizado", true)
+  );
+  partialPlayers.forEach(player =>
+    addCandidate(byPlayer, player, "nombre similar", false)
+  );
+  exactAliases.forEach(alias =>
+    addAliasCandidate(byPlayer, alias, "alias confirmado", true)
+  );
+  partialAliases.forEach(alias =>
+    addAliasCandidate(byPlayer, alias, "alias similar", false)
+  );
+
+  const playerIds = [...byPlayer.keys()];
+  const inscriptions = await getInscriptionsForPlayers(playerIds);
+  const byPlayerInscriptions = groupInscriptionsByPlayer(inscriptions);
+
+  const candidates = [...byPlayer.values()]
+    .map(candidate => {
+      const playerInscriptions =
+        byPlayerInscriptions.get(String(candidate.jugador.id)) || [];
+      const contextEnrollment = playerInscriptions.find(enrollment =>
+        String(enrollment.torneo_id) === String(tournamentId) &&
+        String(enrollment.club_id) === String(teamId)
+      ) || null;
+
+      return {
+        jugador: candidate.jugador,
+        coincidencias: [...candidate.coincidencias],
+        coincidencia_exacta: candidate.coincidencia_exacta,
+        inscripcion_contexto: contextEnrollment,
+        inscripciones: playerInscriptions
+      };
+    })
+    .sort(compareCandidates);
+
+  return {
+    normalized,
+    candidates
+  };
+}
+
+async function normalizePlayerNameWithDatabase(name) {
+  const response = await supabaseFetch(
+    "/rest/v1/rpc/tp_normalizar_nombre_jugador",
+    {
+      method: "POST",
+      body: JSON.stringify({ p_nombre: name })
+    }
+  );
+  const result = await parseSupabaseResponse(response);
+  return cleanText(
+    typeof result === "string"
+      ? result
+      : result?.tp_normalizar_nombre_jugador || result
+  );
+}
+
+async function fetchPlayers(filter) {
+  const response = await supabaseFetch(
+    "/rest/v1/jugadores" +
+    `?select=${PLAYER_SELECT}` +
+    filter +
+    "&order=nombre_completo.asc" +
+    `&limit=${CANDIDATE_LIMIT}`
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function fetchAliases(filter) {
+  const response = await supabaseFetch(
+    "/rest/v1/jugadores_aliases" +
+    "?select=id,jugador_id,alias,alias_normalizado,club_id,torneo_id," +
+    "confirmado,jugador:jugadores(id,nombre_completo,nombre_normalizado,activo)" +
+    "&confirmado=eq.true" +
+    filter +
+    `&limit=${CANDIDATE_LIMIT}`
+  );
+  const rows = await parseSupabaseResponse(response);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function addAliasCandidate(map, alias, reason, exact) {
+  if (!alias?.jugador) return;
+  addCandidate(map, alias.jugador, reason, exact);
+}
+
+function addCandidate(map, player, reason, exact) {
+  if (!player?.id) return;
+  const key = String(player.id);
+  const current = map.get(key) || {
+    jugador: {
+      id: player.id,
+      nombre_completo: player.nombre_completo,
+      nombre_normalizado: player.nombre_normalizado || null,
+      activo: player.activo !== false
+    },
+    coincidencias: new Set(),
+    coincidencia_exacta: false
+  };
+
+  current.coincidencias.add(reason);
+  current.coincidencia_exacta = current.coincidencia_exacta || exact;
+  map.set(key, current);
+}
+
+async function getInscriptionsForPlayers(playerIds) {
+  if (playerIds.length === 0) return [];
+  const response = await supabaseFetch(
+    "/rest/v1/inscripciones_jugadores" +
+    "?select=id,jugador_id,club_id,torneo_id,posicion,dorsal,estado," +
+    "club:clubes(id,nombre_corto,nombre_oficial)," +
+    "torneo:torneos(id,nombre,anio,tipo)" +
+    `&jugador_id=in.(${playerIds.map(encodeURIComponent).join(",")})` +
+    "&order=torneo_id.desc,club_id.asc,id.asc"
+  );
+  const rows = await parseSupabaseResponse(response);
+  return (Array.isArray(rows) ? rows : []).map(enrollment => ({
+    id: enrollment.id,
+    jugador_id: enrollment.jugador_id,
+    club_id: enrollment.club_id,
+    torneo_id: enrollment.torneo_id,
+    posicion: enrollment.posicion || "sin_definir",
+    dorsal: enrollment.dorsal ?? null,
+    estado: enrollment.estado || "por_verificar",
+    club_nombre:
+      enrollment.club?.nombre_corto ||
+      enrollment.club?.nombre_oficial ||
+      `Club #${enrollment.club_id}`,
+    torneo_nombre:
+      enrollment.torneo?.nombre ||
+      [
+        enrollment.torneo?.tipo,
+        enrollment.torneo?.anio
+      ].filter(Boolean).join(" ") ||
+      `Torneo #${enrollment.torneo_id}`
+  }));
+}
+
+function groupInscriptionsByPlayer(inscriptions) {
+  return inscriptions.reduce((map, enrollment) => {
+    const key = String(enrollment.jugador_id);
+    const current = map.get(key) || [];
+    current.push(enrollment);
+    map.set(key, current);
+    return map;
+  }, new Map());
+}
+
+function compareCandidates(a, b) {
+  const contextA = a.inscripcion_contexto ? 0 : 1;
+  const contextB = b.inscripcion_contexto ? 0 : 1;
+  if (contextA !== contextB) return contextA - contextB;
+  if (a.coincidencia_exacta !== b.coincidencia_exacta) {
+    return a.coincidencia_exacta ? -1 : 1;
+  }
+  if (a.jugador.activo !== b.jugador.activo) {
+    return a.jugador.activo ? -1 : 1;
+  }
+  return String(a.jugador.nombre_completo || "").localeCompare(
+    String(b.jugador.nombre_completo || ""),
+    "es",
+    { sensitivity: "base" }
+  ) || Number(a.jugador.id || 0) - Number(b.jugador.id || 0);
 }
 
 async function deleteEvent(event) {
@@ -461,15 +1000,15 @@ async function patchEventOrder(id, order, matchId) {
   }
 }
 
-function sanitizeInput(body, match) {
+function sanitizeInput(body, match, existing = null) {
   const tipo = String(body.tipo || "").trim();
   const equipoId = requiredId(body.equipo_id, "Equipo invalido.");
   const estadoDato = String(
     body.estado_dato || "por_verificar"
   ).trim();
   const fuente = cleanText(body.fuente);
-  const inscriptionId = optionalId(body.inscripcion_jugador_id);
-  const relatedId = optionalId(body.inscripcion_relacionada_id);
+  let inscriptionId = optionalId(body.inscripcion_jugador_id);
+  let relatedId = optionalId(body.inscripcion_relacionada_id);
   const periodo = cleanText(body.periodo);
   const minuto = optionalInteger(body.minuto);
 
@@ -485,22 +1024,36 @@ function sanitizeInput(body, match) {
   if (minuto !== null && (minuto < 1 || minuto > 130)) {
     throw validationError("El minuto debe estar entre 1 y 130.");
   }
-  if (![match.local_id, match.visitante_id].some(
-    id => String(id) === String(equipoId)
-  )) {
-    throw validationError(
-      "El equipo debe ser local o visitante del partido."
-    );
-  }
+  assertTeamBelongsToMatch(match, equipoId);
   if (!match.torneo_id) {
     throw validationError("El partido no tiene torneo asignado.");
   }
+  if (!inscriptionId && existing?.inscripcion_jugador_id) {
+    inscriptionId = optionalId(existing.inscripcion_jugador_id);
+  }
+  if (
+    tipo === "cambio" &&
+    !relatedId &&
+    existing?.inscripcion_relacionada_id
+  ) {
+    relatedId = optionalId(existing.inscripcion_relacionada_id);
+  }
+  const legacyWithoutEnrollment = Boolean(
+    existing?.jugador &&
+    !existing?.inscripcion_jugador_id &&
+    !inscriptionId &&
+    !relatedId
+  );
   if (estadoDato === "confirmado" && !fuente) {
     throw validationError(
       "Una incidencia confirmada debe tener una fuente."
     );
   }
-  if (tipo === "cambio" && (!inscriptionId || !relatedId)) {
+  if (
+    tipo === "cambio" &&
+    (!inscriptionId || !relatedId) &&
+    !legacyWithoutEnrollment
+  ) {
     throw validationError(
       "Para un cambio selecciona al jugador que sale y al que entra."
     );
@@ -656,10 +1209,10 @@ function normalizeClubName(value) {
     .trim();
 }
 
-async function getEnrollment(id, match, teamId) {
+async function getEnrollment(id, match, teamId, options = {}) {
   const response = await supabaseFetch(
     "/rest/v1/inscripciones_jugadores" +
-    "?select=*,jugador:jugadores(id,nombre_completo,aliases)" +
+    "?select=*,jugador:jugadores(id,nombre_completo,nombre_normalizado,activo)" +
     `&id=eq.${id}&limit=1`
   );
   const rows = await parseSupabaseResponse(response);
@@ -674,70 +1227,19 @@ async function getEnrollment(id, match, teamId) {
   if (String(enrollment.torneo_id) !== String(match.torneo_id)) {
     throw validationError("El jugador no pertenece al torneo del partido.");
   }
-
-  return enrollment;
-}
-
-async function createProvisionalEnrollment({
-  name,
-  clubId,
-  tournamentId,
-  source
-}) {
-  const existingPlayer = await findPlayerByName(name);
-  const existingEnrollment = existingPlayer
-    ? await findEnrollment(
-        existingPlayer.id,
-        clubId,
-        tournamentId
-      )
-    : null;
-
-  if (existingEnrollment) {
-    return {
-      ...existingEnrollment,
-      jugador: existingPlayer
-    };
+  if (!enrollment.jugador?.id) {
+    throw validationError("El jugador de la inscripcion no existe.");
+  }
+  if (!options.allowInactive) {
+    if (enrollment.estado === "inactivo") {
+      throw validationError("La inscripcion del jugador no esta habilitada.");
+    }
+    if (enrollment.jugador.activo === false) {
+      throw validationError("El jugador no esta habilitado.");
+    }
   }
 
-  const response = await supabaseFetch(
-    "/rest/v1/rpc/admin_guardar_inscripcion_jugador",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        p_inscripcion_id: null,
-        p_jugador_id: existingPlayer?.id || null,
-        p_nombre_completo: name,
-        p_aliases: [],
-        p_club_id: clubId,
-        p_torneo_id: tournamentId,
-        p_posicion: "sin_definir",
-        p_dorsal: null,
-        p_estado: "por_verificar",
-        p_fecha_desde: null,
-        p_fecha_hasta: null,
-        p_fuente: source,
-        p_observaciones:
-          "Creado al conciliar una incidencia historica."
-      })
-    }
-  );
-  const result = await parseSupabaseResponse(response);
-  return {
-    ...result.inscripcion,
-    jugador: result.jugador
-  };
-}
-
-async function findPlayerByName(name) {
-  const response = await supabaseFetch(
-    "/rest/v1/jugadores" +
-    "?select=id,nombre_completo,aliases" +
-    `&nombre_completo=eq.${encodeURIComponent(name)}` +
-    "&limit=1"
-  );
-  const rows = await parseSupabaseResponse(response);
-  return Array.isArray(rows) ? rows[0] || null : null;
+  return enrollment;
 }
 
 async function findEnrollment(playerId, clubId, tournamentId) {

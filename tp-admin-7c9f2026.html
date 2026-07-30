@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=12">
+  <link rel="stylesheet" href="styles/admin.css?v=13">
 </head>
 <body>
   <main class="admin-shell">
@@ -833,25 +833,112 @@
                 </label>
               </div>
 
-              <label>
-                <span id="eventPlayerLabel">Jugador</span>
-                <select id="eventPlayer"></select>
-              </label>
+              <div class="event-player-picker">
+                <label for="eventPlayerSearch">
+                  Buscar jugador
+                  <input
+                    id="eventPlayerSearch"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Nombre del jugador"
+                    aria-controls="eventPlayer"
+                  >
+                </label>
+                <label for="eventPlayer">
+                  <span id="eventPlayerLabel">Jugador</span>
+                  <select id="eventPlayer"></select>
+                </label>
+                <div
+                  class="event-player-state"
+                  id="eventPlayerState"
+                  aria-live="polite"
+                >
+                  Selecciona equipo para cargar jugadores.
+                </div>
+                <button
+                  type="button"
+                  class="ghost"
+                  id="eventPlayerMissingBtn"
+                >
+                  Jugador no encontrado
+                </button>
+              </div>
 
-              <label class="hidden" id="eventRelatedWrap">
+              <label class="hidden" id="eventRelatedWrap" for="eventRelatedPlayer">
                 Jugador que entra
                 <select id="eventRelatedPlayer"></select>
               </label>
 
               <div class="legacy-event hidden" id="eventLegacyBlock">
-                <span>Nombre histórico sin vincular</span>
+                <span>Evento historico sin jugador vinculado</span>
                 <strong id="eventLegacyName"></strong>
-                <label class="toggle-label">
-                  <input id="eventCreateLegacy" type="checkbox">
-                  <span>
-                    Crear inscripción por verificar y vincular este nombre
-                  </span>
+                <div class="legacy-link-actions">
+                  <button
+                    type="button"
+                    class="ghost"
+                    id="eventLinkLegacyBtn"
+                  >
+                    Vincular jugador
+                  </button>
+                </div>
+              </div>
+
+              <div
+                class="event-missing-flow hidden"
+                id="eventMissingFlow"
+                aria-labelledby="eventMissingTitle"
+              >
+                <div class="event-missing-head">
+                  <div>
+                    <span class="eyebrow">Jugador no encontrado</span>
+                    <h3 id="eventMissingTitle">Buscar persona</h3>
+                  </div>
+                  <button
+                    type="button"
+                    class="ghost"
+                    id="eventMissingCloseBtn"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <label for="eventMissingName">
+                  Nombre recibido
+                  <input
+                    id="eventMissingName"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Nombre de la fuente"
+                  >
                 </label>
+                <div class="actions compact">
+                  <button type="button" id="eventMissingSearchBtn">
+                    Buscar persona
+                  </button>
+                </div>
+                <div
+                  class="event-missing-results"
+                  id="eventMissingResults"
+                  aria-live="polite"
+                >
+                  Ingresa un nombre y busca candidatos antes de crear.
+                </div>
+                <div
+                  class="event-create-player hidden"
+                  id="eventCreatePlayerBlock"
+                >
+                  <div class="event-create-summary" id="eventCreateSummary">
+                    Revisa los candidatos antes de crear una persona nueva.
+                  </div>
+                  <label class="toggle-label">
+                    <input id="eventCreateConfirm" type="checkbox">
+                    <span>
+                      Confirmo que no corresponde a los candidatos mostrados
+                    </span>
+                  </label>
+                  <button type="button" id="eventCreatePlayerBtn">
+                    Crear jugador e inscripcion
+                  </button>
+                </div>
               </div>
 
               <div class="form-row two">
@@ -906,6 +993,6 @@
   </main>
 
   <script src="js/admin-match-flow.js?v=2"></script>
-  <script src="js/admin-panel.js?v=23"></script>
+  <script src="js/admin-panel.js?v=24"></script>
 </body>
 </html>

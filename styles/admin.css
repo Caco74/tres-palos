@@ -712,6 +712,104 @@ p {
   color: var(--yellow);
 }
 
+.event-player-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.event-player-state {
+  min-height: 22px;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.event-player-state[data-type="ok"] {
+  color: var(--green);
+}
+
+.event-player-state[data-type="warn"] {
+  color: var(--yellow);
+}
+
+.event-player-state[data-type="error"] {
+  color: var(--red);
+}
+
+.event-missing-flow {
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+  background: #141419;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.event-missing-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.event-missing-head h3 {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.actions.compact {
+  justify-content: start;
+  margin-top: -2px;
+}
+
+.event-missing-results {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.event-candidate {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.event-candidate strong,
+.event-candidate small,
+.event-create-summary {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.event-candidate small {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.event-candidate-actions,
+.legacy-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-candidate-actions button,
+.legacy-link-actions button,
+.event-player-picker > button {
+  width: fit-content;
+}
+
+.event-create-player {
+  display: grid;
+  gap: 10px;
+}
+
 .legacy-event {
   padding: 12px;
   display: grid;
@@ -1438,11 +1536,6 @@ body.live-picker-open {
   font-size: .66rem;
 }
 
-.live-player.unknown {
-  color: var(--yellow);
-  border-color: rgba(244, 185, 66, .28);
-}
-
 @media (max-width: 980px) {
   .toolbar {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1529,6 +1622,18 @@ body.live-picker-open {
 
   .event-admin-list {
     max-height: 42vh;
+  }
+
+  .event-missing-head,
+  .event-candidate-actions,
+  .legacy-link-actions {
+    display: grid;
+  }
+
+  .event-candidate-actions button,
+  .legacy-link-actions button,
+  .event-player-picker > button {
+    width: 100%;
   }
 
   .live-mode-panel {

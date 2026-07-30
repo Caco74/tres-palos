@@ -271,6 +271,12 @@ function runTests() {
     assert.ok(indexOfId("matchForm") < indexOfId("liveMatch"));
     assert.ok(indexOfId("matchForm") < indexOfId("eventMatch"));
     assert.ok(indexOfId("matchForm") < indexOfId("stageAdminSelect"));
+    assert.ok(indexOfId("eventPlayerSearch") < indexOfId("eventPlayer"));
+    assert.ok(indexOfId("eventPlayerMissingBtn") < indexOfId("eventMissingFlow"));
+    assert.match(html, /id="eventPlayerState"[\s\S]*?aria-live="polite"/);
+    assert.match(html, /id="eventMissingResults"[\s\S]*?aria-live="polite"/);
+    assert.match(html, /id="eventCreateConfirm" type="checkbox"/);
+    assert.doesNotMatch(html, /eventCreateLegacy/);
     results.push("resultados y seleccion quedan antes de edicion/incidencias/cierre: ok");
   }
 
@@ -305,6 +311,17 @@ function runTests() {
     assert.doesNotMatch(recargaBody, /cargarPanel\(\)/);
     assert.doesNotMatch(recargaBody, /limpiarContextoTorneo|mostrarEstadoSinTorneo/);
     assert.doesNotMatch(recargaBody, /apiRequest\("(POST|PATCH|DELETE)"/);
+    assert.match(js, /scope:\s*"jugadores"/);
+    assert.match(js, /value="\$\{inscripcion\.id\}"/);
+    assert.match(js, /Selecciona una inscripcion de jugador/);
+    assert.match(js, /busqueda_previa:\s*true/);
+    assert.match(js, /confirmar_creacion:\s*true/);
+    assert.match(js, /confirmar_inscripcion:\s*true/);
+    assert.match(
+      js,
+      /incidenciaActualHistoricaSinVincular\(\)[\s\S]*?!eventFields\.relatedPlayer\.value/
+    );
+    assert.doesNotMatch(js, /crear_desde_texto|eventCreateLegacy/);
     assert.match(js, /refreshBtn\.disabled = isReloading;/);
     assert.match(js, /Actualizando…/);
     assert.doesNotMatch(
@@ -331,6 +348,9 @@ function runTests() {
       css,
       /\.admin-app\.has-match-selection\s+\.match-required-message\s*\{[\s\S]*?display:\s*none;/
     );
+    assert.match(css, /\.event-player-picker\s*\{/);
+    assert.match(css, /\.event-missing-flow\s*\{/);
+    assert.match(css, /\.event-candidate-actions button,[\s\S]*?width:\s*100%;/);
     results.push("CSS movil sin overflow, superposicion ni bloques altos vacios: ok");
   }
 
