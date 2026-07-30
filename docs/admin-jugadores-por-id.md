@@ -16,18 +16,35 @@ actual al momento de guardar. No es la identidad principal.
 2. Seleccionar partido.
 3. Seleccionar equipo del jugador.
 4. Seleccionar tipo de incidencia.
-5. Buscar y elegir una inscripcion de jugador.
-6. Guardar incidencia.
+5. Buscar dentro del plantel del club.
+6. Elegir una inscripcion de jugador.
+7. Guardar incidencia.
 
 El navegador envia `inscripcion_jugador_id`. La funcion Netlify resuelve en
 servidor el jugador, club, torneo y nombre canonico antes de insertar o
 actualizar.
 
+El selector de incidencias no muestra jugadores globales. La lista se limita a
+las inscripciones del torneo y club seleccionados, se filtra por nombre en el
+navegador y muestra un maximo visible reducido para evitar errores en movil.
+
+## Planteles
+
+La accion `Agregar jugador` empieza con una busqueda progresiva de persona
+existente. No se muestra un selector global de jugadores ni el formulario de
+alta antes de buscar.
+
+La busqueda comienza desde 2 caracteres, usa normalizacion de base para ignorar
+mayusculas y tildes, y devuelve como maximo 8 candidatos. Cada candidato muestra
+el nombre canonico y sus inscripciones conocidas con club y torneo. Si no tiene
+inscripciones conocidas, se indica `Sin inscripciones registradas`.
+
 ## Jugador existente sin inscripcion
 
-La accion `Jugador no encontrado` abre un flujo separado. Primero se busca el
-nombre recibido desde la fuente. Si la persona existe pero no tiene inscripcion
-para el club y torneo del partido, el admin puede crear solo esa inscripcion.
+La accion `Jugador no encontrado` en incidencias y la busqueda de `Planteles`
+comparten el mismo criterio: primero se busca el nombre recibido desde la
+fuente. Si la persona existe pero no tiene inscripcion para el club y torneo
+elegidos, el admin puede crear solo esa inscripcion.
 
 La operacion es idempotente: si la inscripcion ya existe, se devuelve la fila
 existente y se selecciona en el formulario.
@@ -37,6 +54,9 @@ existente y se selecciona en el formulario.
 Solo se puede crear una persona nueva despues de buscar candidatos y confirmar
 explicitamente que no corresponde a los resultados mostrados. El formulario pide
 solo `nombre_completo`.
+
+`Nombres alternativos` no forma parte del flujo principal ni es obligatorio. Si
+se edita una inscripcion existente, queda dentro de `Datos adicionales`.
 
 La creacion de jugador + inscripcion se hace desde la funcion Netlify mediante
 la operacion administrativa controlada `admin_guardar_inscripcion_jugador`.

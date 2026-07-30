@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=13">
+  <link rel="stylesheet" href="styles/admin.css?v=14">
 </head>
 <body>
   <main class="admin-shell">
@@ -610,7 +610,7 @@
 
         <div class="match-dependent-detail">
           <p class="stage-intro">
-            Cada inscripcion vincula una persona con un club y un torneo.
+            Cada inscripción vincula una persona con un club y un torneo.
             Reutiliza al jugador existente si cambia de club o competencia.
           </p>
 
@@ -640,28 +640,93 @@
 
             <form id="rosterForm" class="match-form hidden">
               <input type="hidden" id="rosterEnrollmentId">
+              <input type="hidden" id="rosterPlayerId">
 
-              <div class="form-section-title">Identidad</div>
-              <label>
-                Persona existente
-                <select id="rosterPlayerId">
-                  <option value="">Crear jugador nuevo</option>
-                </select>
-              </label>
-
-              <label>
-                Nombre completo
-                <input id="rosterPlayerName" type="text" required>
-              </label>
-
-              <label>
-                Nombres alternativos
-                <input
-                  id="rosterAliases"
-                  type="text"
-                  placeholder="Apodo o variantes, separados por coma"
+              <div class="roster-search-panel" id="rosterSearchPanel">
+                <div class="form-section-title">Buscar jugador existente</div>
+                <label for="rosterPlayerSearch">
+                  Buscar jugador existente
+                  <input
+                    id="rosterPlayerSearch"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Escribí nombre o apellido..."
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="rosterSearchResults"
+                  >
+                </label>
+                <div
+                  class="event-player-state"
+                  id="rosterSearchState"
+                  aria-live="polite"
                 >
+                  Escribí al menos 2 letras
+                </div>
+                <div
+                  class="player-search-results"
+                  id="rosterSearchResults"
+                  role="listbox"
+                  aria-live="polite"
+                ></div>
+                <button
+                  type="button"
+                  class="ghost hidden"
+                  id="rosterCreateNewBtn"
+                >
+                  No aparece en los resultados - Crear jugador nuevo
+                </button>
+              </div>
+
+              <div
+                class="player-selection-summary hidden"
+                id="rosterSelectedPlayer"
+                aria-live="polite"
+              ></div>
+
+              <div
+                class="event-create-player hidden"
+                id="rosterCreatePlayerBlock"
+              >
+                <div class="form-section-title">Crear jugador nuevo</div>
+                <label for="rosterPlayerName">
+                  Nombre completo
+                  <input id="rosterPlayerName" type="text">
+                </label>
+                <div class="event-create-summary" id="rosterCreateSummary">
+                  Revisa los resultados antes de crear una persona nueva.
+                </div>
+                <label class="toggle-label">
+                  <input id="rosterCreateConfirm" type="checkbox">
+                  <span>
+                    Confirmo que no corresponde a los candidatos mostrados
+                  </span>
+                </label>
+                <button type="button" id="rosterCreatePlayerBtn">
+                  Crear jugador e inscripción
+                </button>
+              </div>
+
+              <div class="roster-details-block hidden" id="rosterDetailsBlock">
+              <div class="form-section-title">Identidad</div>
+
+              <label for="rosterPlayerNameEdit">
+                Nombre completo
+                <input id="rosterPlayerNameEdit" type="text" required>
               </label>
+
+              <details class="optional-details" id="rosterExtraData">
+                <summary>Datos adicionales</summary>
+                <label for="rosterAliases">
+                  Nombres alternativos
+                  <input
+                    id="rosterAliases"
+                    type="text"
+                    placeholder="Apodo o variantes, separados por coma"
+                  >
+                </label>
+              </details>
 
               <div class="form-section-title">Inscripción</div>
               <div class="form-row three">
@@ -735,6 +800,7 @@
                 >
                   Quitar del plantel
                 </button>
+              </div>
               </div>
               <div class="form-feedback" id="rosterFeedback">
                 Completá los datos disponibles.
@@ -841,13 +907,22 @@
                     type="search"
                     autocomplete="off"
                     placeholder="Nombre del jugador"
-                    aria-controls="eventPlayer"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="eventPlayerResults"
                   >
                 </label>
-                <label for="eventPlayer">
+                <input type="hidden" id="eventPlayer">
+                <div>
                   <span id="eventPlayerLabel">Jugador</span>
-                  <select id="eventPlayer"></select>
-                </label>
+                  <div
+                    class="player-search-results"
+                    id="eventPlayerResults"
+                    role="listbox"
+                    aria-label="Jugadores del plantel"
+                  ></div>
+                </div>
                 <div
                   class="event-player-state"
                   id="eventPlayerState"
@@ -864,10 +939,16 @@
                 </button>
               </div>
 
-              <label class="hidden" id="eventRelatedWrap" for="eventRelatedPlayer">
-                Jugador que entra
-                <select id="eventRelatedPlayer"></select>
-              </label>
+              <div class="hidden" id="eventRelatedWrap">
+                <input type="hidden" id="eventRelatedPlayer">
+                <span>Jugador que entra</span>
+                <div
+                  class="player-search-results"
+                  id="eventRelatedPlayerResults"
+                  role="listbox"
+                  aria-label="Jugadores que entran"
+                ></div>
+              </div>
 
               <div class="legacy-event hidden" id="eventLegacyBlock">
                 <span>Evento historico sin jugador vinculado</span>
@@ -936,7 +1017,7 @@
                     </span>
                   </label>
                   <button type="button" id="eventCreatePlayerBtn">
-                    Crear jugador e inscripcion
+                    Crear jugador e inscripción
                   </button>
                 </div>
               </div>
@@ -993,6 +1074,6 @@
   </main>
 
   <script src="js/admin-match-flow.js?v=2"></script>
-  <script src="js/admin-panel.js?v=24"></script>
+  <script src="js/admin-panel.js?v=25"></script>
 </body>
 </html>

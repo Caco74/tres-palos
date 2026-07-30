@@ -271,7 +271,16 @@ function runTests() {
     assert.ok(indexOfId("matchForm") < indexOfId("liveMatch"));
     assert.ok(indexOfId("matchForm") < indexOfId("eventMatch"));
     assert.ok(indexOfId("matchForm") < indexOfId("stageAdminSelect"));
+    assert.match(html, /id="rosterPlayerSearch"/);
+    assert.match(html, /id="rosterSearchResults"[\s\S]*?role="listbox"/);
+    assert.match(html, /id="rosterCreateNewBtn"/);
+    assert.match(html, /class="event-create-player hidden"\s+id="rosterCreatePlayerBlock"/);
+    assert.match(html, /id="rosterExtraData"[\s\S]*?id="rosterAliases"/);
+    assert.doesNotMatch(html, /<select[^>]+id="rosterPlayerId"/);
+    assert.doesNotMatch(html, /<select[^>]+id="eventPlayer"/);
+    assert.doesNotMatch(html, /<select[^>]+id="eventRelatedPlayer"/);
     assert.ok(indexOfId("eventPlayerSearch") < indexOfId("eventPlayer"));
+    assert.ok(indexOfId("eventPlayer") < indexOfId("eventPlayerResults"));
     assert.ok(indexOfId("eventPlayerMissingBtn") < indexOfId("eventMissingFlow"));
     assert.match(html, /id="eventPlayerState"[\s\S]*?aria-live="polite"/);
     assert.match(html, /id="eventMissingResults"[\s\S]*?aria-live="polite"/);
@@ -312,7 +321,16 @@ function runTests() {
     assert.doesNotMatch(recargaBody, /limpiarContextoTorneo|mostrarEstadoSinTorneo/);
     assert.doesNotMatch(recargaBody, /apiRequest\("(POST|PATCH|DELETE)"/);
     assert.match(js, /scope:\s*"jugadores"/);
-    assert.match(js, /value="\$\{inscripcion\.id\}"/);
+    assert.match(js, /EVENT_PLAYER_LIMIT = 8/);
+    assert.match(js, /const visibles = filtradas\.slice\(0, EVENT_PLAYER_LIMIT\)/);
+    assert.match(js, /busquedaPlantel\.candidatos\.slice\(0, 8\)/);
+    assert.match(js, /rosterFields\.search\.value\.trim\(\)\.length < 2/);
+    assert.match(js, /scope:\s*"buscar-jugador"/);
+    assert.match(js, /data-event-player/);
+    assert.match(js, /eventFields\.player\.value = button\.dataset\.eventPlayer/);
+    assert.match(js, /data-roster-candidate/);
+    assert.match(js, /crear-jugador-inscripcion/);
+    assert.doesNotMatch(js, /renderOpcionesJugadores|seleccionarJugadorExistente/);
     assert.match(js, /Selecciona una inscripcion de jugador/);
     assert.match(js, /busqueda_previa:\s*true/);
     assert.match(js, /confirmar_creacion:\s*true/);
@@ -350,6 +368,9 @@ function runTests() {
     );
     assert.match(css, /\.event-player-picker\s*\{/);
     assert.match(css, /\.event-missing-flow\s*\{/);
+    assert.match(css, /\.player-search-results\s*\{[\s\S]*?max-height:/);
+    assert.match(css, /\.player-candidate\s*\{[\s\S]*?min-height:\s*52px;/);
+    assert.match(css, /\.optional-details\s*\{/);
     assert.match(css, /\.event-candidate-actions button,[\s\S]*?width:\s*100%;/);
     results.push("CSS movil sin overflow, superposicion ni bloques altos vacios: ok");
   }

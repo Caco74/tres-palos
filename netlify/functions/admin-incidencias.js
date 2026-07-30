@@ -33,7 +33,7 @@ const ENROLLMENT_PLAYER_SELECT = [
 ].join(",");
 const PLAYER_SELECT =
   "id,nombre_completo,nombre_normalizado,aliases,activo";
-const CANDIDATE_LIMIT = 40;
+const CANDIDATE_LIMIT = 8;
 
 exports.handler = async event => {
   if (event.httpMethod === "OPTIONS") {
@@ -726,7 +726,8 @@ async function findPlayerCandidates({ name, tournamentId, teamId }) {
         inscripciones: playerInscriptions
       };
     })
-    .sort(compareCandidates);
+    .sort(compareCandidates)
+    .slice(0, CANDIDATE_LIMIT);
 
   return {
     normalized,

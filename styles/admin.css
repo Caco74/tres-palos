@@ -604,6 +604,87 @@ p {
   opacity: .55;
 }
 
+.roster-search-panel,
+.roster-details-block,
+.player-selection-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.player-search-results {
+  max-height: 340px;
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.player-candidate {
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 11px;
+  display: grid;
+  gap: 3px;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.player-candidate:hover,
+.player-candidate:focus-visible,
+.player-candidate.selected {
+  border-color: rgba(255, 48, 69, .75);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.player-candidate strong,
+.player-candidate small,
+.player-selection-summary strong,
+.player-selection-summary small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.player-candidate strong,
+.player-selection-summary strong {
+  font-size: .92rem;
+}
+
+.player-candidate small,
+.player-selection-summary small {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.player-selection-summary {
+  padding: 12px;
+  background: #141419;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.optional-details {
+  padding: 10px;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.optional-details summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.optional-details label {
+  margin-top: 10px;
+}
+
 .event-filters {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1546,7 +1627,7 @@ body.live-picker-open {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 820px) {
   .auth-form,
   .work-tournament-controls,
   .admin-grid,
@@ -1622,6 +1703,18 @@ body.live-picker-open {
 
   .event-admin-list {
     max-height: 42vh;
+  }
+
+  .player-search-results {
+    max-height: 48vh;
+  }
+
+  .player-candidate {
+    min-height: 56px;
+  }
+
+  .player-selection-summary {
+    padding: 10px;
   }
 
   .event-missing-head,

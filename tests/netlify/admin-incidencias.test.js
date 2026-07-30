@@ -791,16 +791,21 @@ async function runAdminIncidenciasTests() {
         "utf8"
       );
       assert.match(html, /id="eventPlayerSearch"/);
+      assert.match(html, /id="eventPlayerResults"[\s\S]*?role="listbox"/);
       assert.match(html, /id="eventPlayerMissingBtn"/);
       assert.match(html, /id="eventMissingFlow"/);
+      assert.doesNotMatch(html, /<select[^>]+id="eventPlayer"/);
+      assert.doesNotMatch(html, /<select[^>]+id="eventRelatedPlayer"/);
       assert.doesNotMatch(html + js, /eventCreateLegacy|crear_desde_texto/);
-      assert.match(js, /value="\$\{inscripcion\.id\}"/);
+      assert.match(js, /EVENT_PLAYER_LIMIT = 8/);
+      assert.match(js, /data-event-player/);
+      assert.match(js, /eventFields\.player\.value = button\.dataset\.eventPlayer/);
       assert.match(js, /scope:\s*"jugadores"/);
       assert.match(js, /confirmar_creacion:\s*true/);
       assert.match(js, /confirmar_inscripcion:\s*true/);
       assert.match(js, /EVENT_PLAYER_LIMIT/);
       assert.match(css, /\.event-player-picker/);
-      assert.match(css, /@media \(max-width: 760px\)/);
+      assert.match(css, /@media \(max-width: 820px\)/);
       assert.doesNotMatch(html + js, /SUPABASE_SERVICE_ROLE_KEY|test-service-role/);
       assert.doesNotMatch(html + js, /goleadores_oficiales/);
     }
