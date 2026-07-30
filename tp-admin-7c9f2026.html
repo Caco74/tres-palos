@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=15">
+  <link rel="stylesheet" href="styles/admin.css?v=16">
 </head>
 <body>
   <main class="admin-shell">
@@ -356,6 +356,7 @@
             <button
               type="button"
               class="ghost live-picker-close"
+              id="livePickerCloseBtn"
               data-live-close
               aria-label="Cerrar"
             >
@@ -365,7 +366,24 @@
           <p id="livePickerHelp">
             Elegí al jugador del equipo seleccionado y guardá la incidencia.
           </p>
-          <label class="live-player-search" for="livePlayerSearch">
+          <div class="live-picker-empty hidden" id="liveEmptyRoster">
+            <div class="event-player-state" data-type="warn">
+              Todavía no hay jugadores cargados para este club y torneo
+            </div>
+            <div class="live-picker-empty-actions">
+              <button type="button" id="liveEmptyAddPlayerBtn">
+                Agregar jugador al plantel
+              </button>
+              <button type="button" class="ghost" data-live-close>
+                Cerrar
+              </button>
+            </div>
+          </div>
+          <label
+            class="live-player-search"
+            id="livePlayerSearchWrap"
+            for="livePlayerSearch"
+          >
             Buscar en el plantel
             <input
               id="livePlayerSearch"
@@ -385,7 +403,7 @@
           >
             Seleccioná un tipo de incidencia.
           </div>
-          <div class="live-picker-moment">
+          <div class="live-picker-moment" id="livePickerMoment">
             <label>
               Tiempo
               <select id="livePeriod">
@@ -407,7 +425,7 @@
             </label>
           </div>
           <div class="live-player-grid" id="livePlayerGrid"></div>
-          <div class="live-picker-actions">
+          <div class="live-picker-actions" id="livePickerActions">
             <button type="button" class="ghost" id="liveAddPlayerBtn">
               Agregar jugador al plantel
             </button>
@@ -1133,6 +1151,6 @@
   </main>
 
   <script src="js/admin-match-flow.js?v=2"></script>
-  <script src="js/admin-panel.js?v=26"></script>
+  <script src="js/admin-panel.js?v=27"></script>
 </body>
 </html>

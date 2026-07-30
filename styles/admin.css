@@ -1616,6 +1616,28 @@ body.live-picker-open {
   display: block;
 }
 
+.live-picker-empty {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.live-picker-empty .event-player-state {
+  margin: 0;
+  padding: 14px;
+  line-height: 1.35;
+}
+
+.live-picker-empty-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.live-picker-empty-actions button {
+  min-height: 44px;
+}
+
 .live-picker-moment {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1839,7 +1861,15 @@ body.live-picker-open {
     display: grid;
   }
 
+  .live-picker-empty-actions {
+    grid-template-columns: 1fr;
+  }
+
   .live-picker-actions button {
+    width: 100%;
+  }
+
+  .live-picker-empty-actions button {
     width: 100%;
   }
 }

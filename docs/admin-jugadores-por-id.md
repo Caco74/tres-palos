@@ -44,6 +44,12 @@ Al cambiar de equipo se limpian el tipo y el jugador seleccionados. En un
 `gol_en_contra`, el equipo seleccionado sigue siendo el club del jugador que
 convirtio en contra; no se cambia al equipo beneficiado.
 
+Si el plantel del club y torneo esta vacio, el modal de incidencia muestra solo
+el mensaje de plantel vacio y las acciones `Agregar jugador al plantel` y
+`Cerrar`. Al volver desde `Planteles`, se conserva partido, equipo y tipo, se
+recarga el plantel y se preselecciona la inscripcion creada cuando no es un
+`cambio`. La incidencia nunca se guarda automaticamente.
+
 ## Planteles
 
 La accion `Agregar jugador` empieza con una busqueda progresiva de persona

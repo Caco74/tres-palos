@@ -120,12 +120,18 @@ const livePicker = document.getElementById("livePicker");
 const livePickerEyebrow = document.getElementById("livePickerEyebrow");
 const livePickerTitle = document.getElementById("livePickerTitle");
 const livePickerHelp = document.getElementById("livePickerHelp");
+const livePickerCloseBtn = document.getElementById("livePickerCloseBtn");
 const livePeriod = document.getElementById("livePeriod");
 const liveMinute = document.getElementById("liveMinute");
+const liveEmptyRoster = document.getElementById("liveEmptyRoster");
+const liveEmptyAddPlayerBtn = document.getElementById("liveEmptyAddPlayerBtn");
+const livePlayerSearchWrap = document.getElementById("livePlayerSearchWrap");
 const livePlayerSearch = document.getElementById("livePlayerSearch");
 const livePlayerState = document.getElementById("livePlayerState");
 const livePlayerGrid = document.getElementById("livePlayerGrid");
+const livePickerMoment = document.getElementById("livePickerMoment");
 const liveAddPlayerBtn = document.getElementById("liveAddPlayerBtn");
+const livePickerActions = document.getElementById("livePickerActions");
 const liveSaveActionBtn = document.getElementById("liveSaveActionBtn");
 
 const fields = {
@@ -244,6 +250,7 @@ let liveSelectedSide = null;
 let liveAction = null;
 let liveChangeOutId = null;
 let liveSelectedPlayerId = null;
+let liveRosterReturnContext = null;
 let liveBusy = false;
 let eventReordering = false;
 let recargaDatosEnCurso = false;
@@ -587,6 +594,7 @@ function limpiarContextoTorneo(message) {
   liveSelectedSide = null;
   liveAction = null;
   liveChangeOutId = null;
+  liveRosterReturnContext = null;
   liveSelectedPlayerId = null;
   liveTeamLocalBtn.innerHTML = "<strong>Por definir</strong><small>LOCAL</small>";
   liveTeamAwayBtn.innerHTML =
@@ -881,6 +889,7 @@ function limpiarSeleccionPartido(message) {
   liveAction = null;
   liveChangeOutId = null;
   liveSelectedPlayerId = null;
+  liveRosterReturnContext = null;
   matchForm.reset();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
@@ -2405,9 +2414,12 @@ async function crearInscripcionPlantelSeleccionado() {
     const inscripcionId = data.inscripcion?.id;
     await cargarPlantelesAdmin();
     if (inscripcionId) seleccionarInscripcion(inscripcionId);
+    const regresoModo = volverAIncidenciaDesdePlantel(inscripcionId);
     setRosterFeedback(
       data.existente
         ? "Este jugador ya pertenece al plantel."
+        : regresoModo
+        ? "Inscripción guardada. Volviste a la incidencia pendiente."
         : "Inscripción guardada. Ya queda disponible para futuras incidencias.",
       data.existente ? "warn" : "ok"
     );
@@ -2448,8 +2460,11 @@ async function crearJugadorPlantelNuevo() {
     const inscripcionId = data.inscripcion?.id;
     await cargarPlantelesAdmin();
     if (inscripcionId) seleccionarInscripcion(inscripcionId);
+    const regresoModo = volverAIncidenciaDesdePlantel(inscripcionId);
     setRosterFeedback(
-      "Jugador e inscripción creados. Ya queda disponible para incidencias.",
+      regresoModo
+        ? "Jugador e inscripción creados. Volviste a la incidencia pendiente."
+        : "Jugador e inscripción creados. Ya queda disponible para incidencias.",
       "ok"
     );
     setStatus("Plantel actualizado.", "ok");
@@ -3332,6 +3347,7 @@ function seleccionarEquipoModo(lado) {
     liveAction = null;
     liveChangeOutId = null;
     liveSelectedPlayerId = null;
+    liveRosterReturnContext = null;
   }
   liveSelectedSide = lado;
   setLiveFeedback(`Equipo seleccionado: ${equipo.nombre}.`, "ok");
@@ -3587,14 +3603,18 @@ function abrirSelectorModo(tipo) {
   document.body.classList.add("live-picker-open");
 }
 
-function jugadoresDisponiblesModo() {
+function plantelModoEquipoActual() {
   const partido = partidoModoSeleccionado();
   if (!partido || !liveAction) return [];
 
   return inscripcionesModoEquipo(
     liveAction.equipoId,
     partido.torneo_id
-  ).filter(inscripcion =>
+  );
+}
+
+function jugadoresDisponiblesModo() {
+  return plantelModoEquipoActual().filter(inscripcion =>
     !liveChangeOutId ||
     String(inscripcion.id) !== String(liveChangeOutId)
   );
@@ -3613,10 +3633,30 @@ function actualizarBotonGuardarModo() {
   liveSaveActionBtn.disabled = liveBusy || !seleccionJugadorListaModo();
 }
 
+function setLivePickerEmptyMode(isEmpty) {
+  liveEmptyRoster.classList.toggle("hidden", !isEmpty);
+  livePickerCloseBtn.classList.toggle("hidden", isEmpty);
+  livePickerHelp.classList.toggle("hidden", isEmpty);
+  livePlayerSearchWrap.classList.toggle("hidden", isEmpty);
+  livePlayerState.classList.toggle("hidden", isEmpty);
+  livePickerMoment.classList.toggle("hidden", isEmpty);
+  livePlayerGrid.classList.toggle("hidden", isEmpty);
+  livePickerActions.classList.toggle("hidden", isEmpty);
+  liveEmptyAddPlayerBtn.disabled = liveBusy || !liveAction;
+  liveAddPlayerBtn.disabled = liveBusy || !liveAction;
+  if (isEmpty) {
+    livePlayerSearch.value = "";
+    livePlayerSearch.setAttribute("aria-expanded", "false");
+    livePlayerGrid.innerHTML = "";
+    liveSaveActionBtn.disabled = true;
+  }
+}
+
 function renderSelectorJugadoresModo() {
   const partido = partidoModoSeleccionado();
   if (!partido || !liveAction) return;
 
+  const plantel = plantelModoEquipoActual();
   const disponibles = jugadoresDisponiblesModo();
   const esCambio = liveAction.tipo === "cambio";
   const eligeEntrada = esCambio && liveChangeOutId;
@@ -3634,7 +3674,7 @@ function renderSelectorJugadoresModo() {
     : liveSelectedPlayerId;
 
   livePickerEyebrow.textContent =
-    `${liveAction.equipoNombre} - ${
+    `${liveAction.equipoNombre} · ${
       etiquetaTipoIncidencia(liveAction.tipo)
     }`;
   livePickerTitle.textContent = esCambio
@@ -3642,6 +3682,14 @@ function renderSelectorJugadoresModo() {
       ? "Elegí quién entra"
       : "Elegí quién sale"
     : "Elegí al jugador";
+
+  if (plantel.length === 0) {
+    livePickerTitle.textContent = "Sin jugadores cargados";
+    setLivePickerEmptyMode(true);
+    return;
+  }
+
+  setLivePickerEmptyMode(false);
   livePickerHelp.textContent = esCambio
     ? eligeEntrada
       ? "Elegí quién entra y confirmá el cambio."
@@ -3651,11 +3699,9 @@ function renderSelectorJugadoresModo() {
     "aria-expanded",
     visibles.length > 0 ? "true" : "false"
   );
-  liveAddPlayerBtn.disabled = liveBusy || !liveAction;
-
-  if (disponibles.length === 0) {
+  if (esCambio && liveChangeOutId && visibles.length === 0) {
     livePlayerState.textContent =
-      "Todavía no hay jugadores cargados para este club y torneo.";
+      "No hay otro jugador disponible para el cambio.";
     livePlayerState.dataset.type = "warn";
   } else if (query && visibles.length === 0) {
     livePlayerState.textContent =
@@ -3695,30 +3741,106 @@ function renderSelectorJugadoresModo() {
   }).join("");
 
   if (visibles.length === 0) {
+    const mensajeVacio = esCambio && liveChangeOutId
+      ? "No hay otro jugador disponible para el cambio."
+      : "No hay resultados en el plantel elegido.";
     livePlayerGrid.innerHTML = `
       <div class="analytics-empty">
-        ${escapeHtml(
-          disponibles.length === 0
-            ? "Todavía no hay jugadores cargados para este club y torneo."
-            : "No hay resultados en el plantel elegido."
-        )}
+        ${escapeHtml(mensajeVacio)}
       </div>
     `;
   }
   actualizarBotonGuardarModo();
 }
 
-function cerrarSelectorModo() {
+function cerrarSelectorModo(options = {}) {
   livePicker.classList.add("hidden");
   livePicker.setAttribute("aria-hidden", "true");
   document.body.classList.remove("live-picker-open");
+  setLivePickerEmptyMode(false);
   liveAction = null;
   liveChangeOutId = null;
   liveSelectedPlayerId = null;
+  if (!options.preservarRegresoPlantel) {
+    liveRosterReturnContext = null;
+  }
   livePlayerSearch.value = "";
   livePlayerSearch.setAttribute("aria-expanded", "false");
   livePlayerState.textContent = "Seleccioná un tipo de incidencia.";
   liveSaveActionBtn.disabled = true;
+}
+
+function inscripcionDisponibleParaModo(inscripcionId, contexto) {
+  if (!inscripcionId || !contexto) return null;
+  return inscripcionesModoEquipo(
+    contexto.equipoId,
+    contexto.torneoId
+  ).find(inscripcion =>
+    String(inscripcion.id) === String(inscripcionId)
+  ) || null;
+}
+
+function volverAIncidenciaDesdePlantel(inscripcionId) {
+  const contexto = liveRosterReturnContext;
+  if (!contexto) return false;
+
+  const partido = partidos.find(
+    item => String(item.id) === String(contexto.partidoId)
+  );
+  if (
+    !partido ||
+    String(partido.torneo_id) !== String(contexto.torneoId)
+  ) {
+    liveRosterReturnContext = null;
+    return false;
+  }
+
+  if (String(seleccionadoId || "") !== String(contexto.partidoId)) {
+    seleccionarPartido(contexto.partidoId, { desplazarAEditor: false });
+  }
+
+  liveSelectedSide = contexto.lado;
+  liveAction = {
+    lado: contexto.lado,
+    tipo: contexto.tipo,
+    equipoId: contexto.equipoId,
+    equipoNombre: contexto.equipoNombre,
+    partidoId: contexto.partidoId
+  };
+  liveChangeOutId = null;
+  liveSelectedPlayerId = null;
+
+  const inscripcion = inscripcionDisponibleParaModo(
+    inscripcionId,
+    contexto
+  );
+  if (inscripcion && contexto.tipo !== "cambio") {
+    liveSelectedPlayerId = Number(inscripcion.id);
+  }
+
+  liveRosterReturnContext = null;
+  livePlayerSearch.value = "";
+  liveMinute.value = "";
+  renderModoPartido();
+  renderSelectorJugadoresModo();
+  livePicker.classList.remove("hidden");
+  livePicker.setAttribute("aria-hidden", "false");
+  document.body.classList.add("live-picker-open");
+  setLiveFeedback(
+    inscripcion && contexto.tipo !== "cambio"
+      ? "Jugador agregado al plantel. Revisá y guardá la incidencia."
+      : "Plantel actualizado. Revisá la incidencia antes de guardar.",
+    "ok"
+  );
+
+  window.requestAnimationFrame(() => {
+    if (liveSelectedPlayerId) {
+      liveSaveActionBtn.focus();
+    } else if (!livePlayerSearchWrap.classList.contains("hidden")) {
+      livePlayerSearch.focus();
+    }
+  });
+  return true;
 }
 
 function seleccionarJugadorModo(valor) {
@@ -3837,7 +3959,15 @@ function abrirPlantelDesdeModo() {
   const torneoId = liveAction.partidoId
     ? partidoModoSeleccionado()?.torneo_id
     : torneoTrabajoId;
-  cerrarSelectorModo();
+  liveRosterReturnContext = {
+    torneoId: Number(torneoId),
+    partidoId: Number(liveAction.partidoId),
+    lado: liveAction.lado,
+    tipo: liveAction.tipo,
+    equipoId: Number(liveAction.equipoId),
+    equipoNombre: liveAction.equipoNombre
+  };
+  cerrarSelectorModo({ preservarRegresoPlantel: true });
   if (torneoId) rosterTournament.value = String(torneoId);
   rosterClub.value = String(equipoId);
   renderPlantel();
@@ -5027,6 +5157,7 @@ function seleccionarPartido(id, options = {}) {
     liveAction = null;
     liveChangeOutId = null;
     liveSelectedPlayerId = null;
+    liveRosterReturnContext = null;
   }
 
   seleccionadoId = partido.id;
@@ -5692,6 +5823,7 @@ clubForm.addEventListener("submit", event => {
   });
 });
 rosterTournament.addEventListener("change", () => {
+  liveRosterReturnContext = null;
   inscripcionSeleccionadaId = null;
   resetBusquedaPlantel();
   toggleRosterBtn.classList.add("hidden");
@@ -5700,6 +5832,7 @@ rosterTournament.addEventListener("change", () => {
   renderPlantel();
 });
 rosterClub.addEventListener("change", () => {
+  liveRosterReturnContext = null;
   inscripcionSeleccionadaId = null;
   resetBusquedaPlantel();
   toggleRosterBtn.classList.add("hidden");
@@ -5742,6 +5875,7 @@ rosterFields.selectedPlayer.addEventListener("click", event => {
   const existing = event.target.closest("[data-roster-open-existing]");
   if (existing) {
     seleccionarInscripcion(existing.dataset.rosterOpenExisting);
+    volverAIncidenciaDesdePlantel(existing.dataset.rosterOpenExisting);
     return;
   }
 
@@ -5842,6 +5976,7 @@ livePlayerGrid.addEventListener("click", event => {
     setLiveBusy(false);
   }
 });
+liveEmptyAddPlayerBtn.addEventListener("click", abrirPlantelDesdeModo);
 liveAddPlayerBtn.addEventListener("click", abrirPlantelDesdeModo);
 liveSaveActionBtn.addEventListener("click", () => {
   guardarSeleccionModo().catch(error => {
