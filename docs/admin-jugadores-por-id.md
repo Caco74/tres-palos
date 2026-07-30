@@ -28,6 +28,22 @@ El selector de incidencias no muestra jugadores globales. La lista se limita a
 las inscripciones del torneo y club seleccionados, se filtra por nombre en el
 navegador y muestra un maximo visible reducido para evitar errores en movil.
 
+## Carga posterior del partido
+
+El modo rapido de incidencias usa el mismo criterio de identidad por
+inscripcion, pero la seleccion se hace en pasos explicitos:
+
+1. Elegir el equipo local o visitante con botones identificados como `LOCAL` y
+   `VISITANTE`.
+2. Elegir un unico tipo de incidencia desde una sola grilla de acciones.
+3. Buscar al jugador dentro del plantel del equipo seleccionado.
+4. Completar tiempo o minuto cuando corresponda.
+5. Guardar la incidencia con el boton de confirmacion.
+
+Al cambiar de equipo se limpian el tipo y el jugador seleccionados. En un
+`gol_en_contra`, el equipo seleccionado sigue siendo el club del jugador que
+convirtio en contra; no se cambia al equipo beneficiado.
+
 ## Planteles
 
 La accion `Agregar jugador` empieza con una busqueda progresiva de persona

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=14">
+  <link rel="stylesheet" href="styles/admin.css?v=15">
 </head>
 <body>
   <main class="admin-shell">
@@ -241,8 +241,8 @@
 
         <div class="match-dependent-detail">
           <p class="stage-intro">
-            El resultado no se modifica desde acá. Tocá una acción del equipo
-            y elegí al jugador para completar lo ocurrido en el partido.
+            El resultado no se modifica desde acá. Elegí primero el equipo,
+            después la incidencia y finalmente el jugador del plantel.
             Tiempo y minuto son opcionales.
           </p>
 
@@ -262,6 +262,46 @@
               <strong id="liveAwayName">Por definir</strong>
             </div>
           </div>
+          <div class="live-team-picker" aria-labelledby="liveTeamPickerTitle">
+            <div class="form-section-title" id="liveTeamPickerTitle">
+              ¿PARA QUÉ EQUIPO?
+            </div>
+            <div class="live-team-options">
+              <button
+                type="button"
+                class="live-team-option"
+                id="liveTeamLocalBtn"
+                data-live-side="local"
+                aria-pressed="false"
+              >
+                <strong>Por definir</strong>
+                <small>LOCAL</small>
+              </button>
+              <button
+                type="button"
+                class="live-team-option"
+                id="liveTeamAwayBtn"
+                data-live-side="visitante"
+                aria-pressed="false"
+              >
+                <strong>Por definir</strong>
+                <small>VISITANTE</small>
+              </button>
+            </div>
+            <div
+              class="event-player-state"
+              id="liveSelectedTeamState"
+              aria-live="polite"
+            >
+              Primero elegí el equipo
+            </div>
+          </div>
+          <div class="live-action-panel" aria-labelledby="liveActionTitle">
+            <div class="form-section-title" id="liveActionTitle">
+              Tipo de incidencia
+            </div>
+            <div class="live-action-grid" id="liveActionGrid"></div>
+          </div>
           <div class="live-goal-progress" id="liveGoalProgress">
             Cargá primero el resultado del partido.
           </div>
@@ -272,15 +312,6 @@
             </div>
             <div id="liveConsistencyList">
               Elegí un partido para revisar sus incidencias.
-            </div>
-          </div>
-
-          <div class="live-action-columns">
-            <div class="live-actions-side live-actions-local">
-              <div id="liveLocalActions"></div>
-            </div>
-            <div class="live-actions-side live-actions-away">
-              <div id="liveAwayActions"></div>
             </div>
           </div>
 
@@ -332,8 +363,28 @@
             </button>
           </div>
           <p id="livePickerHelp">
-            La incidencia se guardará al tocar un jugador.
+            Elegí al jugador del equipo seleccionado y guardá la incidencia.
           </p>
+          <label class="live-player-search" for="livePlayerSearch">
+            Buscar en el plantel
+            <input
+              id="livePlayerSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Nombre del jugador"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="livePlayerGrid"
+            >
+          </label>
+          <div
+            class="event-player-state"
+            id="livePlayerState"
+            aria-live="polite"
+          >
+            Seleccioná un tipo de incidencia.
+          </div>
           <div class="live-picker-moment">
             <label>
               Tiempo
@@ -356,6 +407,14 @@
             </label>
           </div>
           <div class="live-player-grid" id="livePlayerGrid"></div>
+          <div class="live-picker-actions">
+            <button type="button" class="ghost" id="liveAddPlayerBtn">
+              Agregar jugador al plantel
+            </button>
+            <button type="button" id="liveSaveActionBtn" disabled>
+              Guardar incidencia
+            </button>
+          </div>
         </section>
       </div>
 
@@ -1074,6 +1133,6 @@
   </main>
 
   <script src="js/admin-match-flow.js?v=2"></script>
-  <script src="js/admin-panel.js?v=25"></script>
+  <script src="js/admin-panel.js?v=26"></script>
 </body>
 </html>

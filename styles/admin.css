@@ -1285,6 +1285,75 @@ input[readonly] {
   color: var(--yellow);
 }
 
+.live-team-picker,
+.live-action-panel {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  background: rgba(255, 255, 255, .025);
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.live-team-picker {
+  border-top: 0;
+}
+
+.live-team-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.live-team-option {
+  min-width: 0;
+  min-height: 70px;
+  padding: 11px;
+  display: grid;
+  gap: 5px;
+  align-content: center;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.live-team-option strong,
+.live-team-option small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.live-team-option strong {
+  font-size: .9rem;
+  line-height: 1.15;
+}
+
+.live-team-option small {
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.live-team-option.selected {
+  border-color: rgba(255, 48, 69, .75);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.live-action-panel {
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+
+.live-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
 .live-consistency {
   padding: 12px;
   display: grid;
@@ -1292,6 +1361,7 @@ input[readonly] {
   background: rgba(255, 255, 255, .025);
   border: 1px solid var(--line);
   border-top: 0;
+  border-radius: 0 0 14px 14px;
 }
 
 .live-consistency-head {
@@ -1361,36 +1431,6 @@ input[readonly] {
   background: var(--red);
 }
 
-.live-action-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid var(--line);
-  border-top: 0;
-  border-radius: 0 0 14px 14px;
-  overflow: hidden;
-}
-
-.live-actions-side {
-  padding: 10px;
-  background: rgba(255, 255, 255, .018);
-}
-
-.live-actions-local {
-  border-left: 3px solid var(--red);
-}
-
-.live-actions-away {
-  border-right: 3px solid var(--blue);
-  border-left: 1px solid var(--line);
-}
-
-.live-actions-side > div {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-
 .live-action {
   min-width: 0;
   min-height: 58px;
@@ -1403,26 +1443,26 @@ input[readonly] {
   line-height: 1.15;
 }
 
-.live-action[data-action="gol"],
-.live-action[data-action="gol_penal"] {
+.live-action[data-live-action="gol"],
+.live-action[data-live-action="gol_penal"] {
   color: var(--green);
   border-color: rgba(53, 199, 122, .3);
 }
 
-.live-action[data-action="gol_penal"] {
+.live-action[data-live-action="gol_penal"] {
   background: rgba(53, 199, 122, .07);
 }
 
-.live-action[data-action="gol_en_contra"] {
+.live-action[data-live-action="gol_en_contra"] {
   color: var(--blue);
 }
 
-.live-action[data-action="amarilla"] {
+.live-action[data-live-action="amarilla"] {
   color: var(--yellow);
   border-color: rgba(244, 185, 66, .25);
 }
 
-.live-action[data-action="doble_amarilla"] {
+.live-action[data-live-action="doble_amarilla"] {
   color: #ff7d8a;
   border-color: rgba(255, 48, 69, .3);
   background:
@@ -1433,7 +1473,7 @@ input[readonly] {
     );
 }
 
-.live-action[data-action="roja"] {
+.live-action[data-live-action="roja"] {
   color: var(--red);
   border-color: rgba(255, 48, 69, .3);
 }
@@ -1571,6 +1611,11 @@ body.live-picker-open {
   padding: 8px 10px;
 }
 
+.live-player-search {
+  margin-top: 10px;
+  display: block;
+}
+
 .live-picker-moment {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1603,18 +1648,37 @@ body.live-picker-open {
   color: var(--text);
   background: var(--card2);
   border: 1px solid var(--line);
+  border-radius: 8px;
   text-align: left;
+}
+
+.live-player.selected {
+  border-color: rgba(255, 48, 69, .75);
+  box-shadow: inset 3px 0 0 var(--red);
 }
 
 .live-player strong,
 .live-player small {
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .live-player small {
   margin-top: 3px;
   color: var(--muted);
   font-size: .66rem;
+}
+
+.live-picker-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.live-picker-actions button {
+  min-height: 44px;
 }
 
 @media (max-width: 980px) {
@@ -1744,12 +1808,17 @@ body.live-picker-open {
     min-width: 72px;
   }
 
-  .live-actions-side {
-    padding: 7px;
+  .live-team-picker,
+  .live-action-panel {
+    padding: 10px;
   }
 
-  .live-actions-side > div {
-    gap: 5px;
+  .live-team-options {
+    grid-template-columns: 1fr;
+  }
+
+  .live-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .live-action {
@@ -1764,5 +1833,13 @@ body.live-picker-open {
 
   .live-player-grid {
     grid-template-columns: 1fr;
+  }
+
+  .live-picker-actions {
+    display: grid;
+  }
+
+  .live-picker-actions button {
+    width: 100%;
   }
 }

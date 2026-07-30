@@ -269,6 +269,16 @@ function runTests() {
     assert.ok(indexOfId("matchList") < indexOfId("selectedMatchSummary"));
     assert.ok(indexOfId("selectedMatchSummary") < indexOfId("matchForm"));
     assert.ok(indexOfId("matchForm") < indexOfId("liveMatch"));
+    assert.ok(indexOfId("liveLocalName") < indexOfId("liveTeamPickerTitle"));
+    assert.match(html, /id="liveTeamPickerTitle"[\s\S]*?¿PARA QUÉ EQUIPO\?/);
+    assert.match(html, /id="liveTeamLocalBtn"[\s\S]*?LOCAL/);
+    assert.match(html, /id="liveTeamAwayBtn"[\s\S]*?VISITANTE/);
+    assert.match(html, /id="liveSelectedTeamState"[\s\S]*?aria-live="polite"/);
+    assert.match(html, /id="liveActionGrid"/);
+    assert.match(html, /id="livePlayerSearch"/);
+    assert.match(html, /id="livePlayerState"[\s\S]*?aria-live="polite"/);
+    assert.match(html, /id="liveSaveActionBtn" disabled/);
+    assert.doesNotMatch(html, /live-action-columns|liveLocalActions|liveAwayActions/);
     assert.ok(indexOfId("matchForm") < indexOfId("eventMatch"));
     assert.ok(indexOfId("matchForm") < indexOfId("stageAdminSelect"));
     assert.match(html, /id="rosterPlayerSearch"/);
@@ -330,8 +340,17 @@ function runTests() {
     assert.match(js, /eventFields\.player\.value = button\.dataset\.eventPlayer/);
     assert.match(js, /data-roster-candidate/);
     assert.match(js, /crear-jugador-inscripcion/);
+    assert.match(js, /function seleccionarEquipoModo\(lado\)/);
+    assert.match(js, /Equipo seleccionado: \$\{equipo\.nombre\}/);
+    assert.match(js, /function renderAccionesModo\(disabled, partido, eventos\)/);
+    assert.match(js, /liveActionGrid\.innerHTML = LIVE_ACTIONS\.map/);
+    assert.match(js, /abrirSelectorModo\(button\.dataset\.liveAction\)/);
+    assert.match(js, /function guardarSeleccionModo\(\)/);
+    assert.match(js, /liveSaveActionBtn\.addEventListener\("click"/);
+    assert.match(js, /El jugador seleccionado no pertenece al equipo elegido/);
+    assert.doesNotMatch(js, /liveLocalActions|liveAwayActions|data-live-side="\$\{lado\}"/);
     assert.doesNotMatch(js, /renderOpcionesJugadores|seleccionarJugadorExistente/);
-    assert.match(js, /Selecciona una inscripcion de jugador/);
+    assert.match(js, /Selecciona una inscripción de jugador/);
     assert.match(js, /busqueda_previa:\s*true/);
     assert.match(js, /confirmar_creacion:\s*true/);
     assert.match(js, /confirmar_inscripcion:\s*true/);
@@ -371,6 +390,12 @@ function runTests() {
     assert.match(css, /\.player-search-results\s*\{[\s\S]*?max-height:/);
     assert.match(css, /\.player-candidate\s*\{[\s\S]*?min-height:\s*52px;/);
     assert.match(css, /\.optional-details\s*\{/);
+    assert.match(css, /\.live-team-options\s*\{/);
+    assert.match(css, /\.live-action-grid\s*\{/);
+    assert.match(css, /\.live-team-option\.selected\s*\{/);
+    assert.match(css, /\.live-player\.selected\s*\{/);
+    assert.match(css, /\.live-picker-actions\s*\{/);
+    assert.doesNotMatch(css, /live-action-columns|live-actions-side/);
     assert.match(css, /\.event-candidate-actions button,[\s\S]*?width:\s*100%;/);
     results.push("CSS movil sin overflow, superposicion ni bloques altos vacios: ok");
   }
