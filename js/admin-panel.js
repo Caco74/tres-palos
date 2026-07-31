@@ -4,6 +4,7 @@ const STAGES_API_URL = "/.netlify/functions/admin-etapas";
 const CLUBS_API_URL = "/.netlify/functions/admin-clubes";
 const ROSTERS_API_URL = "/.netlify/functions/admin-planteles";
 const EVENTS_API_URL = "/.netlify/functions/admin-incidencias";
+const EVENT_PLAYER_LIMIT = 8;
 const PASSWORD_KEY = "tp_admin_password";
 const WORK_TOURNAMENT_KEY = "tp_admin_work_tournament_id";
 const PLAYOFF_STAGES = [
@@ -11,6 +12,15 @@ const PLAYOFF_STAGES = [
   { value: "cuartos", label: "Cuartos de Final" },
   { value: "semifinal", label: "Semifinales" },
   { value: "final", label: "Final" }
+];
+const LIVE_ACTIONS = [
+  ["gol", "Gol"],
+  ["gol_penal", "Gol de penal"],
+  ["gol_en_contra", "Gol en contra"],
+  ["amarilla", "Amarilla"],
+  ["doble_amarilla", "2da amarilla + roja"],
+  ["roja", "Roja"],
+  ["cambio", "Cambio"]
 ];
 const AdminMatchFlow = window.TPAdminFlow;
 
@@ -95,8 +105,12 @@ const liveConsistencyState = document.getElementById(
 const liveConsistencyList = document.getElementById(
   "liveConsistencyList"
 );
-const liveLocalActions = document.getElementById("liveLocalActions");
-const liveAwayActions = document.getElementById("liveAwayActions");
+const liveTeamLocalBtn = document.getElementById("liveTeamLocalBtn");
+const liveTeamAwayBtn = document.getElementById("liveTeamAwayBtn");
+const liveSelectedTeamState = document.getElementById(
+  "liveSelectedTeamState"
+);
+const liveActionGrid = document.getElementById("liveActionGrid");
 const liveEventCount = document.getElementById("liveEventCount");
 const liveTimeline = document.getElementById("liveTimeline");
 const liveUndoBtn = document.getElementById("liveUndoBtn");
@@ -106,9 +120,19 @@ const livePicker = document.getElementById("livePicker");
 const livePickerEyebrow = document.getElementById("livePickerEyebrow");
 const livePickerTitle = document.getElementById("livePickerTitle");
 const livePickerHelp = document.getElementById("livePickerHelp");
+const livePickerCloseBtn = document.getElementById("livePickerCloseBtn");
 const livePeriod = document.getElementById("livePeriod");
 const liveMinute = document.getElementById("liveMinute");
+const liveEmptyRoster = document.getElementById("liveEmptyRoster");
+const liveEmptyAddPlayerBtn = document.getElementById("liveEmptyAddPlayerBtn");
+const livePlayerSearchWrap = document.getElementById("livePlayerSearchWrap");
+const livePlayerSearch = document.getElementById("livePlayerSearch");
+const livePlayerState = document.getElementById("livePlayerState");
 const livePlayerGrid = document.getElementById("livePlayerGrid");
+const livePickerMoment = document.getElementById("livePickerMoment");
+const liveAddPlayerBtn = document.getElementById("liveAddPlayerBtn");
+const livePickerActions = document.getElementById("livePickerActions");
+const liveSaveActionBtn = document.getElementById("liveSaveActionBtn");
 
 const fields = {
   id: document.getElementById("partidoId"),
@@ -145,7 +169,20 @@ const clubFields = {
 const rosterFields = {
   enrollmentId: document.getElementById("rosterEnrollmentId"),
   playerId: document.getElementById("rosterPlayerId"),
+  searchPanel: document.getElementById("rosterSearchPanel"),
+  search: document.getElementById("rosterPlayerSearch"),
+  searchState: document.getElementById("rosterSearchState"),
+  searchResults: document.getElementById("rosterSearchResults"),
+  createNew: document.getElementById("rosterCreateNewBtn"),
+  selectedPlayer: document.getElementById("rosterSelectedPlayer"),
+  createBlock: document.getElementById("rosterCreatePlayerBlock"),
   playerName: document.getElementById("rosterPlayerName"),
+  editName: document.getElementById("rosterPlayerNameEdit"),
+  createSummary: document.getElementById("rosterCreateSummary"),
+  createConfirm: document.getElementById("rosterCreateConfirm"),
+  createPlayer: document.getElementById("rosterCreatePlayerBtn"),
+  detailsBlock: document.getElementById("rosterDetailsBlock"),
+  extraData: document.getElementById("rosterExtraData"),
   aliases: document.getElementById("rosterAliases"),
   position: document.getElementById("rosterPosition"),
   shirt: document.getElementById("rosterShirt"),
@@ -163,12 +200,26 @@ const eventFields = {
   period: document.getElementById("eventPeriod"),
   minute: document.getElementById("eventMinute"),
   player: document.getElementById("eventPlayer"),
+  playerResults: document.getElementById("eventPlayerResults"),
+  playerSearch: document.getElementById("eventPlayerSearch"),
+  playerState: document.getElementById("eventPlayerState"),
   playerLabel: document.getElementById("eventPlayerLabel"),
+  playerMissing: document.getElementById("eventPlayerMissingBtn"),
   relatedWrap: document.getElementById("eventRelatedWrap"),
   relatedPlayer: document.getElementById("eventRelatedPlayer"),
+  relatedResults: document.getElementById("eventRelatedPlayerResults"),
   legacyBlock: document.getElementById("eventLegacyBlock"),
   legacyName: document.getElementById("eventLegacyName"),
-  createLegacy: document.getElementById("eventCreateLegacy"),
+  linkLegacy: document.getElementById("eventLinkLegacyBtn"),
+  missingFlow: document.getElementById("eventMissingFlow"),
+  missingName: document.getElementById("eventMissingName"),
+  missingSearch: document.getElementById("eventMissingSearchBtn"),
+  missingResults: document.getElementById("eventMissingResults"),
+  missingClose: document.getElementById("eventMissingCloseBtn"),
+  createPlayerBlock: document.getElementById("eventCreatePlayerBlock"),
+  createSummary: document.getElementById("eventCreateSummary"),
+  createConfirm: document.getElementById("eventCreateConfirm"),
+  createPlayer: document.getElementById("eventCreatePlayerBtn"),
   dataStatus: document.getElementById("eventDataStatus"),
   source: document.getElementById("eventSource"),
   notes: document.getElementById("eventNotes")
@@ -180,6 +231,7 @@ let torneos = [];
 let torneosTrabajo = [];
 let jugadores = [];
 let inscripcionesJugadores = [];
+let inscripcionesIncidencia = [];
 let incidencias = [];
 let torneoTrabajoId = null;
 let torneoTrabajoCargando = false;
@@ -194,11 +246,20 @@ let respaldosEtapa = [];
 let etapasDisponibles = [];
 let etapasHabilitadas = false;
 let etapaProcesando = false;
+let liveSelectedSide = null;
 let liveAction = null;
 let liveChangeOutId = null;
+let liveSelectedPlayerId = null;
+let liveRosterReturnContext = null;
 let liveBusy = false;
 let eventReordering = false;
 let recargaDatosEnCurso = false;
+let cargaJugadoresIncidenciaId = 0;
+let busquedaJugadorEvento = null;
+let busquedaPlantelId = 0;
+let busquedaPlantelTimer = null;
+let busquedaPlantel = null;
+let jugadorPlantelSeleccionado = null;
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -236,8 +297,17 @@ function setClubFeedback(message, type = "info") {
 }
 
 function setRosterSaving(isSaving) {
-  saveRosterBtn.disabled = isSaving;
-  toggleRosterBtn.disabled = isSaving;
+  const editandoInscripcion =
+    Boolean(rosterFields.enrollmentId.value) &&
+    !rosterFields.detailsBlock.classList.contains("hidden");
+  saveRosterBtn.disabled = isSaving || !editandoInscripcion;
+  toggleRosterBtn.disabled = isSaving || !editandoInscripcion;
+  rosterFields.createNew.disabled = isSaving;
+  rosterFields.createPlayer.disabled =
+    isSaving ||
+    !busquedaPlantel ||
+    !rosterFields.createConfirm.checked ||
+    !valorTexto(rosterFields.playerName);
   saveRosterBtn.textContent = isSaving
     ? "Guardando..."
     : "Guardar inscripción";
@@ -257,7 +327,8 @@ function setEventSaving(isSaving) {
     !torneoTrabajoValido() ||
     !partidoPerteneceTorneoTrabajo(partido) ||
     etapaCerrada;
-  saveEventBtn.disabled = isSaving || bloqueado;
+  saveEventBtn.disabled =
+    isSaving || bloqueado || incidenciaIncompletaParaGuardar();
   deleteEventBtn.disabled = isSaving || bloqueado || !eventFields.id.value;
   saveEventBtn.textContent = isSaving
     ? "Guardando..."
@@ -267,6 +338,45 @@ function setEventSaving(isSaving) {
 function setEventFeedback(message, type = "info") {
   eventFeedback.textContent = message;
   eventFeedback.dataset.type = type;
+}
+
+function incidenciaActualHistoricaSinVincular() {
+  const id = eventFields.id.value;
+  if (!id) return false;
+  const incidencia = incidencias.find(
+    item => String(item.id) === String(id)
+  );
+  return Boolean(
+    incidencia?.jugador &&
+    !incidencia.inscripcion_jugador_id &&
+    !eventFields.player.value
+  );
+}
+
+function incidenciaSeleccionadaEsHistoricaSinVincular() {
+  const id = eventFields.id.value;
+  if (!id) return false;
+  const incidencia = incidencias.find(
+    item => String(item.id) === String(id)
+  );
+  return Boolean(incidencia?.jugador && !incidencia.inscripcion_jugador_id);
+}
+
+function incidenciaIncompletaParaGuardar() {
+  if (eventForm.classList.contains("hidden")) return false;
+  if (!eventFields.team.value) return true;
+  if (eventFields.type.value === "cambio") {
+    if (
+      incidenciaActualHistoricaSinVincular() &&
+      !eventFields.player.value &&
+      !eventFields.relatedPlayer.value
+    ) {
+      return false;
+    }
+    return !eventFields.player.value || !eventFields.relatedPlayer.value;
+  }
+  return !eventFields.player.value &&
+    !incidenciaActualHistoricaSinVincular();
 }
 
 function setEventReordering(isReordering) {
@@ -281,6 +391,7 @@ function setLiveFeedback(message, type = "info") {
 
 function setLiveBusy(isBusy) {
   liveBusy = isBusy;
+  if (liveSaveActionBtn) actualizarBotonGuardarModo();
   renderModoPartido();
 }
 
@@ -429,6 +540,7 @@ function limpiarContextoTorneo(message) {
   eventForm.reset();
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
+  resetJugadoresIncidencia("Selecciona torneo, partido y equipo.");
 
   matchList.innerHTML = `
     <div class="empty-list">
@@ -479,8 +591,21 @@ function limpiarContextoTorneo(message) {
   liveConsistencyList.className = "";
   liveConsistencyList.textContent =
     "Selecciona un torneo y un partido para revisar sus incidencias.";
-  liveLocalActions.innerHTML = "";
-  liveAwayActions.innerHTML = "";
+  liveSelectedSide = null;
+  liveAction = null;
+  liveChangeOutId = null;
+  liveRosterReturnContext = null;
+  liveSelectedPlayerId = null;
+  liveTeamLocalBtn.innerHTML = "<strong>Por definir</strong><small>LOCAL</small>";
+  liveTeamAwayBtn.innerHTML =
+    "<strong>Por definir</strong><small>VISITANTE</small>";
+  liveTeamLocalBtn.disabled = true;
+  liveTeamAwayBtn.disabled = true;
+  liveTeamLocalBtn.setAttribute("aria-pressed", "false");
+  liveTeamAwayBtn.setAttribute("aria-pressed", "false");
+  liveSelectedTeamState.textContent = "Primero elegí el equipo";
+  liveSelectedTeamState.dataset.type = "warn";
+  liveActionGrid.innerHTML = "";
   liveEventCount.textContent = "0 incidencias";
   liveTimeline.textContent = "Selecciona un torneo para comenzar.";
   liveUndoBtn.disabled = true;
@@ -760,6 +885,11 @@ function limpiarSeleccionPartido(message) {
   seleccionadoId = null;
   partidoOriginal = null;
   incidenciaSeleccionadaId = null;
+  liveSelectedSide = null;
+  liveAction = null;
+  liveChangeOutId = null;
+  liveSelectedPlayerId = null;
+  liveRosterReturnContext = null;
   matchForm.reset();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
@@ -767,6 +897,7 @@ function limpiarSeleccionPartido(message) {
   eventForm.reset();
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
+  resetJugadoresIncidencia("Selecciona un partido.");
   if (eventMatch.options.length) eventMatch.value = "";
   if (liveMatch.options.length) liveMatch.value = "";
   if (message) setSaveFeedback(message, "warn");
@@ -1792,7 +1923,6 @@ async function cargarPlantelesAdmin() {
     : [];
 
   renderFiltrosPlantel(torneoSeleccionado, clubSeleccionado);
-  renderOpcionesJugadores();
   renderPlantel();
   renderModoPartido();
 }
@@ -1854,25 +1984,6 @@ function renderFiltrosPlantel(torneoPrevio = "", clubPrevio = "") {
     : "";
   rosterClub.value = clubDefault ? String(clubDefault.id) : "";
   newRosterBtn.disabled = !torneoDefault || !clubDefault;
-}
-
-function renderOpcionesJugadores() {
-  const valorActual = rosterFields.playerId.value;
-  rosterFields.playerId.innerHTML = `
-    <option value="">Crear jugador nuevo</option>
-    ${jugadores.map(jugador => `
-      <option value="${jugador.id}">
-        ${escapeHtml(jugador.nombre_completo)}
-      </option>
-    `).join("")}
-  `;
-
-  if (
-    valorActual &&
-    jugadores.some(jugador => String(jugador.id) === String(valorActual))
-  ) {
-    rosterFields.playerId.value = valorActual;
-  }
 }
 
 function inscripcionesVisibles() {
@@ -1958,6 +2069,11 @@ function renderPlantel() {
 }
 
 function obtenerJugadorPlantel(jugadorId) {
+  const inscripcion = inscripcionesJugadores.find(item =>
+    String(item.jugador_id) === String(jugadorId) && item.jugador
+  );
+  if (inscripcion?.jugador) return inscripcion.jugador;
+
   return jugadores.find(
     jugador => String(jugador.id) === String(jugadorId)
   ) || null;
@@ -1981,25 +2097,401 @@ function etiquetaEstadoPlantel(estado) {
   }[estado] || estado;
 }
 
+function etiquetaInscripcionCandidato(inscripcion) {
+  return [
+    inscripcion.club_nombre,
+    inscripcion.torneo_nombre,
+    etiquetaEstadoPlantel(inscripcion.estado)
+  ].filter(Boolean).join(" - ");
+}
+
+function detalleInscripcionesCandidato(candidato) {
+  const inscripciones = Array.isArray(candidato?.inscripciones)
+    ? candidato.inscripciones
+    : [];
+  if (inscripciones.length === 0) {
+    return "Sin inscripciones registradas";
+  }
+  return inscripciones
+    .map(etiquetaInscripcionCandidato)
+    .filter(Boolean)
+    .join(" | ");
+}
+
+function renderResumenJugadorCandidato(candidato) {
+  const jugador = candidato?.jugador || {};
+  return `
+    <strong>${escapeHtml(jugador.nombre_completo || "Jugador sin nombre")}</strong>
+    <small>${escapeHtml(detalleInscripcionesCandidato(candidato))}</small>
+    <small>
+      ${escapeHtml((candidato?.coincidencias || []).join(", "))}
+    </small>
+  `;
+}
+
+function obtenerInscripcionPlantelActual(jugadorId) {
+  return inscripcionesJugadores.find(inscripcion =>
+    String(inscripcion.jugador_id) === String(jugadorId) &&
+    String(inscripcion.club_id) === rosterClub.value &&
+    String(inscripcion.torneo_id) === rosterTournament.value
+  ) || null;
+}
+
+function contextoPlantelActual() {
+  const torneo = torneos.find(
+    item => String(item.id) === rosterTournament.value
+  );
+  const club = clubes.find(
+    item => String(item.id) === rosterClub.value
+  );
+
+  if (!torneo || !club) {
+    throw new Error("Selecciona club y torneo para buscar jugadores.");
+  }
+
+  return {
+    torneoId: Number(torneo.id),
+    clubId: Number(club.id),
+    torneoNombre: torneo.nombre || `Torneo #${torneo.id}`,
+    clubNombre: club.nombre_corto || club.nombre_oficial || `Club #${club.id}`
+  };
+}
+
+function setRosterSearchState(message, type = "info") {
+  rosterFields.searchState.textContent = message;
+  rosterFields.searchState.dataset.type = type;
+}
+
+function limpiarSeleccionJugadorPlantel() {
+  jugadorPlantelSeleccionado = null;
+  rosterFields.playerId.value = "";
+  rosterFields.selectedPlayer.classList.add("hidden");
+  rosterFields.selectedPlayer.innerHTML = "";
+}
+
+function cerrarCreacionJugadorPlantel() {
+  rosterFields.createBlock.classList.add("hidden");
+  rosterFields.createConfirm.checked = false;
+  rosterFields.createPlayer.disabled = true;
+}
+
+function mostrarBloqueBusquedaPlantel() {
+  rosterFields.searchPanel.classList.remove("hidden");
+  rosterFields.detailsBlock.classList.add("hidden");
+  toggleRosterBtn.classList.add("hidden");
+  saveRosterBtn.disabled = true;
+  limpiarSeleccionJugadorPlantel();
+  cerrarCreacionJugadorPlantel();
+}
+
+function resetBusquedaPlantel(message = "Escribí al menos 2 letras") {
+  busquedaPlantel = null;
+  busquedaPlantelId += 1;
+  if (busquedaPlantelTimer) {
+    window.clearTimeout(busquedaPlantelTimer);
+    busquedaPlantelTimer = null;
+  }
+  rosterFields.searchResults.innerHTML = "";
+  rosterFields.search.setAttribute("aria-expanded", "false");
+  rosterFields.createNew.classList.add("hidden");
+  setRosterSearchState(message, "warn");
+}
+
+function renderResultadosBusquedaPlantel() {
+  const candidatos = Array.isArray(busquedaPlantel?.candidatos)
+    ? busquedaPlantel.candidatos.slice(0, 8)
+    : [];
+
+  rosterFields.searchResults.innerHTML = candidatos.map(candidato => {
+    const jugador = candidato.jugador || {};
+    return `
+      <button
+        type="button"
+        class="player-candidate"
+        role="option"
+        data-roster-candidate="${escapeHtml(jugador.id || "")}"
+      >
+        ${renderResumenJugadorCandidato(candidato)}
+      </button>
+    `;
+  }).join("");
+
+  rosterFields.search.setAttribute(
+    "aria-expanded",
+    candidatos.length > 0 ? "true" : "false"
+  );
+  rosterFields.createNew.classList.remove("hidden");
+
+  if (candidatos.length === 0) {
+    setRosterSearchState(
+      "No encontramos jugadores con ese nombre",
+      "warn"
+    );
+  } else {
+    setRosterSearchState(
+      `${candidatos.length} resultado(s). Elegí la persona correcta.`,
+      "ok"
+    );
+  }
+}
+
+async function buscarJugadoresPlantel() {
+  const query = rosterFields.search.value.trim();
+  limpiarSeleccionJugadorPlantel();
+  cerrarCreacionJugadorPlantel();
+
+  if (query.length < 2) {
+    resetBusquedaPlantel("Escribí al menos 2 letras");
+    return;
+  }
+
+  const contexto = contextoPlantelActual();
+  const requestId = ++busquedaPlantelId;
+  const params = new URLSearchParams({
+    scope: "buscar-jugador",
+    torneo_id: String(contexto.torneoId),
+    club_id: String(contexto.clubId),
+    nombre: query
+  });
+
+  setRosterSearchState("Buscando jugadores...");
+  rosterFields.searchResults.innerHTML = "";
+  rosterFields.search.setAttribute("aria-expanded", "false");
+  rosterFields.createNew.classList.add("hidden");
+
+  try {
+    const data = await apiRequest(
+      "GET",
+      null,
+      `${ROSTERS_API_URL}?${params.toString()}`
+    );
+    if (requestId !== busquedaPlantelId) return;
+    busquedaPlantel = data;
+    renderResultadosBusquedaPlantel();
+  } catch (error) {
+    if (requestId !== busquedaPlantelId) return;
+    busquedaPlantel = null;
+    rosterFields.searchResults.innerHTML = "";
+    rosterFields.createNew.classList.add("hidden");
+    setRosterSearchState(error.message, "error");
+  }
+}
+
+function programarBusquedaPlantel() {
+  if (busquedaPlantelTimer) window.clearTimeout(busquedaPlantelTimer);
+  busquedaPlantelTimer = window.setTimeout(() => {
+    buscarJugadoresPlantel().catch(error => {
+      setRosterSearchState(error.message, "error");
+    });
+  }, 180);
+}
+
+function enfocarResultadoPlantel(direccion = 1) {
+  const resultados = [
+    ...rosterFields.searchResults.querySelectorAll(".player-candidate")
+  ];
+  if (resultados.length === 0) return;
+
+  const actual = resultados.indexOf(document.activeElement);
+  const siguiente = actual < 0
+    ? 0
+    : (actual + direccion + resultados.length) % resultados.length;
+  resultados[siguiente].focus();
+}
+
+function candidatoPlantelPorId(jugadorId) {
+  return (busquedaPlantel?.candidatos || []).find(candidato =>
+    String(candidato.jugador?.id) === String(jugadorId)
+  ) || null;
+}
+
+function renderSeleccionJugadorPlantel(candidato) {
+  const contexto = contextoPlantelActual();
+  const jugador = candidato.jugador || {};
+  const existente = candidato.inscripcion_contexto ||
+    obtenerInscripcionPlantelActual(jugador.id);
+  const accion = existente
+    ? `
+      <button
+        type="button"
+        class="ghost"
+        data-roster-open-existing="${existente.id}"
+      >
+        Ver inscripción
+      </button>
+    `
+    : `
+      <button type="button" data-roster-create-enrollment>
+        Agregar al plantel
+      </button>
+    `;
+
+  rosterFields.selectedPlayer.innerHTML = `
+    <div>
+      <span class="eyebrow">Persona seleccionada</span>
+      ${renderResumenJugadorCandidato(candidato)}
+      <small>
+        Plantel: ${escapeHtml(contexto.clubNombre)} - ${escapeHtml(contexto.torneoNombre)}
+      </small>
+    </div>
+    <div class="event-player-state" data-type="${existente ? "warn" : "ok"}">
+      ${existente
+        ? "Este jugador ya pertenece al plantel"
+        : "Listo para crear la inscripción de esta persona."}
+    </div>
+    <div class="event-candidate-actions">
+      ${accion}
+    </div>
+  `;
+  rosterFields.selectedPlayer.classList.remove("hidden");
+}
+
+function seleccionarCandidatoPlantel(jugadorId) {
+  const candidato = candidatoPlantelPorId(jugadorId);
+  if (!candidato) return;
+  jugadorPlantelSeleccionado = candidato;
+  rosterFields.playerId.value = String(candidato.jugador.id);
+  cerrarCreacionJugadorPlantel();
+  renderSeleccionJugadorPlantel(candidato);
+  setRosterFeedback(
+    "Revisa la persona seleccionada antes de agregarla al plantel."
+  );
+}
+
+function abrirCreacionJugadorPlantel() {
+  if (!busquedaPlantel) {
+    setRosterFeedback("Busca jugadores antes de crear una persona nueva.", "warn");
+    rosterFields.search.focus();
+    return;
+  }
+  limpiarSeleccionJugadorPlantel();
+  rosterFields.playerName.value = busquedaPlantel.nombre || rosterFields.search.value.trim();
+  rosterFields.createConfirm.checked = false;
+  actualizarResumenCreacionPlantel();
+  rosterFields.createBlock.classList.remove("hidden");
+  rosterFields.createPlayer.disabled = true;
+  rosterFields.playerName.focus();
+}
+
+function actualizarResumenCreacionPlantel() {
+  let contexto = null;
+  try {
+    contexto = contextoPlantelActual();
+  } catch (error) {
+    rosterFields.createSummary.textContent = error.message;
+    return;
+  }
+  const nombre = valorTexto(rosterFields.playerName) || "Sin nombre";
+  rosterFields.createSummary.textContent = [
+    `Nombre: ${nombre}`,
+    `Club: ${contexto.clubNombre}`,
+    `Torneo: ${contexto.torneoNombre}`
+  ].join(" | ");
+}
+
+function actualizarBotonCrearJugadorPlantel() {
+  rosterFields.createPlayer.disabled =
+    !busquedaPlantel ||
+    !rosterFields.createConfirm.checked ||
+    !valorTexto(rosterFields.playerName);
+}
+
+async function crearInscripcionPlantelSeleccionado() {
+  if (!jugadorPlantelSeleccionado?.jugador?.id) return;
+  const contexto = contextoPlantelActual();
+  setRosterSaving(true);
+  setRosterFeedback("Guardando inscripción...");
+
+  try {
+    const data = await apiRequest("POST", {
+      action: "crear-inscripcion-jugador",
+      torneo_id: contexto.torneoId,
+      club_id: contexto.clubId,
+      jugador_id: Number(jugadorPlantelSeleccionado.jugador.id),
+      busqueda_previa: true,
+      confirmar_inscripcion: true
+    }, ROSTERS_API_URL);
+    const inscripcionId = data.inscripcion?.id;
+    await cargarPlantelesAdmin();
+    if (inscripcionId) seleccionarInscripcion(inscripcionId);
+    const regresoModo = volverAIncidenciaDesdePlantel(inscripcionId);
+    setRosterFeedback(
+      data.existente
+        ? "Este jugador ya pertenece al plantel."
+        : regresoModo
+        ? "Inscripción guardada. Volviste a la incidencia pendiente."
+        : "Inscripción guardada. Ya queda disponible para futuras incidencias.",
+      data.existente ? "warn" : "ok"
+    );
+    setStatus("Plantel actualizado.", "ok");
+  } finally {
+    setRosterSaving(false);
+  }
+}
+
+async function crearJugadorPlantelNuevo() {
+  if (!busquedaPlantel) {
+    throw new Error("Busca jugadores antes de crear una persona nueva.");
+  }
+  const nombre = valorTexto(rosterFields.playerName);
+  if (!nombre) {
+    throw new Error("El nombre del jugador es obligatorio.");
+  }
+  if (!rosterFields.createConfirm.checked) {
+    throw new Error("Confirma que no corresponde a los candidatos.");
+  }
+
+  const contexto = contextoPlantelActual();
+  setRosterSaving(true);
+  setRosterFeedback("Creando jugador e inscripción...");
+
+  try {
+    const data = await apiRequest("POST", {
+      action: "crear-jugador-inscripcion",
+      torneo_id: contexto.torneoId,
+      club_id: contexto.clubId,
+      nombre_completo: nombre,
+      busqueda_previa: true,
+      confirmar_creacion: true,
+      confirmar_homonimo:
+        Array.isArray(busquedaPlantel.candidatos) &&
+        busquedaPlantel.candidatos.length > 0
+    }, ROSTERS_API_URL);
+    const inscripcionId = data.inscripcion?.id;
+    await cargarPlantelesAdmin();
+    if (inscripcionId) seleccionarInscripcion(inscripcionId);
+    const regresoModo = volverAIncidenciaDesdePlantel(inscripcionId);
+    setRosterFeedback(
+      regresoModo
+        ? "Jugador e inscripción creados. Volviste a la incidencia pendiente."
+        : "Jugador e inscripción creados. Ya queda disponible para incidencias.",
+      "ok"
+    );
+    setStatus("Plantel actualizado.", "ok");
+  } finally {
+    setRosterSaving(false);
+  }
+}
+
 function iniciarNuevaInscripcion() {
   if (!rosterTournament.value || !rosterClub.value) return;
 
   inscripcionSeleccionadaId = null;
   rosterForm.reset();
   rosterFields.enrollmentId.value = "";
-  rosterFields.playerId.disabled = false;
   rosterFields.playerId.value = "";
-  rosterFields.playerName.readOnly = false;
+  rosterFields.search.value = "";
   rosterFields.position.value = "sin_definir";
   rosterFields.status.value = "por_verificar";
   toggleRosterBtn.classList.add("hidden");
+  resetBusquedaPlantel();
+  mostrarBloqueBusquedaPlantel();
 
   emptyRosterEditor.classList.add("hidden");
   rosterForm.classList.remove("hidden");
-  setRosterFeedback(
-    "Creá una persona nueva o elegí una existente para otra inscripción."
-  );
+  setRosterFeedback("Busca primero una persona existente.");
   renderPlantel();
+  window.requestAnimationFrame(() => rosterFields.search.focus());
 }
 
 function seleccionarInscripcion(id) {
@@ -2012,9 +2504,11 @@ function seleccionarInscripcion(id) {
   inscripcionSeleccionadaId = inscripcion.id;
   rosterFields.enrollmentId.value = inscripcion.id;
   rosterFields.playerId.value = String(inscripcion.jugador_id);
-  rosterFields.playerId.disabled = true;
-  rosterFields.playerName.readOnly = false;
-  rosterFields.playerName.value = jugador?.nombre_completo || "";
+  rosterFields.searchPanel.classList.add("hidden");
+  rosterFields.selectedPlayer.classList.add("hidden");
+  cerrarCreacionJugadorPlantel();
+  rosterFields.detailsBlock.classList.remove("hidden");
+  rosterFields.editName.value = jugador?.nombre_completo || "";
   rosterFields.aliases.value = Array.isArray(jugador?.aliases)
     ? jugador.aliases.join(", ")
     : "";
@@ -2037,34 +2531,17 @@ function seleccionarInscripcion(id) {
   emptyRosterEditor.classList.add("hidden");
   rosterForm.classList.remove("hidden");
   setRosterFeedback(
-    "Los cambios de nombre afectan la identidad del jugador en todos los torneos."
+    "Edita la inscripción. Los datos adicionales son opcionales."
   );
+  setRosterSaving(false);
   renderPlantel();
-}
-
-function seleccionarJugadorExistente() {
-  const jugador = obtenerJugadorPlantel(rosterFields.playerId.value);
-
-  if (!jugador) {
-    rosterFields.playerName.readOnly = false;
-    rosterFields.playerName.value = "";
-    rosterFields.aliases.value = "";
-    rosterFields.playerName.focus();
-    return;
-  }
-
-  rosterFields.playerName.value = jugador.nombre_completo || "";
-  rosterFields.aliases.value = Array.isArray(jugador.aliases)
-    ? jugador.aliases.join(", ")
-    : "";
-  rosterFields.playerName.readOnly = true;
 }
 
 function valoresFormularioPlantel() {
   return {
     inscripcion_id: rosterFields.enrollmentId.value || null,
     jugador_id: rosterFields.playerId.value || null,
-    nombre_completo: valorTexto(rosterFields.playerName),
+    nombre_completo: valorTexto(rosterFields.editName),
     aliases: rosterFields.aliases.value
       .split(",")
       .map(alias => alias.trim())
@@ -2117,6 +2594,9 @@ function validarInscripcionJugador(valores) {
 async function guardarInscripcionJugador(event) {
   event.preventDefault();
   const valores = valoresFormularioPlantel();
+  if (!valores.inscripcion_id) {
+    throw new Error("Elegí una inscripción para editar.");
+  }
   validarInscripcionJugador(valores);
 
   setRosterSaving(true);
@@ -2787,46 +3267,91 @@ function accionGolDisponible(partido, eventos, lado, tipo) {
   return identificados[ladoMarcador] < limite;
 }
 
-function renderAccionesEquipoModo(
-  container,
-  lado,
-  disabled,
-  partido,
-  eventos
-) {
-  const acciones = [
-    ["gol", "Gol"],
-    ["gol_penal", "Gol de penal"],
-    ["gol_en_contra", "En contra"],
-    ["amarilla", "Amarilla"],
-    ["doble_amarilla", "2da amarilla + roja"],
-    ["roja", "Roja"],
-    ["cambio", "Cambio"]
-  ];
+function renderBotonEquipoModo(button, lado, equipo, disabled) {
+  const seleccionado = liveSelectedSide === lado;
+  button.disabled = disabled || liveBusy || !equipo.id;
+  button.classList.toggle("selected", seleccionado);
+  button.setAttribute("aria-pressed", seleccionado ? "true" : "false");
+  button.innerHTML = `
+    <strong>${escapeHtml(equipo.nombre || "Por definir")}</strong>
+    <small>${lado === "local" ? "LOCAL" : "VISITANTE"}</small>
+  `;
+}
 
-  container.innerHTML = acciones.map(([tipo, etiqueta]) => {
+function renderSeleccionEquipoModo(local, visitante, disabled) {
+  renderBotonEquipoModo(liveTeamLocalBtn, "local", local, disabled);
+  renderBotonEquipoModo(
+    liveTeamAwayBtn,
+    "visitante",
+    visitante,
+    disabled
+  );
+
+  const equipo = liveSelectedSide
+    ? resolverEquipoPartidoAdmin(partidoModoSeleccionado(), liveSelectedSide)
+    : null;
+
+  if (disabled) {
+    liveSelectedTeamState.textContent =
+      "Elegí un partido para seleccionar equipo.";
+    liveSelectedTeamState.dataset.type = "warn";
+  } else if (equipo?.id) {
+    liveSelectedTeamState.textContent =
+      `Equipo seleccionado: ${equipo.nombre}`;
+    liveSelectedTeamState.dataset.type = "ok";
+  } else {
+    liveSelectedTeamState.textContent = "Primero elegí el equipo";
+    liveSelectedTeamState.dataset.type = "warn";
+  }
+}
+
+function renderAccionesModo(disabled, partido, eventos) {
+  const sinEquipo = !liveSelectedSide;
+  const accionesBloqueadas = disabled || liveBusy || sinEquipo;
+  liveActionGrid.innerHTML = LIVE_ACTIONS.map(([tipo, etiqueta]) => {
     const sinCupoGol =
+      liveSelectedSide &&
       ["gol", "gol_penal", "gol_en_contra"].includes(tipo) &&
-      !accionGolDisponible(partido, eventos, lado, tipo);
-    const title = sinCupoGol
-      ? resultadoPartidoCargado(partido)
-        ? "Ya se identificaron todos los goles de ese lado."
-        : "Cargá primero el resultado del partido."
-      : "";
+      !accionGolDisponible(partido, eventos, liveSelectedSide, tipo);
+    const title = sinEquipo
+      ? "Primero elegí el equipo."
+      : sinCupoGol
+        ? resultadoPartidoCargado(partido)
+          ? "Ya se identificaron todos los goles de ese lado."
+          : "Cargá primero el resultado del partido."
+        : "";
 
     return `
-    <button
-      type="button"
-      class="live-action"
-      data-live-action="${tipo}"
-      data-live-side="${lado}"
-      ${disabled || sinCupoGol ? "disabled" : ""}
-      ${title ? `title="${escapeHtml(title)}"` : ""}
-    >
-      ${etiqueta}
-    </button>
-  `;
+      <button
+        type="button"
+        class="live-action"
+        data-live-action="${tipo}"
+        ${accionesBloqueadas || sinCupoGol ? "disabled" : ""}
+        ${title ? `title="${escapeHtml(title)}"` : ""}
+      >
+        ${etiqueta}
+      </button>
+    `;
   }).join("");
+}
+
+function seleccionarEquipoModo(lado) {
+  if (!["local", "visitante"].includes(lado) || liveBusy) return;
+  const partido = partidoModoSeleccionado();
+  const equipo = resolverEquipoPartidoAdmin(partido, lado);
+  if (!partido || !equipo.id) {
+    setLiveFeedback("Elegí un partido con equipos vinculados.", "warn");
+    return;
+  }
+  if (liveSelectedSide !== lado) {
+    liveAction = null;
+    liveChangeOutId = null;
+    liveSelectedPlayerId = null;
+    liveRosterReturnContext = null;
+  }
+  liveSelectedSide = lado;
+  setLiveFeedback(`Equipo seleccionado: ${equipo.nombre}.`, "ok");
+  renderModoPartido();
 }
 
 function nombreParticipanteModo(evento) {
@@ -2906,6 +3431,14 @@ function renderModoPartido() {
   const sinEquipos = !local.id || !visitante.id;
   const bloqueado =
     sinTorneo || !partido || etapaCerrada || sinEquipos;
+  if (bloqueado) {
+    liveSelectedSide = null;
+  } else if (
+    liveSelectedSide &&
+    !resolverEquipoPartidoAdmin(partido, liveSelectedSide).id
+  ) {
+    liveSelectedSide = null;
+  }
   const marcador = partido
     ? calcularMarcadorModo(partido)
     : { local: 0, visitante: 0 };
@@ -2956,20 +3489,8 @@ function renderModoPartido() {
   liveModeState.textContent = estado;
   liveModeState.dataset.state = estadoClave;
 
-  renderAccionesEquipoModo(
-    liveLocalActions,
-    "local",
-    bloqueado || liveBusy,
-    partido,
-    eventos
-  );
-  renderAccionesEquipoModo(
-    liveAwayActions,
-    "visitante",
-    bloqueado || liveBusy,
-    partido,
-    eventos
-  );
+  renderSeleccionEquipoModo(local, visitante, bloqueado);
+  renderAccionesModo(bloqueado, partido, eventos);
   renderTimelineModo(partido, eventos);
   renderConsistenciaModo(partido, eventos);
 
@@ -2986,11 +3507,13 @@ function renderModoPartido() {
 
 function inscripcionesModoEquipo(equipoId, torneoId) {
   return inscripcionesJugadores
-    .filter(inscripcion =>
-      String(inscripcion.club_id) === String(equipoId) &&
-      String(inscripcion.torneo_id) === String(torneoId) &&
-      inscripcion.estado !== "inactivo"
-    )
+    .filter(inscripcion => {
+      const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+      return String(inscripcion.club_id) === String(equipoId) &&
+        String(inscripcion.torneo_id) === String(torneoId) &&
+        inscripcion.estado !== "inactivo" &&
+        jugador?.activo !== false;
+    })
     .sort((a, b) => {
       const jugadorA = obtenerJugadorPlantel(a.jugador_id);
       const jugadorB = obtenerJugadorPlantel(b.jugador_id);
@@ -3002,11 +3525,17 @@ function inscripcionesModoEquipo(equipoId, torneoId) {
     });
 }
 
-function abrirSelectorModo(lado, tipo) {
+function abrirSelectorModo(tipo) {
   const partido = partidoModoSeleccionado();
   if (!partido || liveBusy) return;
   if (!torneoTrabajoValido()) {
     setLiveFeedback("Selecciona un torneo antes de cargar incidencias.", "error");
+    return;
+  }
+  const lado = liveSelectedSide;
+  if (!lado) {
+    setLiveFeedback("Primero elegí el equipo.", "warn");
+    renderModoPartido();
     return;
   }
 
@@ -3045,12 +3574,16 @@ function abrirSelectorModo(lado, tipo) {
     equipo.id,
     partido.torneo_id
   );
-  if (tipo === "cambio" && disponibles.length < 2) {
+  if (disponibles.length === 0) {
+    setLiveFeedback(
+      `Todavía no hay jugadores cargados para ${equipo.nombre}.`,
+      "warn"
+    );
+  } else if (tipo === "cambio" && disponibles.length < 2) {
     setLiveFeedback(
       `Cargá al menos dos jugadores de ${equipo.nombre} para registrar un cambio.`,
       "warn"
     );
-    return;
   }
 
   liveAction = {
@@ -3061,6 +3594,8 @@ function abrirSelectorModo(lado, tipo) {
     partidoId: partido.id
   };
   liveChangeOutId = null;
+  liveSelectedPlayerId = null;
+  livePlayerSearch.value = "";
   liveMinute.value = "";
   renderSelectorJugadoresModo();
   livePicker.classList.remove("hidden");
@@ -3068,19 +3603,75 @@ function abrirSelectorModo(lado, tipo) {
   document.body.classList.add("live-picker-open");
 }
 
+function plantelModoEquipoActual() {
+  const partido = partidoModoSeleccionado();
+  if (!partido || !liveAction) return [];
+
+  return inscripcionesModoEquipo(
+    liveAction.equipoId,
+    partido.torneo_id
+  );
+}
+
+function jugadoresDisponiblesModo() {
+  return plantelModoEquipoActual().filter(inscripcion =>
+    !liveChangeOutId ||
+    String(inscripcion.id) !== String(liveChangeOutId)
+  );
+}
+
+function seleccionJugadorListaModo() {
+  if (!liveAction) return false;
+  if (liveAction.tipo === "cambio") {
+    return Boolean(liveChangeOutId && liveSelectedPlayerId) &&
+      String(liveChangeOutId) !== String(liveSelectedPlayerId);
+  }
+  return Boolean(liveSelectedPlayerId);
+}
+
+function actualizarBotonGuardarModo() {
+  liveSaveActionBtn.disabled = liveBusy || !seleccionJugadorListaModo();
+}
+
+function setLivePickerEmptyMode(isEmpty) {
+  liveEmptyRoster.classList.toggle("hidden", !isEmpty);
+  livePickerCloseBtn.classList.toggle("hidden", isEmpty);
+  livePickerHelp.classList.toggle("hidden", isEmpty);
+  livePlayerSearchWrap.classList.toggle("hidden", isEmpty);
+  livePlayerState.classList.toggle("hidden", isEmpty);
+  livePickerMoment.classList.toggle("hidden", isEmpty);
+  livePlayerGrid.classList.toggle("hidden", isEmpty);
+  livePickerActions.classList.toggle("hidden", isEmpty);
+  liveEmptyAddPlayerBtn.disabled = liveBusy || !liveAction;
+  liveAddPlayerBtn.disabled = liveBusy || !liveAction;
+  if (isEmpty) {
+    livePlayerSearch.value = "";
+    livePlayerSearch.setAttribute("aria-expanded", "false");
+    livePlayerGrid.innerHTML = "";
+    liveSaveActionBtn.disabled = true;
+  }
+}
+
 function renderSelectorJugadoresModo() {
   const partido = partidoModoSeleccionado();
   if (!partido || !liveAction) return;
 
-  const disponibles = inscripcionesModoEquipo(
-    liveAction.equipoId,
-    partido.torneo_id
-  ).filter(inscripcion =>
-    !liveChangeOutId ||
-    String(inscripcion.id) !== String(liveChangeOutId)
-  );
+  const plantel = plantelModoEquipoActual();
+  const disponibles = jugadoresDisponiblesModo();
   const esCambio = liveAction.tipo === "cambio";
   const eligeEntrada = esCambio && liveChangeOutId;
+  const query = normalizarBusquedaJugadorAdmin(livePlayerSearch.value);
+  const filtrados = disponibles.filter(inscripcion => {
+    if (!query) return true;
+    const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+    return normalizarBusquedaJugadorAdmin(
+      jugador?.nombre_completo || ""
+    ).includes(query);
+  });
+  const visibles = filtrados.slice(0, EVENT_PLAYER_LIMIT);
+  const seleccionadoActual = esCambio && !eligeEntrada
+    ? liveChangeOutId
+    : liveSelectedPlayerId;
 
   livePickerEyebrow.textContent =
     `${liveAction.equipoNombre} · ${
@@ -3091,69 +3682,201 @@ function renderSelectorJugadoresModo() {
       ? "Elegí quién entra"
       : "Elegí quién sale"
     : "Elegí al jugador";
+
+  if (plantel.length === 0) {
+    livePickerTitle.textContent = "Sin jugadores cargados";
+    setLivePickerEmptyMode(true);
+    return;
+  }
+
+  setLivePickerEmptyMode(false);
   livePickerHelp.textContent = esCambio
     ? eligeEntrada
-      ? "Al tocar el reemplazante se guardará el cambio."
-      : "Después vas a elegir al jugador que entra."
-    : "La incidencia se guardará al tocar un jugador.";
+      ? "Elegí quién entra y confirmá el cambio."
+      : "Elegí quién sale. Después vas a seleccionar quién entra."
+    : "Elegí al jugador del equipo seleccionado y guardá la incidencia.";
+  livePlayerSearch.setAttribute(
+    "aria-expanded",
+    visibles.length > 0 ? "true" : "false"
+  );
+  if (esCambio && liveChangeOutId && visibles.length === 0) {
+    livePlayerState.textContent =
+      "No hay otro jugador disponible para el cambio.";
+    livePlayerState.dataset.type = "warn";
+  } else if (query && visibles.length === 0) {
+    livePlayerState.textContent =
+      "No hay resultados en el plantel elegido.";
+    livePlayerState.dataset.type = "warn";
+  } else if (filtrados.length > EVENT_PLAYER_LIMIT) {
+    livePlayerState.textContent =
+      `${filtrados.length} coincidencias. Mostrando ${EVENT_PLAYER_LIMIT}; ajustá la búsqueda.`;
+    livePlayerState.dataset.type = "ok";
+  } else {
+    livePlayerState.textContent = eligeEntrada
+      ? "Seleccioná el jugador que entra."
+      : "Seleccioná el jugador del plantel.";
+    livePlayerState.dataset.type = "ok";
+  }
 
-  const opcionDesconocida = esCambio
-    ? ""
-    : `
+  livePlayerGrid.innerHTML = visibles.map(inscripcion => {
+    const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
+    const dorsal = inscripcion.dorsal
+      ? `Dorsal ${inscripcion.dorsal}`
+      : "Sin dorsal";
+    const seleccionado =
+      String(inscripcion.id) === String(seleccionadoActual);
+    return `
       <button
         type="button"
-        class="live-player unknown"
-        data-live-player="unknown"
+        class="live-player ${seleccionado ? "selected" : ""}"
+        data-live-player="${inscripcion.id}"
+        aria-pressed="${seleccionado ? "true" : "false"}"
       >
-        <strong>Jugador sin identificar</strong>
-        <small>Guardar y completar después</small>
+        <strong>
+          ${escapeHtml(jugador?.nombre_completo || "Jugador sin nombre")}
+        </strong>
+        <small>${escapeHtml(dorsal)}</small>
       </button>
     `;
+  }).join("");
 
-  livePlayerGrid.innerHTML = opcionDesconocida +
-    disponibles.map(inscripcion => {
-      const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
-      const dorsal = inscripcion.dorsal
-        ? `Dorsal ${inscripcion.dorsal}`
-        : "Sin dorsal";
-      return `
-        <button
-          type="button"
-          class="live-player"
-          data-live-player="${inscripcion.id}"
-        >
-          <strong>
-            ${escapeHtml(
-              jugador?.nombre_completo || "Jugador sin nombre"
-            )}
-          </strong>
-          <small>${escapeHtml(dorsal)}</small>
-        </button>
-      `;
-    }).join("");
+  if (visibles.length === 0) {
+    const mensajeVacio = esCambio && liveChangeOutId
+      ? "No hay otro jugador disponible para el cambio."
+      : "No hay resultados en el plantel elegido.";
+    livePlayerGrid.innerHTML = `
+      <div class="analytics-empty">
+        ${escapeHtml(mensajeVacio)}
+      </div>
+    `;
+  }
+  actualizarBotonGuardarModo();
 }
 
-function cerrarSelectorModo() {
+function cerrarSelectorModo(options = {}) {
   livePicker.classList.add("hidden");
   livePicker.setAttribute("aria-hidden", "true");
   document.body.classList.remove("live-picker-open");
+  setLivePickerEmptyMode(false);
   liveAction = null;
   liveChangeOutId = null;
+  liveSelectedPlayerId = null;
+  if (!options.preservarRegresoPlantel) {
+    liveRosterReturnContext = null;
+  }
+  livePlayerSearch.value = "";
+  livePlayerSearch.setAttribute("aria-expanded", "false");
+  livePlayerState.textContent = "Seleccioná un tipo de incidencia.";
+  liveSaveActionBtn.disabled = true;
 }
 
-async function seleccionarJugadorModo(valor) {
-  if (!liveAction || liveBusy) return;
-  const torneoId = requerirTorneoTrabajoId();
+function inscripcionDisponibleParaModo(inscripcionId, contexto) {
+  if (!inscripcionId || !contexto) return null;
+  return inscripcionesModoEquipo(
+    contexto.equipoId,
+    contexto.torneoId
+  ).find(inscripcion =>
+    String(inscripcion.id) === String(inscripcionId)
+  ) || null;
+}
 
-  const inscripcionId = valor === "unknown"
-    ? null
-    : Number(valor);
+function volverAIncidenciaDesdePlantel(inscripcionId) {
+  const contexto = liveRosterReturnContext;
+  if (!contexto) return false;
+
+  const partido = partidos.find(
+    item => String(item.id) === String(contexto.partidoId)
+  );
+  if (
+    !partido ||
+    String(partido.torneo_id) !== String(contexto.torneoId)
+  ) {
+    liveRosterReturnContext = null;
+    return false;
+  }
+
+  if (String(seleccionadoId || "") !== String(contexto.partidoId)) {
+    seleccionarPartido(contexto.partidoId, { desplazarAEditor: false });
+  }
+
+  liveSelectedSide = contexto.lado;
+  liveAction = {
+    lado: contexto.lado,
+    tipo: contexto.tipo,
+    equipoId: contexto.equipoId,
+    equipoNombre: contexto.equipoNombre,
+    partidoId: contexto.partidoId
+  };
+  liveChangeOutId = null;
+  liveSelectedPlayerId = null;
+
+  const inscripcion = inscripcionDisponibleParaModo(
+    inscripcionId,
+    contexto
+  );
+  if (inscripcion && contexto.tipo !== "cambio") {
+    liveSelectedPlayerId = Number(inscripcion.id);
+  }
+
+  liveRosterReturnContext = null;
+  livePlayerSearch.value = "";
+  liveMinute.value = "";
+  renderModoPartido();
+  renderSelectorJugadoresModo();
+  livePicker.classList.remove("hidden");
+  livePicker.setAttribute("aria-hidden", "false");
+  document.body.classList.add("live-picker-open");
+  setLiveFeedback(
+    inscripcion && contexto.tipo !== "cambio"
+      ? "Jugador agregado al plantel. Revisá y guardá la incidencia."
+      : "Plantel actualizado. Revisá la incidencia antes de guardar.",
+    "ok"
+  );
+
+  window.requestAnimationFrame(() => {
+    if (liveSelectedPlayerId) {
+      liveSaveActionBtn.focus();
+    } else if (!livePlayerSearchWrap.classList.contains("hidden")) {
+      livePlayerSearch.focus();
+    }
+  });
+  return true;
+}
+
+function seleccionarJugadorModo(valor) {
+  if (!liveAction || liveBusy) return;
+  const inscripcionId = Number(valor);
+  if (!Number.isInteger(inscripcionId) || inscripcionId <= 0) {
+    throw new Error("Selecciona una inscripción de jugador.");
+  }
+
+  const disponibles = jugadoresDisponiblesModo();
+  const perteneceAlEquipo = disponibles.some(inscripcion =>
+    String(inscripcion.id) === String(inscripcionId)
+  );
+  if (!perteneceAlEquipo) {
+    throw new Error("El jugador seleccionado no pertenece al equipo elegido.");
+  }
+
   if (liveAction.tipo === "cambio" && !liveChangeOutId) {
     liveChangeOutId = inscripcionId;
+    liveSelectedPlayerId = null;
+    livePlayerSearch.value = "";
     renderSelectorJugadoresModo();
     return;
   }
 
+  liveSelectedPlayerId = inscripcionId;
+  renderSelectorJugadoresModo();
+}
+
+async function guardarSeleccionModo() {
+  if (!liveAction || liveBusy) return;
+  if (!seleccionJugadorListaModo()) {
+    throw new Error("Selecciona el jugador antes de guardar.");
+  }
+
+  const torneoId = requerirTorneoTrabajoId();
   const partidoId = liveAction.partidoId;
   const partido = partidos.find(
     item => String(item.id) === String(partidoId)
@@ -3161,19 +3884,44 @@ async function seleccionarJugadorModo(valor) {
   if (!partidoPerteneceTorneoTrabajo(partido)) {
     throw new Error("El partido no pertenece al torneo de trabajo.");
   }
+
+  const disponibles = inscripcionesModoEquipo(
+    liveAction.equipoId,
+    partido.torneo_id
+  );
+  const idsDisponibles = new Set(
+    disponibles.map(inscripcion => String(inscripcion.id))
+  );
+  const autorId = liveAction.tipo === "cambio"
+    ? liveChangeOutId
+    : liveSelectedPlayerId;
+  const relacionadoId = liveAction.tipo === "cambio"
+    ? liveSelectedPlayerId
+    : null;
+
+  if (!idsDisponibles.has(String(autorId))) {
+    throw new Error("El jugador seleccionado no pertenece al equipo elegido.");
+  }
+  if (
+    relacionadoId &&
+    !idsDisponibles.has(String(relacionadoId))
+  ) {
+    throw new Error("El jugador que entra no pertenece al equipo elegido.");
+  }
+  if (
+    relacionadoId &&
+    String(autorId) === String(relacionadoId)
+  ) {
+    throw new Error("Los jugadores del cambio deben ser diferentes.");
+  }
+
   const valores = {
     torneo_id: torneoId,
     partido_id: partidoId,
     tipo: liveAction.tipo,
     equipo_id: liveAction.equipoId,
-    inscripcion_jugador_id:
-      liveAction.tipo === "cambio"
-        ? liveChangeOutId
-        : inscripcionId,
-    inscripcion_relacionada_id:
-      liveAction.tipo === "cambio"
-        ? inscripcionId
-        : null,
+    inscripcion_jugador_id: autorId,
+    inscripcion_relacionada_id: relacionadoId,
     periodo: livePeriod.value || null,
     minuto: valorNumero(liveMinute),
     estado_dato: "por_verificar",
@@ -3181,28 +3929,53 @@ async function seleccionarJugadorModo(valor) {
     observaciones: "Carga rápida de incidencias del partido."
   };
 
-  cerrarSelectorModo();
   setLiveBusy(true);
-  setLiveFeedback("Guardando acción...");
+  setLiveFeedback("Guardando incidencia...");
 
   try {
     const data = await apiRequest("POST", valores, EVENTS_API_URL);
+    cerrarSelectorModo();
     await cargarPartidos();
     liveMatch.value = String(partidoId);
     eventMatch.value = String(partidoId);
     await cargarIncidenciasAdmin();
     setLiveFeedback(
       data.periodo_omitido
-        ? "Acción guardada sin el tiempo. Ejecutá incidencias-periodos.sql."
+        ? "Incidencia guardada sin el tiempo. Ejecutá incidencias-periodos.sql."
         : data.ajuste_tipo?.motivo === "segunda_amarilla"
         ? "Segunda amarilla detectada: se registró la expulsión."
-        : "Acción guardada.",
+        : "Incidencia guardada.",
       data.periodo_omitido ? "warn" : "ok"
     );
     setStatus("Modo Partido actualizado.", "ok");
   } finally {
     setLiveBusy(false);
   }
+}
+
+function abrirPlantelDesdeModo() {
+  if (!liveAction) return;
+  const equipoId = liveAction.equipoId;
+  const torneoId = liveAction.partidoId
+    ? partidoModoSeleccionado()?.torneo_id
+    : torneoTrabajoId;
+  liveRosterReturnContext = {
+    torneoId: Number(torneoId),
+    partidoId: Number(liveAction.partidoId),
+    lado: liveAction.lado,
+    tipo: liveAction.tipo,
+    equipoId: Number(liveAction.equipoId),
+    equipoNombre: liveAction.equipoNombre
+  };
+  cerrarSelectorModo({ preservarRegresoPlantel: true });
+  if (torneoId) rosterTournament.value = String(torneoId);
+  rosterClub.value = String(equipoId);
+  renderPlantel();
+  iniciarNuevaInscripcion();
+  document.querySelector(".roster-panel")?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
 
 async function deshacerUltimaAccionModo() {
@@ -3285,6 +4058,7 @@ function renderEquiposIncidencia(equipoPreferido = "") {
   const partido = partidoIncidenciasSeleccionado();
   if (!partido) {
     eventFields.team.innerHTML = "";
+    eventFields.team.disabled = true;
     return;
   }
 
@@ -3298,6 +4072,7 @@ function renderEquiposIncidencia(equipoPreferido = "") {
       ${escapeHtml(item.nombre)}
     </option>
   `).join("");
+  eventFields.team.disabled = opciones.length === 0;
 
   if (opciones.some(item =>
     String(item.id) === String(equipoPreferido)
@@ -3306,69 +4081,503 @@ function renderEquiposIncidencia(equipoPreferido = "") {
   }
 }
 
-function inscripcionesParaIncidencia(idsPermitidos = []) {
+function contextoJugadoresIncidenciaDisponible() {
   const partido = partidoIncidenciasSeleccionado();
-  if (!partido) return [];
+  return Boolean(
+    torneoTrabajoValido() &&
+    partido &&
+    eventFields.team.value
+  );
+}
 
-  return inscripcionesJugadores
-    .filter(inscripcion =>
-      String(inscripcion.club_id) === eventFields.team.value &&
-      String(inscripcion.torneo_id) === String(partido.torneo_id) &&
-      (
-        inscripcion.estado !== "inactivo" ||
-        idsPermitidos.some(
-          id => String(id) === String(inscripcion.id)
-        )
-      )
-    )
-    .sort((a, b) => {
-      const jugadorA = obtenerJugadorPlantel(a.jugador_id);
-      const jugadorB = obtenerJugadorPlantel(b.jugador_id);
-      return String(jugadorA?.nombre_completo || "").localeCompare(
-        String(jugadorB?.nombre_completo || ""),
-        "es",
-        { sensitivity: "base" }
-      );
-    });
+function setEventPlayerState(message, type = "info") {
+  eventFields.playerState.textContent = message;
+  eventFields.playerState.dataset.type = type;
+}
+
+function resetJugadoresIncidencia(message) {
+  inscripcionesIncidencia = [];
+  eventFields.player.value = "";
+  eventFields.relatedPlayer.value = "";
+  eventFields.playerSearch.value = "";
+  eventFields.playerSearch.disabled = true;
+  eventFields.playerSearch.setAttribute("aria-expanded", "false");
+  eventFields.playerResults.innerHTML = "";
+  eventFields.relatedResults.innerHTML = "";
+  eventFields.player.disabled = true;
+  eventFields.relatedPlayer.disabled = true;
+  eventFields.playerMissing.disabled = true;
+  eventFields.playerMissing.textContent = "Jugador no encontrado";
+  setEventPlayerState(message, "warn");
+  cerrarFlujoJugadorNoEncontrado({ devolverFoco: false });
+  setEventSaving(false);
+}
+
+async function cargarJugadoresIncidencia(
+  jugadorPreferido = "",
+  relacionadoPreferido = ""
+) {
+  if (!torneoTrabajoValido()) {
+    resetJugadoresIncidencia("Selecciona un torneo.");
+    return;
+  }
+
+  const partido = partidoIncidenciasSeleccionado();
+  if (!partido) {
+    resetJugadoresIncidencia("Selecciona un partido.");
+    return;
+  }
+
+  if (!eventFields.team.value) {
+    resetJugadoresIncidencia("Selecciona equipo para cargar jugadores.");
+    return;
+  }
+
+  const requestId = ++cargaJugadoresIncidenciaId;
+  const includeIds = [
+    jugadorPreferido,
+    relacionadoPreferido
+  ].filter(Boolean);
+  const params = new URLSearchParams({
+    scope: "jugadores",
+    torneo_id: String(requerirTorneoTrabajoId()),
+    partido_id: String(partido.id),
+    equipo_id: String(eventFields.team.value)
+  });
+  if (includeIds.length > 0) {
+    params.set("include_ids", includeIds.join(","));
+  }
+
+  inscripcionesIncidencia = [];
+  eventFields.player.value = "";
+  eventFields.relatedPlayer.value = "";
+  eventFields.player.disabled = true;
+  eventFields.relatedPlayer.disabled = true;
+  eventFields.playerSearch.disabled = true;
+  eventFields.playerSearch.setAttribute("aria-expanded", "false");
+  eventFields.playerMissing.disabled = true;
+  eventFields.playerResults.innerHTML = "";
+  eventFields.relatedResults.innerHTML = "";
+  setEventPlayerState("Cargando jugadores...");
+
+  try {
+    const data = await apiRequest(
+      "GET",
+      null,
+      `${EVENTS_API_URL}?${params.toString()}`
+    );
+    if (requestId !== cargaJugadoresIncidenciaId) return;
+    inscripcionesIncidencia = Array.isArray(data.inscripciones)
+      ? data.inscripciones
+      : [];
+    renderJugadoresIncidencia(jugadorPreferido, relacionadoPreferido);
+  } catch (error) {
+    if (requestId !== cargaJugadoresIncidenciaId) return;
+    resetJugadoresIncidencia(error.message);
+    setEventPlayerState(error.message, "error");
+  }
+}
+
+function normalizarBusquedaJugadorAdmin(value) {
+  return AdminMatchFlow.normalizeSearchText(value);
+}
+
+function inscripcionesParaIncidencia() {
+  const query = normalizarBusquedaJugadorAdmin(
+    eventFields.playerSearch.value
+  );
+  const seleccionadas = new Set([
+    eventFields.player.value,
+    eventFields.relatedPlayer.value
+  ].filter(Boolean).map(String));
+
+  const filtradas = inscripcionesIncidencia.filter(inscripcion => {
+    if (seleccionadas.has(String(inscripcion.id))) return true;
+    if (!query) return true;
+    return normalizarBusquedaJugadorAdmin(
+      inscripcion.jugador?.nombre_completo || ""
+    ).includes(query);
+  });
+
+  const visibles = filtradas.slice(0, EVENT_PLAYER_LIMIT);
+  const seleccionadasFuera = inscripcionesIncidencia.filter(inscripcion =>
+    seleccionadas.has(String(inscripcion.id)) &&
+    !visibles.some(item => String(item.id) === String(inscripcion.id))
+  );
+
+  return {
+    query,
+    total: inscripcionesIncidencia.length,
+    visibles: [...seleccionadasFuera, ...visibles],
+    recortadas:
+      filtradas.length > EVENT_PLAYER_LIMIT
+      ? filtradas.length - EVENT_PLAYER_LIMIT
+      : 0
+  };
+}
+
+function renderBotonesInscripcionesIncidencia(
+  target,
+  visibles,
+  seleccionado
+) {
+  const atributo = target === "related"
+    ? "data-event-related-player"
+    : "data-event-player";
+  return visibles.map(inscripcion => {
+    const jugador = inscripcion.jugador;
+    const estado = {
+      confirmado: "",
+      por_verificar: "Por verificar",
+      inactivo: "Fuera del plantel"
+    }[inscripcion.estado] || "";
+    const elegido = String(inscripcion.id) === String(seleccionado);
+    return `
+      <button
+        type="button"
+        class="player-candidate ${elegido ? "selected" : ""}"
+        role="option"
+        aria-selected="${elegido ? "true" : "false"}"
+        ${atributo}="${inscripcion.id}"
+      >
+        <strong>${escapeHtml(jugador?.nombre_completo || "Sin nombre")}</strong>
+        <small>${escapeHtml(estado || "Inscripto en este plantel")}</small>
+      </button>
+    `;
+  }).join("");
 }
 
 function renderJugadoresIncidencia(
   jugadorPreferido = "",
   relacionadoPreferido = ""
 ) {
-  const disponibles = inscripcionesParaIncidencia([
-    jugadorPreferido,
-    relacionadoPreferido
-  ]);
-  const opciones = `
-    <option value="">Jugador no informado</option>
-    ${disponibles.map(inscripcion => {
-      const jugador = obtenerJugadorPlantel(inscripcion.jugador_id);
-      const estado = {
-        confirmado: "",
-        por_verificar: " · por verificar",
-        inactivo: " · fuera del plantel"
-      }[inscripcion.estado] || "";
-      return `
-        <option value="${inscripcion.id}">
-          ${escapeHtml(jugador?.nombre_completo || "Sin nombre")}${estado}
-        </option>
-      `;
-    }).join("")}
-  `;
+  const partido = partidoIncidenciasSeleccionado();
+  const puedeBuscar = contextoJugadoresIncidenciaDisponible();
+  const {
+    query,
+    total,
+    visibles,
+    recortadas
+  } = inscripcionesParaIncidencia();
+  eventFields.playerSearch.disabled = !puedeBuscar;
+  eventFields.playerMissing.disabled = !puedeBuscar;
+  eventFields.playerMissing.textContent =
+    total === 0
+      ? "Agregar jugador al plantel"
+      : "Jugador no encontrado";
+  eventFields.player.disabled = !puedeBuscar || total === 0;
+  eventFields.relatedPlayer.disabled = !puedeBuscar || total === 0;
 
-  eventFields.player.innerHTML = opciones;
-  eventFields.relatedPlayer.innerHTML = opciones;
-
-  if (disponibles.some(item =>
+  if (inscripcionesIncidencia.some(item =>
     String(item.id) === String(jugadorPreferido)
   )) {
     eventFields.player.value = String(jugadorPreferido);
   }
-  if (disponibles.some(item =>
+  if (inscripcionesIncidencia.some(item =>
     String(item.id) === String(relacionadoPreferido)
   )) {
     eventFields.relatedPlayer.value = String(relacionadoPreferido);
+  }
+  eventFields.playerResults.innerHTML =
+    renderBotonesInscripcionesIncidencia(
+      "player",
+      visibles,
+      eventFields.player.value
+    );
+  eventFields.relatedResults.innerHTML =
+    renderBotonesInscripcionesIncidencia(
+      "related",
+      visibles,
+      eventFields.relatedPlayer.value
+    );
+  eventFields.playerSearch.setAttribute(
+    "aria-expanded",
+    visibles.length > 0 ? "true" : "false"
+  );
+
+  if (visibles.length === 0) {
+    eventFields.playerResults.innerHTML = `
+      <div class="analytics-empty">${escapeHtml(
+        query
+          ? "Sin resultados en el plantel elegido."
+          : "Busca dentro del plantel para elegir jugador."
+      )}</div>
+    `;
+    eventFields.relatedResults.innerHTML = eventFields.playerResults.innerHTML;
+  }
+
+  if (!partido) {
+    setEventPlayerState("Selecciona un partido.", "warn");
+  } else if (!eventFields.team.value) {
+    setEventPlayerState("Selecciona equipo para cargar jugadores.", "warn");
+  } else if (total === 0) {
+    setEventPlayerState(
+      "Todavía no hay jugadores cargados para este club y torneo.",
+      "warn"
+    );
+  } else if (query && visibles.length === 0) {
+    setEventPlayerState(
+      "Sin resultados. Usa Jugador no encontrado.",
+      "warn"
+    );
+  } else {
+    const detalle = recortadas > 0
+      ? ` Mostrando ${EVENT_PLAYER_LIMIT}; ajusta la búsqueda.`
+      : "";
+    setEventPlayerState(
+      `${total} ${total === 1 ? "jugador inscripto" : "jugadores inscriptos"}.${detalle}`,
+      "ok"
+    );
+  }
+
+  setEventSaving(false);
+}
+
+function contextoJugadorEvento() {
+  const partido = partidoIncidenciasSeleccionado();
+  if (!torneoTrabajoValido()) {
+    throw new Error("Selecciona un torneo de trabajo.");
+  }
+  if (!partido) {
+    throw new Error("Selecciona un partido.");
+  }
+  if (!eventFields.team.value) {
+    throw new Error("Selecciona el equipo del jugador.");
+  }
+
+  const equipo = clubes.find(
+    club => String(club.id) === String(eventFields.team.value)
+  );
+  return {
+    torneoId: requerirTorneoTrabajoId(),
+    partido,
+    equipoId: Number(eventFields.team.value),
+    equipoNombre: equipo?.nombre_corto || equipo?.nombre_oficial || "Equipo",
+    torneoNombre: etiquetaTorneoTrabajo()
+  };
+}
+
+function abrirFlujoJugadorNoEncontrado(nombreInicial = "") {
+  try {
+    contextoJugadorEvento();
+  } catch (error) {
+    setEventFeedback(error.message, "error");
+    return;
+  }
+
+  busquedaJugadorEvento = null;
+  eventFields.missingName.value =
+    nombreInicial ||
+    eventFields.playerSearch.value ||
+    "";
+  eventFields.missingResults.textContent =
+    "Ingresa un nombre y busca candidatos antes de crear.";
+  eventFields.createPlayerBlock.classList.add("hidden");
+  eventFields.createConfirm.checked = false;
+  eventFields.createPlayer.disabled = true;
+  eventFields.missingFlow.classList.remove("hidden");
+  eventFields.missingName.focus();
+}
+
+function cerrarFlujoJugadorNoEncontrado(options = {}) {
+  if (!eventFields.missingFlow) return;
+  eventFields.missingFlow.classList.add("hidden");
+  busquedaJugadorEvento = null;
+  if (options.devolverFoco !== false && eventFields.playerMissing) {
+    eventFields.playerMissing.focus();
+  }
+}
+
+function setBusquedaJugadorBusy(isBusy) {
+  eventFields.missingSearch.disabled = isBusy;
+  eventFields.createPlayer.disabled =
+    isBusy || !busquedaJugadorEvento || !eventFields.createConfirm.checked;
+  eventFields.missingClose.disabled = isBusy;
+}
+
+async function buscarJugadorNoEncontrado() {
+  const contexto = contextoJugadorEvento();
+  const nombre = eventFields.missingName.value.trim();
+  if (!nombre) {
+    throw new Error("Ingresa un nombre para buscar.");
+  }
+
+  const params = new URLSearchParams({
+    scope: "buscar-jugador",
+    torneo_id: String(contexto.torneoId),
+    partido_id: String(contexto.partido.id),
+    equipo_id: String(contexto.equipoId),
+    nombre
+  });
+
+  setBusquedaJugadorBusy(true);
+  eventFields.missingResults.textContent = "Buscando candidatos...";
+  eventFields.createPlayerBlock.classList.add("hidden");
+
+  try {
+    const data = await apiRequest(
+      "GET",
+      null,
+      `${EVENTS_API_URL}?${params.toString()}`
+    );
+    busquedaJugadorEvento = {
+      ...data,
+      contexto
+    };
+    renderResultadosJugadorNoEncontrado();
+  } finally {
+    setBusquedaJugadorBusy(false);
+  }
+}
+
+function renderResultadosJugadorNoEncontrado() {
+  const data = busquedaJugadorEvento;
+  const candidatos = Array.isArray(data?.candidatos)
+    ? data.candidatos
+    : [];
+
+  if (!data) {
+    eventFields.missingResults.textContent =
+      "Busca candidatos antes de crear.";
+    eventFields.createPlayerBlock.classList.add("hidden");
+    return;
+  }
+
+  if (candidatos.length === 0) {
+    eventFields.missingResults.innerHTML = `
+      <div class="analytics-empty">
+        No hay candidatos para ${escapeHtml(data.nombre)}.
+      </div>
+    `;
+  } else {
+    eventFields.missingResults.innerHTML = `
+      <div class="event-player-state" data-type="warn">
+        Puede existir un jugador con un nombre similar.
+      </div>
+      ${candidatos.map(renderCandidatoJugadorEvento).join("")}
+    `;
+  }
+
+  eventFields.createSummary.textContent = [
+    `Nombre canonico: ${data.nombre}`,
+    `Club: ${data.contexto.equipoNombre}`,
+    `Torneo: ${data.contexto.torneoNombre}`
+  ].join(" | ");
+  eventFields.createPlayerBlock.classList.remove("hidden");
+  actualizarBotonCrearJugadorEvento();
+}
+
+function renderCandidatoJugadorEvento(candidato) {
+  const jugador = candidato.jugador || {};
+  const inscripcionContexto = candidato.inscripcion_contexto;
+  const accion = inscripcionContexto
+    ? `
+      <button
+        type="button"
+        data-event-use-inscription="${inscripcionContexto.id}"
+      >
+        Seleccionar inscripcion
+      </button>
+    `
+    : `
+      <button
+        type="button"
+        data-event-create-enrollment="${jugador.id}"
+        ${jugador.activo === false ? "disabled" : ""}
+      >
+        Crear inscripcion
+      </button>
+    `;
+
+  return `
+    <div class="event-candidate">
+      ${renderResumenJugadorCandidato(candidato)}
+      <div class="event-candidate-actions">
+        ${accion}
+      </div>
+    </div>
+  `;
+}
+
+function actualizarBotonCrearJugadorEvento() {
+  eventFields.createPlayer.disabled =
+    !busquedaJugadorEvento || !eventFields.createConfirm.checked;
+}
+
+async function usarInscripcionJugadorEvento(inscripcionId, message) {
+  await cargarJugadoresIncidencia(
+    inscripcionId,
+    eventFields.relatedPlayer.value
+  );
+  eventFields.player.value = String(inscripcionId);
+  cerrarFlujoJugadorNoEncontrado({ devolverFoco: false });
+  eventFields.playerSearch.focus();
+  setEventFeedback(message || "Jugador seleccionado.", "ok");
+  setEventSaving(false);
+}
+
+async function crearInscripcionParaCandidato(jugadorId) {
+  const contexto = contextoJugadorEvento();
+  setBusquedaJugadorBusy(true);
+  eventFields.missingResults.insertAdjacentHTML(
+    "afterbegin",
+    `<div class="event-player-state">Creando inscripcion...</div>`
+  );
+
+  try {
+    const data = await apiRequest("POST", {
+      action: "crear-inscripcion-jugador",
+      torneo_id: contexto.torneoId,
+      partido_id: contexto.partido.id,
+      equipo_id: contexto.equipoId,
+      jugador_id: Number(jugadorId),
+      busqueda_previa: true,
+      confirmar_inscripcion: true,
+      fuente: valorTexto(eventFields.source)
+    }, EVENTS_API_URL);
+    await cargarPlantelesAdmin();
+    await usarInscripcionJugadorEvento(
+      data.inscripcion.id,
+      data.existente
+        ? "Ya existe una inscripcion para este jugador."
+        : "Inscripcion creada."
+    );
+  } finally {
+    setBusquedaJugadorBusy(false);
+  }
+}
+
+async function crearJugadorDesdeBusqueda() {
+  const contexto = contextoJugadorEvento();
+  if (!busquedaJugadorEvento) {
+    throw new Error("Busca candidatos antes de crear.");
+  }
+  if (!eventFields.createConfirm.checked) {
+    throw new Error("Confirma que no corresponde a los candidatos.");
+  }
+
+  setBusquedaJugadorBusy(true);
+  try {
+    const data = await apiRequest("POST", {
+      action: "crear-jugador-inscripcion",
+      torneo_id: contexto.torneoId,
+      partido_id: contexto.partido.id,
+      equipo_id: contexto.equipoId,
+      nombre_completo: busquedaJugadorEvento.nombre,
+      busqueda_previa: true,
+      confirmar_creacion: true,
+      confirmar_homonimo:
+        Array.isArray(busquedaJugadorEvento.candidatos) &&
+        busquedaJugadorEvento.candidatos.length > 0,
+      fuente: valorTexto(eventFields.source)
+    }, EVENTS_API_URL);
+    await cargarPlantelesAdmin();
+    await usarInscripcionJugadorEvento(
+      data.inscripcion.id,
+      "Jugador e inscripcion creados."
+    );
+  } finally {
+    setBusquedaJugadorBusy(false);
   }
 }
 
@@ -3382,6 +4591,7 @@ function actualizarCamposTipoIncidencia() {
   if (!esCambio) {
     eventFields.relatedPlayer.value = "";
   }
+  setEventSaving(false);
 }
 
 function inferirEquipoIncidencia(evento, partido) {
@@ -3415,7 +4625,7 @@ function inferirEquipoIncidencia(evento, partido) {
   return local.id || visitante.id || "";
 }
 
-function iniciarNuevaIncidencia() {
+async function iniciarNuevaIncidencia() {
   const partido = partidoIncidenciasSeleccionado();
   if (!partido) {
     setEventFeedback(
@@ -3435,9 +4645,11 @@ function iniciarNuevaIncidencia() {
   renderEquiposIncidencia(
     resolverEquipoPartidoAdmin(partido, "local").id
   );
-  renderJugadoresIncidencia();
+  eventFields.playerSearch.value = "";
+  await cargarJugadoresIncidencia();
   actualizarCamposTipoIncidencia();
   eventFields.legacyBlock.classList.add("hidden");
+  cerrarFlujoJugadorNoEncontrado({ devolverFoco: false });
   deleteEventBtn.classList.add("hidden");
 
   emptyEventEditor.classList.add("hidden");
@@ -3449,7 +4661,7 @@ function iniciarNuevaIncidencia() {
   setEventSaving(false);
 }
 
-function seleccionarIncidencia(id) {
+async function seleccionarIncidencia(id) {
   const incidencia = incidencias.find(
     item => String(item.id) === String(id)
   );
@@ -3480,7 +4692,8 @@ function seleccionarIncidencia(id) {
 
   const equipoId = inferirEquipoIncidencia(incidencia, partido);
   renderEquiposIncidencia(equipoId);
-  renderJugadoresIncidencia(
+  eventFields.playerSearch.value = "";
+  await cargarJugadoresIncidencia(
     incidencia.inscripcion_jugador_id,
     incidencia.inscripcion_relacionada_id
   );
@@ -3491,15 +4704,15 @@ function seleccionarIncidencia(id) {
     !incidencia.inscripcion_jugador_id;
   eventFields.legacyBlock.classList.toggle("hidden", !esHistorica);
   eventFields.legacyName.textContent = incidencia.jugador || "";
-  eventFields.createLegacy.checked = false;
+  cerrarFlujoJugadorNoEncontrado({ devolverFoco: false });
   deleteEventBtn.classList.remove("hidden");
 
   emptyEventEditor.classList.add("hidden");
   eventForm.classList.remove("hidden");
   setEventFeedback(
     esHistorica
-      ? "Elegí el equipo y conciliá el nombre histórico."
-      : "Modificá los datos disponibles y guardá."
+      ? "Evento historico sin jugador vinculado. Podes editar otros campos o vincularlo manualmente."
+      : "Modifica los datos disponibles y guarda."
   );
   renderIncidenciasAdmin();
   setEventSaving(false);
@@ -3521,8 +4734,7 @@ function valoresFormularioIncidencia() {
         : null,
     estado_dato: eventFields.dataStatus.value,
     fuente: valorTexto(eventFields.source),
-    observaciones: valorTexto(eventFields.notes),
-    crear_desde_texto: eventFields.createLegacy.checked
+    observaciones: valorTexto(eventFields.notes)
   };
 }
 
@@ -3549,9 +4761,23 @@ function validarIncidencia(valores) {
     );
   }
   if (
+    valores.tipo !== "cambio" &&
+    !valores.inscripcion_jugador_id &&
+    !incidenciaActualHistoricaSinVincular()
+  ) {
+    throw new Error(
+      "Selecciona una inscripcion de jugador."
+    );
+  }
+  if (
     valores.tipo === "cambio" &&
     (
       !valores.inscripcion_jugador_id ||
+      !valores.inscripcion_relacionada_id
+    ) &&
+    !(
+      incidenciaActualHistoricaSinVincular() &&
+      !valores.inscripcion_jugador_id &&
       !valores.inscripcion_relacionada_id
     )
   ) {
@@ -3591,11 +4817,8 @@ async function guardarIncidencia(event) {
     );
     const incidenciaId = data.incidencia?.id;
 
-    if (valores.crear_desde_texto) {
-      await cargarPlantelesAdmin();
-    }
     await cargarIncidenciasAdmin();
-    if (incidenciaId) seleccionarIncidencia(incidenciaId);
+    if (incidenciaId) await seleccionarIncidencia(incidenciaId);
 
     setEventFeedback(
       data.periodo_omitido
@@ -3929,6 +5152,14 @@ function seleccionarPartido(id, options = {}) {
   const estadioClubLocal = obtenerEstadioClubLocal(partido);
   const estadioSugerido = !partido.estadio && estadioClubLocal;
 
+  if (String(seleccionadoId || "") !== String(partido.id)) {
+    liveSelectedSide = null;
+    liveAction = null;
+    liveChangeOutId = null;
+    liveSelectedPlayerId = null;
+    liveRosterReturnContext = null;
+  }
+
   seleccionadoId = partido.id;
   fields.id.value = partido.id;
   fields.local.value = partido.local || partidoVisible.local || "";
@@ -3984,6 +5215,7 @@ function seleccionarPartido(id, options = {}) {
     incidenciaSeleccionadaId = null;
     eventForm.classList.add("hidden");
     emptyEventEditor.classList.remove("hidden");
+    resetJugadoresIncidencia("Agrega o elegi una incidencia.");
     renderIncidenciasAdmin();
     renderModoPartido();
   }
@@ -4591,14 +5823,18 @@ clubForm.addEventListener("submit", event => {
   });
 });
 rosterTournament.addEventListener("change", () => {
+  liveRosterReturnContext = null;
   inscripcionSeleccionadaId = null;
+  resetBusquedaPlantel();
   toggleRosterBtn.classList.add("hidden");
   rosterForm.classList.add("hidden");
   emptyRosterEditor.classList.remove("hidden");
   renderPlantel();
 });
 rosterClub.addEventListener("change", () => {
+  liveRosterReturnContext = null;
   inscripcionSeleccionadaId = null;
+  resetBusquedaPlantel();
   toggleRosterBtn.classList.add("hidden");
   rosterForm.classList.add("hidden");
   emptyRosterEditor.classList.remove("hidden");
@@ -4609,10 +5845,64 @@ rosterList.addEventListener("click", event => {
   const item = event.target.closest("[data-enrollment-id]");
   if (item) seleccionarInscripcion(item.dataset.enrollmentId);
 });
-rosterFields.playerId.addEventListener(
+rosterFields.search.addEventListener("input", () => {
+  if (rosterFields.search.value.trim().length < 2) {
+    resetBusquedaPlantel("Escribí al menos 2 letras");
+    return;
+  }
+  programarBusquedaPlantel();
+});
+rosterFields.search.addEventListener("keydown", event => {
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    enfocarResultadoPlantel(1);
+  }
+});
+rosterFields.searchResults.addEventListener("keydown", event => {
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    enfocarResultadoPlantel(1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    enfocarResultadoPlantel(-1);
+  }
+});
+rosterFields.searchResults.addEventListener("click", event => {
+  const button = event.target.closest("[data-roster-candidate]");
+  if (button) seleccionarCandidatoPlantel(button.dataset.rosterCandidate);
+});
+rosterFields.selectedPlayer.addEventListener("click", event => {
+  const existing = event.target.closest("[data-roster-open-existing]");
+  if (existing) {
+    seleccionarInscripcion(existing.dataset.rosterOpenExisting);
+    volverAIncidenciaDesdePlantel(existing.dataset.rosterOpenExisting);
+    return;
+  }
+
+  if (event.target.closest("[data-roster-create-enrollment]")) {
+    crearInscripcionPlantelSeleccionado().catch(error => {
+      setRosterFeedback(error.message, "error");
+      setStatus(error.message, "error");
+      setRosterSaving(false);
+    });
+  }
+});
+rosterFields.createNew.addEventListener("click", abrirCreacionJugadorPlantel);
+rosterFields.playerName.addEventListener("input", () => {
+  actualizarResumenCreacionPlantel();
+  actualizarBotonCrearJugadorPlantel();
+});
+rosterFields.createConfirm.addEventListener(
   "change",
-  seleccionarJugadorExistente
+  actualizarBotonCrearJugadorPlantel
 );
+rosterFields.createPlayer.addEventListener("click", () => {
+  crearJugadorPlantelNuevo().catch(error => {
+    setRosterFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setRosterSaving(false);
+  });
+});
 rosterForm.addEventListener("submit", event => {
   guardarInscripcionJugador(event).catch(error => {
     setRosterFeedback(error.message, "error");
@@ -4639,6 +5929,7 @@ eventMatch.addEventListener("change", () => {
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
+  resetJugadoresIncidencia("Agrega o elegi una incidencia.");
   liveMatch.value = eventMatch.value;
   renderIncidenciasAdmin();
   renderModoPartido();
@@ -4656,32 +5947,39 @@ liveMatch.addEventListener("change", () => {
   incidenciaSeleccionadaId = null;
   eventForm.classList.add("hidden");
   emptyEventEditor.classList.remove("hidden");
+  resetJugadoresIncidencia("Agrega o elegi una incidencia.");
   renderIncidenciasAdmin();
   renderModoPartido();
 });
-liveLocalActions.addEventListener("click", event => {
+liveTeamLocalBtn.addEventListener("click", () => {
+  seleccionarEquipoModo("local");
+});
+liveTeamAwayBtn.addEventListener("click", () => {
+  seleccionarEquipoModo("visitante");
+});
+liveActionGrid.addEventListener("click", event => {
   const button = event.target.closest("[data-live-action]");
   if (button) {
-    abrirSelectorModo(
-      button.dataset.liveSide,
-      button.dataset.liveAction
-    );
+    abrirSelectorModo(button.dataset.liveAction);
   }
 });
-liveAwayActions.addEventListener("click", event => {
-  const button = event.target.closest("[data-live-action]");
-  if (button) {
-    abrirSelectorModo(
-      button.dataset.liveSide,
-      button.dataset.liveAction
-    );
-  }
-});
+livePlayerSearch.addEventListener("input", renderSelectorJugadoresModo);
 livePlayerGrid.addEventListener("click", event => {
   const button = event.target.closest("[data-live-player]");
   if (!button) return;
 
-  seleccionarJugadorModo(button.dataset.livePlayer).catch(error => {
+  try {
+    seleccionarJugadorModo(button.dataset.livePlayer);
+  } catch (error) {
+    setLiveFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setLiveBusy(false);
+  }
+});
+liveEmptyAddPlayerBtn.addEventListener("click", abrirPlantelDesdeModo);
+liveAddPlayerBtn.addEventListener("click", abrirPlantelDesdeModo);
+liveSaveActionBtn.addEventListener("click", () => {
+  guardarSeleccionModo().catch(error => {
     setLiveFeedback(error.message, "error");
     setStatus(error.message, "error");
     setLiveBusy(false);
@@ -4695,6 +5993,11 @@ livePicker.addEventListener("click", event => {
 document.addEventListener("keydown", event => {
   if (event.key === "Escape" && !livePicker.classList.contains("hidden")) {
     cerrarSelectorModo();
+  } else if (
+    event.key === "Escape" &&
+    !eventFields.missingFlow.classList.contains("hidden")
+  ) {
+    cerrarFlujoJugadorNoEncontrado();
   }
 });
 liveUndoBtn.addEventListener("click", () => {
@@ -4711,7 +6014,13 @@ liveFinishBtn.addEventListener("click", () => {
     setLiveBusy(false);
   });
 });
-newEventBtn.addEventListener("click", iniciarNuevaIncidencia);
+newEventBtn.addEventListener("click", () => {
+  iniciarNuevaIncidencia().catch(error => {
+    setEventFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setEventSaving(false);
+  });
+});
 eventList.addEventListener("click", event => {
   const moveButton = event.target.closest("[data-move-event]");
   if (moveButton) {
@@ -4727,15 +6036,116 @@ eventList.addEventListener("click", event => {
   }
 
   const item = event.target.closest("[data-event-id]");
-  if (item) seleccionarIncidencia(item.dataset.eventId);
+  if (item) {
+    seleccionarIncidencia(item.dataset.eventId).catch(error => {
+      setEventFeedback(error.message, "error");
+      setStatus(error.message, "error");
+      setEventSaving(false);
+    });
+  }
 });
 eventFields.team.addEventListener("change", () => {
-  renderJugadoresIncidencia();
+  eventFields.playerSearch.value = "";
+  cargarJugadoresIncidencia().catch(error => {
+    setEventFeedback(error.message, "error");
+    setStatus(error.message, "error");
+    setEventSaving(false);
+  });
 });
+eventFields.playerSearch.addEventListener("input", () => {
+  renderJugadoresIncidencia(
+    eventFields.player.value,
+    eventFields.relatedPlayer.value
+  );
+});
+eventFields.playerResults.addEventListener("click", event => {
+  const button = event.target.closest("[data-event-player]");
+  if (!button) return;
+  eventFields.player.value = button.dataset.eventPlayer;
+  renderJugadoresIncidencia(
+    eventFields.player.value,
+    eventFields.relatedPlayer.value
+  );
+});
+eventFields.relatedResults.addEventListener("click", event => {
+  const button = event.target.closest("[data-event-related-player]");
+  if (!button) return;
+  eventFields.relatedPlayer.value = button.dataset.eventRelatedPlayer;
+  renderJugadoresIncidencia(
+    eventFields.player.value,
+    eventFields.relatedPlayer.value
+  );
+});
+eventFields.player.addEventListener("change", () => setEventSaving(false));
+eventFields.relatedPlayer.addEventListener(
+  "change",
+  () => setEventSaving(false)
+);
 eventFields.type.addEventListener(
   "change",
   actualizarCamposTipoIncidencia
 );
+eventFields.playerMissing.addEventListener("click", () => {
+  abrirFlujoJugadorNoEncontrado();
+});
+eventFields.linkLegacy.addEventListener("click", () => {
+  abrirFlujoJugadorNoEncontrado(eventFields.legacyName.textContent);
+});
+eventFields.missingClose.addEventListener("click", () => {
+  cerrarFlujoJugadorNoEncontrado();
+});
+eventFields.missingSearch.addEventListener("click", () => {
+  buscarJugadorNoEncontrado().catch(error => {
+    eventFields.missingResults.textContent = error.message;
+    setEventFeedback(error.message, "error");
+    setBusquedaJugadorBusy(false);
+  });
+});
+eventFields.missingName.addEventListener("keydown", event => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  buscarJugadorNoEncontrado().catch(error => {
+    eventFields.missingResults.textContent = error.message;
+    setEventFeedback(error.message, "error");
+    setBusquedaJugadorBusy(false);
+  });
+});
+eventFields.missingResults.addEventListener("click", event => {
+  const useButton = event.target.closest("[data-event-use-inscription]");
+  if (useButton) {
+    usarInscripcionJugadorEvento(
+      useButton.dataset.eventUseInscription,
+      "Jugador seleccionado."
+    ).catch(error => {
+      eventFields.missingResults.textContent = error.message;
+      setEventFeedback(error.message, "error");
+      setBusquedaJugadorBusy(false);
+    });
+    return;
+  }
+
+  const createButton = event.target.closest("[data-event-create-enrollment]");
+  if (createButton) {
+    crearInscripcionParaCandidato(
+      createButton.dataset.eventCreateEnrollment
+    ).catch(error => {
+      eventFields.missingResults.textContent = error.message;
+      setEventFeedback(error.message, "error");
+      setBusquedaJugadorBusy(false);
+    });
+  }
+});
+eventFields.createConfirm.addEventListener(
+  "change",
+  actualizarBotonCrearJugadorEvento
+);
+eventFields.createPlayer.addEventListener("click", () => {
+  crearJugadorDesdeBusqueda().catch(error => {
+    eventFields.missingResults.textContent = error.message;
+    setEventFeedback(error.message, "error");
+    setBusquedaJugadorBusy(false);
+  });
+});
 eventForm.addEventListener("submit", event => {
   guardarIncidencia(event).catch(error => {
     setEventFeedback(error.message, "error");

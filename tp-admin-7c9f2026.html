@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=12">
+  <link rel="stylesheet" href="styles/admin.css?v=16">
 </head>
 <body>
   <main class="admin-shell">
@@ -241,8 +241,8 @@
 
         <div class="match-dependent-detail">
           <p class="stage-intro">
-            El resultado no se modifica desde acá. Tocá una acción del equipo
-            y elegí al jugador para completar lo ocurrido en el partido.
+            El resultado no se modifica desde acá. Elegí primero el equipo,
+            después la incidencia y finalmente el jugador del plantel.
             Tiempo y minuto son opcionales.
           </p>
 
@@ -262,6 +262,46 @@
               <strong id="liveAwayName">Por definir</strong>
             </div>
           </div>
+          <div class="live-team-picker" aria-labelledby="liveTeamPickerTitle">
+            <div class="form-section-title" id="liveTeamPickerTitle">
+              ¿PARA QUÉ EQUIPO?
+            </div>
+            <div class="live-team-options">
+              <button
+                type="button"
+                class="live-team-option"
+                id="liveTeamLocalBtn"
+                data-live-side="local"
+                aria-pressed="false"
+              >
+                <strong>Por definir</strong>
+                <small>LOCAL</small>
+              </button>
+              <button
+                type="button"
+                class="live-team-option"
+                id="liveTeamAwayBtn"
+                data-live-side="visitante"
+                aria-pressed="false"
+              >
+                <strong>Por definir</strong>
+                <small>VISITANTE</small>
+              </button>
+            </div>
+            <div
+              class="event-player-state"
+              id="liveSelectedTeamState"
+              aria-live="polite"
+            >
+              Primero elegí el equipo
+            </div>
+          </div>
+          <div class="live-action-panel" aria-labelledby="liveActionTitle">
+            <div class="form-section-title" id="liveActionTitle">
+              Tipo de incidencia
+            </div>
+            <div class="live-action-grid" id="liveActionGrid"></div>
+          </div>
           <div class="live-goal-progress" id="liveGoalProgress">
             Cargá primero el resultado del partido.
           </div>
@@ -272,15 +312,6 @@
             </div>
             <div id="liveConsistencyList">
               Elegí un partido para revisar sus incidencias.
-            </div>
-          </div>
-
-          <div class="live-action-columns">
-            <div class="live-actions-side live-actions-local">
-              <div id="liveLocalActions"></div>
-            </div>
-            <div class="live-actions-side live-actions-away">
-              <div id="liveAwayActions"></div>
             </div>
           </div>
 
@@ -325,6 +356,7 @@
             <button
               type="button"
               class="ghost live-picker-close"
+              id="livePickerCloseBtn"
               data-live-close
               aria-label="Cerrar"
             >
@@ -332,9 +364,46 @@
             </button>
           </div>
           <p id="livePickerHelp">
-            La incidencia se guardará al tocar un jugador.
+            Elegí al jugador del equipo seleccionado y guardá la incidencia.
           </p>
-          <div class="live-picker-moment">
+          <div class="live-picker-empty hidden" id="liveEmptyRoster">
+            <div class="event-player-state" data-type="warn">
+              Todavía no hay jugadores cargados para este club y torneo
+            </div>
+            <div class="live-picker-empty-actions">
+              <button type="button" id="liveEmptyAddPlayerBtn">
+                Agregar jugador al plantel
+              </button>
+              <button type="button" class="ghost" data-live-close>
+                Cerrar
+              </button>
+            </div>
+          </div>
+          <label
+            class="live-player-search"
+            id="livePlayerSearchWrap"
+            for="livePlayerSearch"
+          >
+            Buscar en el plantel
+            <input
+              id="livePlayerSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Nombre del jugador"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="livePlayerGrid"
+            >
+          </label>
+          <div
+            class="event-player-state"
+            id="livePlayerState"
+            aria-live="polite"
+          >
+            Seleccioná un tipo de incidencia.
+          </div>
+          <div class="live-picker-moment" id="livePickerMoment">
             <label>
               Tiempo
               <select id="livePeriod">
@@ -356,6 +425,14 @@
             </label>
           </div>
           <div class="live-player-grid" id="livePlayerGrid"></div>
+          <div class="live-picker-actions" id="livePickerActions">
+            <button type="button" class="ghost" id="liveAddPlayerBtn">
+              Agregar jugador al plantel
+            </button>
+            <button type="button" id="liveSaveActionBtn" disabled>
+              Guardar incidencia
+            </button>
+          </div>
         </section>
       </div>
 
@@ -610,7 +687,7 @@
 
         <div class="match-dependent-detail">
           <p class="stage-intro">
-            Cada inscripcion vincula una persona con un club y un torneo.
+            Cada inscripción vincula una persona con un club y un torneo.
             Reutiliza al jugador existente si cambia de club o competencia.
           </p>
 
@@ -640,28 +717,93 @@
 
             <form id="rosterForm" class="match-form hidden">
               <input type="hidden" id="rosterEnrollmentId">
+              <input type="hidden" id="rosterPlayerId">
 
-              <div class="form-section-title">Identidad</div>
-              <label>
-                Persona existente
-                <select id="rosterPlayerId">
-                  <option value="">Crear jugador nuevo</option>
-                </select>
-              </label>
-
-              <label>
-                Nombre completo
-                <input id="rosterPlayerName" type="text" required>
-              </label>
-
-              <label>
-                Nombres alternativos
-                <input
-                  id="rosterAliases"
-                  type="text"
-                  placeholder="Apodo o variantes, separados por coma"
+              <div class="roster-search-panel" id="rosterSearchPanel">
+                <div class="form-section-title">Buscar jugador existente</div>
+                <label for="rosterPlayerSearch">
+                  Buscar jugador existente
+                  <input
+                    id="rosterPlayerSearch"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Escribí nombre o apellido..."
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="rosterSearchResults"
+                  >
+                </label>
+                <div
+                  class="event-player-state"
+                  id="rosterSearchState"
+                  aria-live="polite"
                 >
+                  Escribí al menos 2 letras
+                </div>
+                <div
+                  class="player-search-results"
+                  id="rosterSearchResults"
+                  role="listbox"
+                  aria-live="polite"
+                ></div>
+                <button
+                  type="button"
+                  class="ghost hidden"
+                  id="rosterCreateNewBtn"
+                >
+                  No aparece en los resultados - Crear jugador nuevo
+                </button>
+              </div>
+
+              <div
+                class="player-selection-summary hidden"
+                id="rosterSelectedPlayer"
+                aria-live="polite"
+              ></div>
+
+              <div
+                class="event-create-player hidden"
+                id="rosterCreatePlayerBlock"
+              >
+                <div class="form-section-title">Crear jugador nuevo</div>
+                <label for="rosterPlayerName">
+                  Nombre completo
+                  <input id="rosterPlayerName" type="text">
+                </label>
+                <div class="event-create-summary" id="rosterCreateSummary">
+                  Revisa los resultados antes de crear una persona nueva.
+                </div>
+                <label class="toggle-label">
+                  <input id="rosterCreateConfirm" type="checkbox">
+                  <span>
+                    Confirmo que no corresponde a los candidatos mostrados
+                  </span>
+                </label>
+                <button type="button" id="rosterCreatePlayerBtn">
+                  Crear jugador e inscripción
+                </button>
+              </div>
+
+              <div class="roster-details-block hidden" id="rosterDetailsBlock">
+              <div class="form-section-title">Identidad</div>
+
+              <label for="rosterPlayerNameEdit">
+                Nombre completo
+                <input id="rosterPlayerNameEdit" type="text" required>
               </label>
+
+              <details class="optional-details" id="rosterExtraData">
+                <summary>Datos adicionales</summary>
+                <label for="rosterAliases">
+                  Nombres alternativos
+                  <input
+                    id="rosterAliases"
+                    type="text"
+                    placeholder="Apodo o variantes, separados por coma"
+                  >
+                </label>
+              </details>
 
               <div class="form-section-title">Inscripción</div>
               <div class="form-row three">
@@ -735,6 +877,7 @@
                 >
                   Quitar del plantel
                 </button>
+              </div>
               </div>
               <div class="form-feedback" id="rosterFeedback">
                 Completá los datos disponibles.
@@ -833,25 +976,127 @@
                 </label>
               </div>
 
-              <label>
-                <span id="eventPlayerLabel">Jugador</span>
-                <select id="eventPlayer"></select>
-              </label>
+              <div class="event-player-picker">
+                <label for="eventPlayerSearch">
+                  Buscar jugador
+                  <input
+                    id="eventPlayerSearch"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Nombre del jugador"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="eventPlayerResults"
+                  >
+                </label>
+                <input type="hidden" id="eventPlayer">
+                <div>
+                  <span id="eventPlayerLabel">Jugador</span>
+                  <div
+                    class="player-search-results"
+                    id="eventPlayerResults"
+                    role="listbox"
+                    aria-label="Jugadores del plantel"
+                  ></div>
+                </div>
+                <div
+                  class="event-player-state"
+                  id="eventPlayerState"
+                  aria-live="polite"
+                >
+                  Selecciona equipo para cargar jugadores.
+                </div>
+                <button
+                  type="button"
+                  class="ghost"
+                  id="eventPlayerMissingBtn"
+                >
+                  Jugador no encontrado
+                </button>
+              </div>
 
-              <label class="hidden" id="eventRelatedWrap">
-                Jugador que entra
-                <select id="eventRelatedPlayer"></select>
-              </label>
+              <div class="hidden" id="eventRelatedWrap">
+                <input type="hidden" id="eventRelatedPlayer">
+                <span>Jugador que entra</span>
+                <div
+                  class="player-search-results"
+                  id="eventRelatedPlayerResults"
+                  role="listbox"
+                  aria-label="Jugadores que entran"
+                ></div>
+              </div>
 
               <div class="legacy-event hidden" id="eventLegacyBlock">
-                <span>Nombre histórico sin vincular</span>
+                <span>Evento historico sin jugador vinculado</span>
                 <strong id="eventLegacyName"></strong>
-                <label class="toggle-label">
-                  <input id="eventCreateLegacy" type="checkbox">
-                  <span>
-                    Crear inscripción por verificar y vincular este nombre
-                  </span>
+                <div class="legacy-link-actions">
+                  <button
+                    type="button"
+                    class="ghost"
+                    id="eventLinkLegacyBtn"
+                  >
+                    Vincular jugador
+                  </button>
+                </div>
+              </div>
+
+              <div
+                class="event-missing-flow hidden"
+                id="eventMissingFlow"
+                aria-labelledby="eventMissingTitle"
+              >
+                <div class="event-missing-head">
+                  <div>
+                    <span class="eyebrow">Jugador no encontrado</span>
+                    <h3 id="eventMissingTitle">Buscar persona</h3>
+                  </div>
+                  <button
+                    type="button"
+                    class="ghost"
+                    id="eventMissingCloseBtn"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <label for="eventMissingName">
+                  Nombre recibido
+                  <input
+                    id="eventMissingName"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Nombre de la fuente"
+                  >
                 </label>
+                <div class="actions compact">
+                  <button type="button" id="eventMissingSearchBtn">
+                    Buscar persona
+                  </button>
+                </div>
+                <div
+                  class="event-missing-results"
+                  id="eventMissingResults"
+                  aria-live="polite"
+                >
+                  Ingresa un nombre y busca candidatos antes de crear.
+                </div>
+                <div
+                  class="event-create-player hidden"
+                  id="eventCreatePlayerBlock"
+                >
+                  <div class="event-create-summary" id="eventCreateSummary">
+                    Revisa los candidatos antes de crear una persona nueva.
+                  </div>
+                  <label class="toggle-label">
+                    <input id="eventCreateConfirm" type="checkbox">
+                    <span>
+                      Confirmo que no corresponde a los candidatos mostrados
+                    </span>
+                  </label>
+                  <button type="button" id="eventCreatePlayerBtn">
+                    Crear jugador e inscripción
+                  </button>
+                </div>
               </div>
 
               <div class="form-row two">
@@ -906,6 +1151,6 @@
   </main>
 
   <script src="js/admin-match-flow.js?v=2"></script>
-  <script src="js/admin-panel.js?v=23"></script>
+  <script src="js/admin-panel.js?v=27"></script>
 </body>
 </html>
