@@ -148,6 +148,33 @@ function assertNoEndpoint(calls, endpoint) {
   );
 }
 
+function assertPublicScorerPayload(body) {
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ["fuente", "mensaje_vacio", "tablas"]
+  );
+  assert.deepEqual(Object.keys(body.tablas).sort(), ["1", "2", "3", "general"]);
+
+  Object.values(body.tablas).flat().forEach(row => {
+    assert.deepEqual(
+      Object.keys(row).sort(),
+      ["equipo_nombre", "goles", "jugador_nombre"]
+    );
+    [
+      "id",
+      "torneo_id",
+      "equipo_id",
+      "posicion",
+      "key",
+      "alias",
+      "metadata",
+      "admin"
+    ].forEach(field => {
+      assert.equal(Object.hasOwn(row, field), false);
+    });
+  });
+}
+
 async function runGoleadoresPublicosTests() {
   const results = [];
 
@@ -361,6 +388,7 @@ async function runGoleadoresPublicosTests() {
 
       assert.equal(result.statusCode, 200);
       assert.equal(body.fuente, _private.SOURCE_EVENTS);
+      assertPublicScorerPayload(body);
       assert.deepEqual(
         body.tablas["1"].map(row => [
           row.jugador_nombre,
@@ -461,6 +489,7 @@ async function runGoleadoresPublicosTests() {
 
       assert.equal(result.statusCode, 200);
       assert.equal(body.fuente, _private.SOURCE_SNAPSHOT);
+      assertPublicScorerPayload(body);
       assert.deepEqual(
         body.tablas.general.map(row => row.jugador_nombre),
         ["TOMBOLINI CARLOS DAMIAN", "BORINI JULIO CESAR"]
@@ -505,11 +534,43 @@ async function runGoleadoresPublicosTests() {
 
       assert.equal(result.statusCode, 200);
       assert.equal(body.fuente, _private.SOURCE_EVENTS);
+      assertPublicScorerPayload(body);
       assert.deepEqual(body.tablas.general, []);
       assert.equal(
         body.mensaje_vacio,
         "Todav\u00eda no hay goles cargados para este torneo."
       );
+    }
+  ));
+
+  results.push(await runCase(
+    "seguridad endpoint: sin service role, escrituras ni campos sensibles",
+    async () => {
+      const functionSource = fs.readFileSync(
+        path.join(ROOT, "netlify", "functions", "goleadores-publicos.js"),
+        "utf8"
+      );
+
+      assert.doesNotMatch(
+        functionSource,
+        /SUPABASE_SERVICE_ROLE_KEY|service_role/i
+      );
+      assert.doesNotMatch(
+        functionSource,
+        /\.(insert|update|delete|upsert|rpc)\s*\(|method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i
+      );
+      assert.match(functionSource, /SUPABASE_ANON_KEY/);
+      assert.match(functionSource, /Access-Control-Allow-Methods": "GET, OPTIONS"/);
+
+      const badRequest = await handler({
+        httpMethod: "GET",
+        queryStringParameters: { torneo_id: "sin-id" }
+      });
+      const badBody = bodyOf(badRequest);
+
+      assert.equal(badRequest.statusCode, 400);
+      assert.deepEqual(Object.keys(badBody).sort(), ["error"]);
+      assert.doesNotMatch(badRequest.body, /SUPABASE|service|token|key/i);
     }
   ));
 

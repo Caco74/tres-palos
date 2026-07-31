@@ -1415,7 +1415,6 @@ function normalizarFilasGoleadoresTabla(filas) {
 function compararGoleadoresTabla(a, b) {
   return (
     Number(b.goles || 0) - Number(a.goles || 0) ||
-    Number(a.posicion || 0) - Number(b.posicion || 0) ||
     String(a.jugador_nombre || "").localeCompare(
       String(b.jugador_nombre || ""),
       "es",
@@ -1425,7 +1424,8 @@ function compararGoleadoresTabla(a, b) {
       String(b.equipo_nombre || ""),
       "es",
       { sensitivity: "base" }
-    )
+    ) ||
+    Number(a.posicion || 0) - Number(b.posicion || 0)
   );
 }
 
@@ -3276,7 +3276,7 @@ function obtenerMensajeVacioGoleadoresTabla() {
     "Todav\u00eda no hay snapshot de goleadores para este torneo.";
 }
 
-function renderFilaGoleadorTabla(goleador, indice) {
+function renderFilaGoleadorTabla(goleador, esLider = false) {
   const goles = Number(goleador.goles || 0);
   const equipo = goleador.equipo_id
     ? nombre(goleador.equipo_nombre, goleador.equipo_id)
@@ -3288,7 +3288,7 @@ function renderFilaGoleadorTabla(goleador, indice) {
         <strong>${escaparHtml(goleador.jugador_nombre || "Jugador")}</strong>
         <small>${escaparHtml(equipo || "Equipo")}</small>
       </div>
-      <b class="${indice === 0 ? "leader" : ""}">
+      <b class="${esLider ? "leader" : ""}">
         ${goles}<small>${goles === 1 ? "gol" : "goles"}</small>
       </b>
     </div>
@@ -5581,6 +5581,10 @@ function renderTablaGoleadores(cont) {
   }
 
   const goleadores = obtenerGoleadoresTablaPublicables();
+  const maximoGoles = Math.max(
+    0,
+    ...goleadores.map(goleador => Number(goleador.goles || 0))
+  );
   const nombreTorneo = obtenerNombreTorneoActivo();
   const filtro = obtenerEtiquetaFiltroGoleadoresTabla();
 
@@ -5605,7 +5609,12 @@ function renderTablaGoleadores(cont) {
         <span>${goleadores.length} jugadores</span>
       </div>
       <div class="tabla-scorers-list">
-        ${goleadores.map(renderFilaGoleadorTabla).join("")}
+        ${goleadores
+          .map(goleador => renderFilaGoleadorTabla(
+            goleador,
+            Number(goleador.goles || 0) === maximoGoles
+          ))
+          .join("")}
       </div>
     </div>
   `;

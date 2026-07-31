@@ -17,7 +17,10 @@ exports.handler = async event => {
   }
 
   const envError = getEnvError();
-  if (envError) return json(500, { error: envError });
+  if (envError) {
+    console.error("goleadores-publicos config error", envError);
+    return json(500, { error: "Configuracion publica incompleta." });
+  }
 
   try {
     const tournamentId = getTournamentId(
@@ -35,12 +38,6 @@ exports.handler = async event => {
       : await buildSnapshotScorers(tournament);
 
     return json(200, {
-      torneo: {
-        id: tournament.id,
-        nombre: tournament.nombre,
-        anio: tournament.anio,
-        tipo: tournament.tipo
-      },
       fuente: source,
       mensaje_vacio: getEmptyMessage(source, tournament),
       tablas: result.tablas
@@ -58,8 +55,7 @@ exports.handler = async event => {
     return json(statusCode, {
       error: error.expose === false
         ? "Error interno."
-        : error.message || "Error interno.",
-      code: error.code || null
+        : error.message || "Error interno."
     });
   }
 };
@@ -265,12 +261,12 @@ function buildSnapshotScorerTables({ tournament, matches, scorers }) {
 
   return {
     tablas: {
-      general: generalRows.map(stripInternalScorerKey),
+      general: generalRows.map(toPublicScorerRow),
       ...Object.fromEntries(
         PUBLIC_ZONE_KEYS.map(zoneKey => [
           zoneKey,
           sortSnapshotRows([...byZone.get(zoneKey).values()])
-            .map(stripInternalScorerKey)
+            .map(toPublicScorerRow)
         ])
       )
     }
@@ -327,14 +323,7 @@ function finalizeTables(general, byZone) {
 function finalizeRows(rows) {
   return sortRows(rows)
     .filter(row => Number(row.goles) > 0)
-    .map((row, index) => ({
-      torneo_id: row.torneo_id,
-      posicion: index + 1,
-      equipo_id: row.equipo_id,
-      equipo_nombre: row.equipo_nombre,
-      jugador_nombre: row.jugador_nombre,
-      goles: Number(row.goles)
-    }));
+    .map(toPublicScorerRow);
 }
 
 function normalizeSnapshotRows(rows, tournament) {
@@ -377,15 +366,18 @@ function sortSnapshotRows(rows) {
   return [...rows].sort(
     (a, b) =>
       Number(b.goles || 0) - Number(a.goles || 0) ||
-      Number(a.posicion || 0) - Number(b.posicion || 0) ||
       compareText(a.jugador_nombre, b.jugador_nombre) ||
-      compareText(a.equipo_nombre, b.equipo_nombre)
+      compareText(a.equipo_nombre, b.equipo_nombre) ||
+      Number(a.posicion || 0) - Number(b.posicion || 0)
   );
 }
 
-function stripInternalScorerKey(row) {
-  const { key, ...publicRow } = row;
-  return publicRow;
+function toPublicScorerRow(row) {
+  return {
+    jugador_nombre: cleanText(row?.jugador_nombre) || "Jugador",
+    equipo_nombre: cleanText(row?.equipo_nombre) || "Equipo",
+    goles: Number(row?.goles || 0)
+  };
 }
 
 function isCountableGoalEvent(event) {
