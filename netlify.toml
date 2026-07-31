@@ -4,6 +4,7 @@
 
 [functions]
   directory = "netlify/functions"
+  included_files = ["js/config.js"]
 
 [[redirects]]
   from = "/equipos/*"

@@ -6,6 +6,8 @@ const state = {
   eventosTodos: [],
   goleadoresOficiales: [],
   goleadoresOficialesTodos: [],
+  goleadoresTabla: null,
+  errorGoleadoresTabla: false,
   clubes: [],
   torneos: [],
   torneoActivo: null,
