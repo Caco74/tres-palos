@@ -31,6 +31,10 @@ function normalizedRawSql(sql) {
     .toLowerCase();
 }
 
+function grantRevokeStatements(sql) {
+  return normalizedSql(sql).match(/\b(?:revoke|grant)\b[^;]+;/g) || [];
+}
+
 function assertReadOnlySql(relativePath) {
   const sql = read(relativePath);
   const stripped = stripSqlNoise(sql);
@@ -53,9 +57,20 @@ function assertReadOnlySql(relativePath) {
   );
 }
 
-function grantRevokeStatements(sql) {
-  return normalizedSql(sql)
-    .match(/\b(?:revoke|grant)\b[^;]+;/g) || [];
+function assertCorrectionDoesNotModifyRowsOrRls(relativePath) {
+  const sql = read(relativePath);
+  const stripped = stripSqlNoise(sql);
+
+  assert.doesNotMatch(
+    stripped,
+    /\b(insert\s+into|update\s+public\.|delete\s+from|alter\s+table|drop|truncate|create\s+(?:table|index|policy|function|trigger)|alter\s+policy|create\s+policy|drop\s+policy)\b/i,
+    `${relativePath} no debe modificar filas, estructura, RLS ni politicas`
+  );
+  assert.doesNotMatch(
+    stripped,
+    /\b(enable|disable)\s+row\s+level\s+security\b/i,
+    `${relativePath} no debe activar ni desactivar RLS`
+  );
 }
 
 function assertAuditSql() {
@@ -65,6 +80,7 @@ function assertAuditSql() {
   [
     "public.partidos",
     "public.eventos_partido",
+    "acl_directa",
     "grant_directo",
     "privilegio_efectivo",
     "acl_efectiva",
@@ -80,74 +96,72 @@ function assertAuditSql() {
     "privilege_type",
     "is_grantable"
   ].forEach(text => assert.match(sql, new RegExp(text.replace(".", "\\."))));
+  assert.match(sql, /aclexplode\s*\(/);
   assert.match(sql, /has_table_privilege\s*\(\s*grantees\.grantee/i);
   assert.match(sql, /grants\.grantee in \('anon', 'PUBLIC', 'authenticated'\)/);
 }
 
-function assertProtectedCorrectionSql() {
+function assertAnonCorrectionSql() {
   const relativePath = "sql/corregir-permisos-anon-goleadores.sql";
   const sql = read(relativePath);
-  const stripped = stripSqlNoise(sql);
   const normalized = normalizedSql(sql);
   const rawNormalized = normalizedRawSql(sql);
 
-  assert.match(
-    sql,
-    /^\s*begin\s*;/i,
-    "el SQL protegido debe comenzar una transaccion"
-  );
+  assert.match(sql, /^\s*begin\s*;/i, "el SQL protegido debe comenzar una transaccion");
   assert.match(sql, /commit\s*;\s*$/i);
   assert.equal((normalized.match(/\bcommit\s*;/g) || []).length, 1);
   assert.match(sql, /v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';/);
   assert.match(sql, /AUTORIZO PERMISOS GOLEADORES PUBLICOS/);
   assert.match(sql, /Correccion bloqueada/);
-  assert.doesNotMatch(sql, /autorizado/i);
+  assert.doesNotMatch(sql, /ARCHIVO TEMPORAL AUTORIZADO/i);
 
-  assert.match(sql, /'public\.partidos'/);
-  assert.match(sql, /'public\.eventos_partido'/);
-  assert.match(sql, /where to_regclass\(tabla\) is null/);
-  assert.match(sql, /relrowsecurity/);
-  assert.match(sql, /has_table_privilege\('anon', qualified_name, 'SELECT'\)/);
-  assert.match(sql, /policyname = required_policies\.policy_name/);
-  assert.match(sql, /'partidos', 'lectura publica'/);
-  assert.match(sql, /'eventos_partido', 'public read eventos'/);
-  assert.match(sql, /policies\.cmd in \('ALL', 'INSERT', 'UPDATE', 'DELETE'\)/);
-  assert.match(sql, /v_endpoint_goleadores_solo_select constant boolean := true;/);
+  [
+    "'public.partidos'",
+    "'public.eventos_partido'",
+    "relrowsecurity",
+    "has_table_privilege('anon', qualified_name, 'SELECT')",
+    "'partidos', 'lectura publica'",
+    "'eventos_partido', 'public read eventos'",
+    "v_endpoint_goleadores_solo_select constant boolean := true;",
+    "anon=arwdDxtm/postgres",
+    "authenticated=arwdDxtm/postgres",
+    "aclexplode",
+    "'TRUNCATE'",
+    "'REFERENCES'",
+    "'TRIGGER'",
+    "'MAINTAIN'"
+  ].forEach(text => assert.match(sql, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+  assert.match(sql, /grantor is distinct from 'postgres'/);
+  assert.match(sql, /grantee = 'PUBLIC'/);
+  assert.match(sql, /privilege_type <> 'SELECT'/);
+  assert.match(sql, /has_table_privilege\('anon', targets\.qualified_name, standard_privileges\.privilege_type\)/);
 
-  const firstRevoke = rawNormalized.indexOf("revoke insert, update, delete");
-  assert.notEqual(firstRevoke, -1);
+  const firstChange = rawNormalized.indexOf(
+    "revoke all privileges on table public.partidos, public.eventos_partido from anon;"
+  );
+  assert.notEqual(firstChange, -1);
   [
     "where to_regclass(tabla) is null",
     "relrowsecurity",
     "has_table_privilege('anon', qualified_name, 'select')",
     "policyname = required_policies.policy_name",
-    "v_endpoint_goleadores_solo_select"
+    "v_endpoint_goleadores_solo_select",
+    "grantor is distinct from 'postgres'",
+    "required_privileges"
   ].forEach(requiredBeforeChange => {
     const index = rawNormalized.indexOf(requiredBeforeChange);
     assert.ok(index >= 0, `falta validacion ${requiredBeforeChange}`);
-    assert.ok(index < firstRevoke, `${requiredBeforeChange} debe estar antes del REVOKE`);
+    assert.ok(index < firstChange, `${requiredBeforeChange} debe estar antes del REVOKE`);
   });
 
-  const statements = grantRevokeStatements(sql);
-  assert.deepEqual(statements, [
-    "revoke insert, update, delete on table public.partidos, public.eventos_partido from anon;",
-    "revoke insert, update, delete on table public.partidos, public.eventos_partido from public;",
+  assert.deepEqual(grantRevokeStatements(sql), [
+    "revoke all privileges on table public.partidos, public.eventos_partido from anon;",
+    "revoke all privileges on table public.partidos, public.eventos_partido from public;",
     "grant select on table public.partidos, public.eventos_partido to anon;"
   ]);
-  assert.doesNotMatch(normalized, /revoke all privileges/);
   assert.doesNotMatch(normalized, /\b(to|from)\s+authenticated\b/);
   assert.doesNotMatch(normalized, /\b(to|from)\s+service_role\b/);
-
-  assert.doesNotMatch(
-    stripped,
-    /\b(insert\s+into|update\s+public\.|delete\s+from|alter\s+table|drop|truncate|create\s+(?:table|index|policy|function|trigger)|alter\s+policy|create\s+policy|drop\s+policy)\b/i,
-    "la correccion no debe modificar filas, estructura, RLS ni politicas"
-  );
-  assert.doesNotMatch(
-    stripped,
-    /\b(enable|disable)\s+row\s+level\s+security\b/i,
-    "la correccion no debe activar ni desactivar RLS"
-  );
+  assertCorrectionDoesNotModifyRowsOrRls(relativePath);
 
   const lastGrant = rawNormalized.lastIndexOf(
     "grant select on table public.partidos, public.eventos_partido to anon;"
@@ -157,8 +171,87 @@ function assertProtectedCorrectionSql() {
   assert.ok(finalValidation > lastGrant);
   assert.ok(finalValidation < commit);
   assert.match(rawNormalized, /anon perdio select/);
-  assert.match(rawNormalized, /anon conserva escritura/);
-  assert.match(rawNormalized, /public conserva escritura/);
+  assert.match(rawNormalized, /quedaron privilegios anonimos innecesarios/);
+  assert.match(rawNormalized, /anon conserva privilegios efectivos/);
+}
+
+function assertAuthorizedAnonSql() {
+  const protectedSql = read("sql/corregir-permisos-anon-goleadores.sql");
+  const authorizedSql = read("sql/corregir-permisos-anon-goleadores-autorizado.sql");
+
+  assert.match(
+    authorizedSql,
+    /^-- ARCHIVO TEMPORAL AUTORIZADO PARA CORRECCI.N MANUAL DE PERMISOS/m
+  );
+  [
+    "Ejecutar el archivo completo",
+    "no ejecutar fragmentos",
+    "No repetir ante un error",
+    "Ejecutar despues sql/verificar-permisos-anon-goleadores.sql",
+    "Eliminar este archivo antes del merge"
+  ].forEach(text => assert.match(authorizedSql, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+
+  assert.match(
+    authorizedSql,
+    /v_autorizacion constant text := 'AUTORIZO PERMISOS GOLEADORES PUBLICOS';/
+  );
+  assert.doesNotMatch(
+    authorizedSql,
+    /v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';/
+  );
+  assert.deepEqual(grantRevokeStatements(authorizedSql), [
+    "revoke all privileges on table public.partidos, public.eventos_partido from anon;",
+    "revoke all privileges on table public.partidos, public.eventos_partido from public;",
+    "grant select on table public.partidos, public.eventos_partido to anon;"
+  ]);
+  grantRevokeStatements(authorizedSql).forEach(statement => {
+    assert.doesNotMatch(statement, /\bauthenticated\b/);
+    assert.doesNotMatch(statement, /\bservice_role\b/);
+  });
+  assertCorrectionDoesNotModifyRowsOrRls("sql/corregir-permisos-anon-goleadores-autorizado.sql");
+
+  const bodyStart = authorizedSql.toLowerCase().indexOf("begin;");
+  assert.ok(bodyStart >= 0, "el autorizado debe conservar el cuerpo SQL");
+  const restoredProtected = authorizedSql
+    .slice(bodyStart)
+    .replace(
+      "v_autorizacion constant text := 'AUTORIZO PERMISOS GOLEADORES PUBLICOS';",
+      "v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';"
+    );
+  assert.equal(restoredProtected, protectedSql);
+}
+
+function assertAuthenticatedCorrectionSql() {
+  const relativePath = "sql/corregir-permisos-authenticated-goleadores.sql";
+  const sql = read(relativePath);
+  const normalized = normalizedSql(sql);
+
+  assert.match(sql, /^\s*begin\s*;/i);
+  assert.match(sql, /commit\s*;\s*$/i);
+  assert.match(sql, /v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';/);
+  assert.match(sql, /AUTORIZO PERMISOS AUTHENTICATED GOLEADORES/);
+  assert.match(sql, /v_authenticated_sin_uso_en_repo constant boolean := true;/);
+  assert.match(sql, /authenticated no conserva SELECT/);
+  assert.match(sql, /authenticated ya no tiene privilegios innecesarios/);
+  assert.match(sql, /authenticated conserva privilegios efectivos/);
+  assert.match(sql, /grantor is distinct from 'postgres'/);
+  assert.match(sql, /relrowsecurity/);
+  assert.match(sql, /aclexplode\s*\(/);
+
+  assert.deepEqual(grantRevokeStatements(sql), [
+    "revoke all privileges on table public.partidos, public.eventos_partido from authenticated;",
+    "grant select on table public.partidos, public.eventos_partido to authenticated;"
+  ]);
+  assert.doesNotMatch(normalized, /\b(to|from)\s+anon\b/);
+  assert.doesNotMatch(normalized, /\b(to|from)\s+public\b/);
+  assert.doesNotMatch(normalized, /\b(to|from)\s+service_role\b/);
+  assertCorrectionDoesNotModifyRowsOrRls(relativePath);
+
+  assert.equal(
+    fs.existsSync(path.join(ROOT, "sql", "corregir-permisos-authenticated-goleadores-autorizado.sql")),
+    false,
+    "no debe existir un SQL autorizado para authenticated"
+  );
 }
 
 function assertVerificationSql() {
@@ -168,26 +261,29 @@ function assertVerificationSql() {
   [
     "RLS activo: partidos",
     "RLS activo: eventos_partido",
-    "anon tiene SELECT: partidos",
-    "anon tiene SELECT: eventos_partido",
-    "anon no tiene INSERT: partidos",
-    "anon no tiene UPDATE: partidos",
-    "anon no tiene DELETE: partidos",
-    "anon no tiene INSERT: eventos_partido",
-    "anon no tiene UPDATE: eventos_partido",
-    "anon no tiene DELETE: eventos_partido",
-    "Politica publica SELECT: partidos",
-    "Politica publica SELECT: eventos_partido",
-    "Sin politicas publicas de escritura: partidos",
-    "Sin politicas publicas de escritura: eventos_partido",
-    "Lectura efectiva disponible para anon",
-    "Sin escritura heredada desde PUBLIC"
-  ].forEach(control => assert.match(sql, new RegExp(control.replace("?", "\\?"))));
-
-  assert.equal((sql.match(/^\s*\d+,\s*'/gm) || []).length, 16);
+    "anon tiene SELECT efectivo:",
+    "'anon no tiene ' || privileges_to_check.privilege_type || ' efectivo: '",
+    "ACL directa anon solo SELECT:",
+    "Sin privilegios heredados desde PUBLIC:",
+    "Politica publica SELECT:",
+    "Sin politicas publicas de escritura:"
+  ].forEach(control => assert.match(sql, new RegExp(control.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
+  [
+    "'SELECT'",
+    "'INSERT'",
+    "'UPDATE'",
+    "'DELETE'",
+    "'TRUNCATE'",
+    "'REFERENCES'",
+    "'TRIGGER'",
+    "'MAINTAIN'"
+  ].forEach(privilege => assert.match(sql, new RegExp(privilege)));
+  assert.match(sql, /direct_acl as \(/);
+  assert.match(sql, /anon_effective_acl as \(/);
+  assert.match(sql, /aclexplode\s*\(/);
   assert.match(sql, /case when ok then 'OK' else 'REVISAR' end as resultado/);
   assert.match(sql, /control,\s*\n\s*case when ok then 'OK'/);
-  assert.match(sql, /information_schema\.table_privileges/);
+  assert.doesNotMatch(sql, /information_schema\.table_privileges/);
 }
 
 function assertPublicScorersFunctionIsReadOnly() {
@@ -207,6 +303,68 @@ function assertPublicScorersFunctionIsReadOnly() {
     /\.(insert|update|delete|upsert|rpc)\s*\(|method:\s*(?:''|"")(?:POST|PUT|PATCH|DELETE)/i
   );
   assert.doesNotMatch(cleaned, /\b(insert\s+into|update\s+public\.|delete\s+from)\b/i);
+}
+
+function collectFiles(relativePaths) {
+  const files = [];
+
+  relativePaths.forEach(relativePath => {
+    const absolutePath = path.join(ROOT, relativePath);
+    if (!fs.existsSync(absolutePath)) return;
+    const stat = fs.statSync(absolutePath);
+    if (stat.isDirectory()) {
+      fs.readdirSync(absolutePath, { withFileTypes: true }).forEach(entry => {
+        const child = path.join(relativePath, entry.name);
+        if (entry.isDirectory()) {
+          files.push(...collectFiles([child]));
+        } else {
+          files.push(child);
+        }
+      });
+    } else {
+      files.push(relativePath);
+    }
+  });
+
+  return files;
+}
+
+function assertSupabaseAuthAudit() {
+  const applicationFiles = collectFiles([
+    "js",
+    "netlify",
+    "scripts",
+    "index.html",
+    "tp-admin-7c9f2026.html"
+  ]).filter(file => /\.(?:js|html)$/.test(file));
+  const applicationSource = applicationFiles
+    .map(file => `\n/* ${file} */\n${read(file)}`)
+    .join("\n");
+
+  [
+    /supabase\.auth/i,
+    /\bsignIn\b/,
+    /\bsignUp\b/,
+    /\bgetSession\b/,
+    /\bonAuthStateChange\b/,
+    /\baccess_token\b/,
+    /\brefresh_token\b/,
+    /\buser_metadata\b/
+  ].forEach(pattern => assert.doesNotMatch(applicationSource, pattern));
+
+  const browserSource = collectFiles(["js", "index.html", "tp-admin-7c9f2026.html"])
+    .filter(file => /\.(?:js|html)$/.test(file))
+    .map(read)
+    .join("\n");
+  assert.doesNotMatch(browserSource, /\.(insert|update|delete|upsert|rpc)\s*\(/i);
+
+  const adminPanel = read("js/admin-panel.js");
+  const adminFunctions = collectFiles(["netlify/functions"])
+    .filter(file => /admin-.*\.js$/.test(file))
+    .map(read)
+    .join("\n");
+  assert.match(adminPanel, /x-admin-password/);
+  assert.match(adminFunctions, /SUPABASE_SERVICE_ROLE_KEY/);
 }
 
 function assertScorersCompatibility() {
@@ -254,54 +412,55 @@ function assertDocsAndNoSecrets() {
   const sql = [
     "sql/auditar-permisos-publicos-goleadores.sql",
     "sql/corregir-permisos-anon-goleadores.sql",
+    "sql/corregir-permisos-anon-goleadores-autorizado.sql",
+    "sql/corregir-permisos-authenticated-goleadores.sql",
     "sql/verificar-permisos-anon-goleadores.sql"
   ].map(read).join("\n");
   const combined = `${docs}\n${sql}`;
 
-  assert.match(docs, /RLS activo en ambas tablas/);
-  assert.match(docs, /ninguna politica publica de INSERT, UPDATE o DELETE/);
-  assert.match(docs, /privilegios de tabla\s+innecesarios de INSERT, UPDATE y DELETE/);
-  assert.match(docs, /RLS actualmente impide usarlos/);
-  assert.match(docs, /minimo privilegio/);
-  assert.match(docs, /aplicarse manualmente/);
-  assert.match(docs, /requiere unicamente SELECT/);
-  assert.match(docs, /No hacer merge/);
-  assert.match(docs, /eliminar cualquier SQL temporal autorizado/);
+  [
+    /RLS activo en ambas tablas/,
+    /GRANT directos? realizados? por `postgres`/,
+    /anon=arwdDxtm\/postgres/,
+    /authenticated=arwdDxtm\/postgres/,
+    /TRUNCATE, REFERENCES, TRIGGER y MAINTAIN/,
+    /no debe confiarse en RLS[\s\S]*privilegios/,
+    /REVOKE ALL PRIVILEGES/,
+    /GRANT SELECT/,
+    /conserve solo SELECT/,
+    /SQL temporal autorizado/,
+    /debe eliminarse antes del merge/,
+    /no encontro uso de Supabase Auth/,
+    /correccion protegida e independiente/,
+    /requiere unicamente SELECT/,
+    /No hacer merge/
+  ].forEach(pattern => assert.match(docs, pattern));
   assert.doesNotMatch(
     combined,
     /eyJ[A-Za-z0-9_-]{20,}|postgres(?:ql)?:\/\/|sk-[A-Za-z0-9]|JWT_SECRET|DATABASE_URL|PASSWORD\s*=/i
   );
 }
 
-function assertNoAuthorizedSql() {
-  const forbidden = path.join(
-    ROOT,
-    "sql",
-    "corregir-permisos-anon-goleadores-autorizado.sql"
-  );
-  assert.equal(
-    fs.existsSync(forbidden),
-    false,
-    "no debe existir una copia autorizada versionada"
-  );
-}
-
 function runTests() {
   const results = [];
   assertAuditSql();
-  results.push("auditoria SQL READ ONLY y origen de privilegios: ok");
-  assertProtectedCorrectionSql();
-  results.push("correccion SQL protegida, acotada y sin datos/RLS: ok");
+  results.push("auditoria SQL READ ONLY y ACL directa: ok");
+  assertAnonCorrectionSql();
+  results.push("correccion anon usa REVOKE ALL y conserva solo SELECT: ok");
+  assertAuthorizedAnonSql();
+  results.push("SQL temporal autorizado de anon derivado y marcado: ok");
+  assertAuthenticatedCorrectionSql();
+  results.push("correccion authenticated protegida e independiente: ok");
   assertVerificationSql();
-  results.push("verificacion SQL READ ONLY con 16 controles: ok");
+  results.push("verificacion SQL READ ONLY contempla todos los privilegios: ok");
   assertPublicScorersFunctionIsReadOnly();
   results.push("funcion publica de goleadores solo requiere lectura: ok");
+  assertSupabaseAuthAudit();
+  results.push("auditoria de Supabase Auth y escrituras directas: ok");
   assertScorersCompatibility();
   results.push("compatibilidad de goleadores, filtros y lideres: ok");
   assertDocsAndNoSecrets();
   results.push("documentacion y ausencia de secretos reales: ok");
-  assertNoAuthorizedSql();
-  results.push("sin SQL temporal autorizado versionado: ok");
   return results;
 }
 

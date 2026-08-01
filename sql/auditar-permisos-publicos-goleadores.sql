@@ -25,6 +25,55 @@ table_catalog as (
   left join pg_roles owner_role
     on owner_role.oid = cls.relowner
 ),
+direct_acl as (
+  select
+    'acl_directa' as seccion,
+    targets.table_name as tabla,
+    case
+      when acl.grantee = 0 then 'PUBLIC'
+      else grantee_role.rolname
+    end as grantee,
+    grantor_role.rolname as grantor,
+    acl.privilege_type::text as privilege_type,
+    acl.is_grantable::text as is_grantable,
+    table_catalog.propietario,
+    table_catalog.rls_activo,
+    null::text as policy_name,
+    null::text as policy_command,
+    null::text as policy_roles,
+    null::text as policy_qual,
+    null::text as policy_with_check,
+    table_catalog.acl_efectiva,
+    case
+      when acl.grantee = 0 then 'ACL heredable desde PUBLIC'
+      when grantee_role.rolname = 'anon' then 'ACL directa a anon'
+      when grantee_role.rolname = 'authenticated' then 'ACL directa a authenticated'
+      else 'ACL directa a otro rol'
+    end as origen_privilegio,
+    format(
+      '%s para %s otorgado por %s',
+      acl.privilege_type::text,
+      case
+        when acl.grantee = 0 then 'PUBLIC'
+        else grantee_role.rolname
+      end,
+      grantor_role.rolname
+    ) as detalle
+  from targets
+  join pg_class cls
+    on cls.oid = to_regclass(targets.qualified_name)
+  cross join lateral aclexplode(coalesce(cls.relacl, array[]::aclitem[])) acl
+  left join pg_roles grantee_role
+    on grantee_role.oid = acl.grantee
+  left join pg_roles grantor_role
+    on grantor_role.oid = acl.grantor
+  left join table_catalog
+    on table_catalog.tabla = targets.table_name
+  where case
+    when acl.grantee = 0 then 'PUBLIC'
+    else grantee_role.rolname
+  end in ('anon', 'PUBLIC', 'authenticated')
+),
 direct_grants as (
   select
     'grant_directo' as seccion,
@@ -177,6 +226,8 @@ select
 from (
   select * from table_rows
   union all
+  select * from direct_acl
+  union all
   select * from direct_grants
   union all
   select * from effective_privileges
@@ -187,9 +238,10 @@ order by
   tabla,
   case seccion
     when 'tabla' then 1
-    when 'grant_directo' then 2
-    when 'privilegio_efectivo' then 3
-    when 'politica' then 4
+    when 'acl_directa' then 2
+    when 'grant_directo' then 3
+    when 'privilegio_efectivo' then 4
+    when 'politica' then 5
     else 99
   end,
   grantee nulls first,

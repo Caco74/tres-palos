@@ -99,20 +99,42 @@ La auditoria manual de produccion del 2026-08-01 confirmo para `partidos` y
   - `public read eventos` en `eventos_partido`;
 - ninguna politica publica de INSERT, UPDATE o DELETE.
 
-La misma auditoria detecto que `anon` conserva privilegios de tabla
-innecesarios de INSERT, UPDATE y DELETE. RLS actualmente impide usarlos porque
-no hay politicas publicas de escritura aplicables, pero la configuracion debe
-ajustarse a minimo privilegio.
+La auditoria posterior confirmo que esos permisos no vienen de `PUBLIC`, sino
+de GRANT directos realizados por `postgres`. En ambas tablas el ACL directo era:
+
+- `anon=arwdDxtm/postgres`;
+- `authenticated=arwdDxtm/postgres`.
+
+Esto representa privilegios directos de SELECT, INSERT, UPDATE, DELETE,
+TRUNCATE, REFERENCES, TRIGGER y MAINTAIN, o su equivalente `m` segun la version
+de PostgreSQL.
+
+RLS actualmente impide las escrituras por filas porque no hay politicas
+publicas de escritura aplicables. Aun asi, no debe confiarse en RLS para
+privilegios que no operan fila por fila, como TRUNCATE. La configuracion debe
+ajustarse a minimo privilegio para que `anon` conserve solo SELECT.
 
 La correccion preparada queda en `sql/corregir-permisos-anon-goleadores.sql` y
 debe aplicarse manualmente, despues de ejecutar
-`sql/auditar-permisos-publicos-goleadores.sql`. La funcion publica de
-goleadores requiere unicamente SELECT y seguira funcionando despues de revocar
-los privilegios DML innecesarios.
+`sql/auditar-permisos-publicos-goleadores.sql`. La variante elegida usa
+`REVOKE ALL PRIVILEGES` sobre `anon` y `PUBLIC`, seguido por `GRANT SELECT` a
+`anon`. Asi se elimina el conjunto completo de privilegios innecesarios sin
+usar una lista incompleta, se preserva la lectura publica y no se modifican
+propietario, `service_role`, RLS, politicas ni filas.
+
+Se creo tambien `sql/corregir-permisos-authenticated-goleadores.sql` como
+correccion protegida e independiente porque el repositorio no muestra uso de
+Supabase Auth ni sesiones de usuario. No debe autorizarse ni ejecutarse junto
+con la correccion de `anon` sin una decision explicita sobre `authenticated`.
+
+La funcion publica de goleadores requiere unicamente SELECT y seguira
+funcionando despues de revocar los privilegios innecesarios de `anon`.
 
 No hacer merge de esta rama hasta ejecutar la correccion manual autorizada,
 correr `sql/verificar-permisos-anon-goleadores.sql` y confirmar que la web
-publica sigue mostrando la tabla de goleadores.
+publica sigue mostrando la tabla de goleadores. El archivo temporal autorizado
+`sql/corregir-permisos-anon-goleadores-autorizado.sql` debe eliminarse antes
+del merge.
 
 ## Evolucion futura
 

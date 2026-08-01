@@ -1,3 +1,8 @@
+-- ARCHIVO TEMPORAL AUTORIZADO PARA CORRECCIÓN MANUAL DE PERMISOS
+-- Ejecutar el archivo completo; no ejecutar fragmentos.
+-- No repetir ante un error: detenerse, guardar el error y revisar el estado.
+-- Ejecutar despues sql/verificar-permisos-anon-goleadores.sql.
+-- Eliminar este archivo antes del merge.
 begin;
 
 -- Correccion protegida de permisos anonimos para goleadores publicos.
@@ -19,7 +24,7 @@ begin;
 
 do $$
 declare
-  v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';
+  v_autorizacion constant text := 'AUTORIZO PERMISOS GOLEADORES PUBLICOS';
   v_endpoint_goleadores_solo_select constant boolean := true;
   v_error text;
 begin

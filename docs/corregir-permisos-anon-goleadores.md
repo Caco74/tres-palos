@@ -1,7 +1,7 @@
 # Corregir permisos anon de goleadores publicos
 
 Esta guia prepara una correccion manual de minimo privilegio para
-`public.partidos` y `public.eventos_partido`. No incluye credenciales ni debe
+`public.partidos` y `public.eventos_partido`. No incluye credenciales y no debe
 ejecutarse desde Codex.
 
 ## 1. Auditar
@@ -11,64 +11,131 @@ Ejecutar en Supabase SQL Editor:
 `sql/auditar-permisos-publicos-goleadores.sql`
 
 El script es `BEGIN TRANSACTION READ ONLY` y no modifica permisos ni datos.
-Descargar el resultado como CSV y revisar si los privilegios de escritura
-vienen de:
+Descargar el resultado como CSV y revisar si los privilegios vienen de:
 
 - GRANT directo a `anon`;
 - GRANT heredable desde `PUBLIC`;
-- ambos.
+- ambos;
+- GRANT directo a `authenticated`.
 
-## 2. Revisar el origen
+## 2. Estado confirmado
 
-Confirmar que el estado coincide con la auditoria esperada:
+La auditoria manual de produccion confirmo para `public.partidos` y
+`public.eventos_partido`:
 
-- RLS activo en `partidos`;
-- RLS activo en `eventos_partido`;
-- SELECT disponible para `anon`;
-- politicas publicas de SELECT presentes;
-- sin politicas publicas de escritura;
-- privilegios DML innecesarios para `anon` detectados por privilegios de tabla.
+- RLS activo;
+- politica publica de SELECT en cada tabla;
+- ninguna politica publica de INSERT, UPDATE o DELETE;
+- sin privilegios heredados desde `PUBLIC`;
+- GRANT directo de `postgres` a `anon`;
+- GRANT directo de `postgres` a `authenticated`;
+- ACL directo `anon=arwdDxtm/postgres`;
+- ACL directo `authenticated=arwdDxtm/postgres`.
 
-Si aparece una politica publica de escritura o una tabla sin RLS, detener el
-proceso y auditar antes de corregir permisos.
+El conjunto detectado incluye SELECT, INSERT, UPDATE, DELETE, TRUNCATE,
+REFERENCES, TRIGGER y MAINTAIN, o su equivalente `m` segun la version de
+PostgreSQL.
 
-## 3. Autorizar una copia temporal
+RLS protege las operaciones por filas al no existir politicas publicas de
+escritura, pero no debe usarse como unica barrera para privilegios de tabla que
+no operan fila por fila. TRUNCATE y los privilegios administrativos no deben
+quedar concedidos al rol publico `anon`.
 
-No editar el archivo protegido versionado directamente para aplicarlo. Crear
-una copia temporal fuera del commit o en un archivo local ignorado, reemplazar
-`PENDIENTE_AUTORIZACION` por:
+## 3. Correccion de anon
 
-`AUTORIZO PERMISOS GOLEADORES PUBLICOS`
+La correccion protegida versionada esta en:
 
-No agregar esa copia temporal al repositorio.
+`sql/corregir-permisos-anon-goleadores.sql`
 
-## 4. Ejecutar la correccion
+La variante elegida es intencionalmente amplia sobre los roles publicos
+auditados:
 
-Ejecutar la copia autorizada completa en Supabase SQL Editor. La correccion:
+```sql
+REVOKE ALL PRIVILEGES
+ON TABLE public.partidos, public.eventos_partido
+FROM anon;
 
-- conserva SELECT para `anon`;
-- revoca INSERT, UPDATE y DELETE de `anon`;
-- revoca INSERT, UPDATE y DELETE de `PUBLIC`;
-- no cambia politicas RLS;
-- no desactiva RLS;
-- no modifica filas;
-- no modifica permisos directos de `authenticated`;
-- no modifica permisos directos de `service_role`.
+REVOKE ALL PRIVILEGES
+ON TABLE public.partidos, public.eventos_partido
+FROM PUBLIC;
 
-Se eligio `REVOKE INSERT, UPDATE, DELETE` especifico en lugar de
-`REVOKE ALL PRIVILEGES` para preservar la lectura publica y limitar el cambio a
-los privilegios DML auditados.
+GRANT SELECT
+ON TABLE public.partidos, public.eventos_partido
+TO anon;
+```
 
-## 5. Verificar
+Se eligio `REVOKE ALL PRIVILEGES` porque la auditoria encontro mas que INSERT,
+UPDATE y DELETE. Usar una lista parcial dejaria privilegios innecesarios como
+TRUNCATE, REFERENCES, TRIGGER o MAINTAIN. El `GRANT SELECT` posterior preserva
+exactamente la lectura que necesita la web publica.
+
+La correccion no modifica:
+
+- filas;
+- RLS;
+- politicas;
+- estructura de tablas;
+- propietario `postgres`;
+- `service_role`;
+- `authenticated`.
+
+## 4. SQL temporal autorizado
+
+Existe un archivo temporal autorizado para aplicar manualmente solo la
+correccion de `anon`:
+
+`sql/corregir-permisos-anon-goleadores-autorizado.sql`
+
+Ejecutar el archivo completo; no ejecutar fragmentos. Si falla, no repetirlo:
+guardar el error, revisar el estado y volver a auditar. Despues de aplicarlo,
+ejecutar la verificacion posterior.
+
+Este archivo temporal debe eliminarse antes del merge. No debe quedar versionado
+en el PR final que se fusione.
+
+## 5. authenticated
+
+La busqueda en el repositorio no encontro uso de Supabase Auth:
+
+- `supabase.auth`;
+- `signIn`;
+- `signUp`;
+- `getSession`;
+- `onAuthStateChange`;
+- tokens de usuario;
+- sesiones Supabase en navegador.
+
+El admin usa funciones Netlify con `x-admin-password` y `service_role` del lado
+servidor. No depende del rol `authenticated` ni de escrituras directas desde el
+navegador para estas tablas.
+
+Por ese motivo se preparo una correccion protegida e independiente:
+
+`sql/corregir-permisos-authenticated-goleadores.sql`
+
+No existe una version temporal autorizada para `authenticated`. Esa correccion
+requiere una decision explicita antes de ejecutarse.
+
+## 6. Verificar
 
 Ejecutar:
 
 `sql/verificar-permisos-anon-goleadores.sql`
 
-El resultado debe mostrar `OK` en todos los controles. Descargar el CSV y
-conservarlo con la auditoria.
+El resultado debe mostrar `OK` para:
 
-## 6. Comprobar la web publica
+- RLS activo en ambas tablas;
+- SELECT efectivo para `anon`;
+- INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER y MAINTAIN ausentes para
+  `anon`;
+- ACL directa de `anon` con solo SELECT;
+- sin privilegios heredados desde `PUBLIC`;
+- politica publica SELECT presente;
+- sin politicas publicas de escritura.
+
+Descargar el resultado como CSV y conservarlo junto con la auditoria.
+
+## 7. Comprobar la web publica
 
 Verificar que la tabla publica de goleadores sigue funcionando:
 
@@ -78,11 +145,11 @@ Verificar que la tabla publica de goleadores sigue funcionando:
 - General disponible al final;
 - lideres empatados destacados correctamente.
 
-## 7. Limpiar antes del merge
+## 8. Limpiar antes del merge
 
 Antes de mergear:
 
-- eliminar cualquier SQL temporal autorizado;
-- confirmar que el archivo autorizado no quedo en Git;
-- confirmar que no se agregaron credenciales ni capturas con secretos;
-- confirmar que no se modificaron datos deportivos.
+- eliminar `sql/corregir-permisos-anon-goleadores-autorizado.sql`;
+- confirmar que no quedaron credenciales ni capturas con secretos;
+- confirmar que no se modificaron datos deportivos;
+- confirmar que la verificacion posterior queda documentada fuera del codigo.

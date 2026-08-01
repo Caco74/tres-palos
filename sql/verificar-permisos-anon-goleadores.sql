@@ -13,6 +13,17 @@ targets(tabla, qualified_name, select_policy_name) as (
     ('partidos', 'public.partidos', 'lectura publica'),
     ('eventos_partido', 'public.eventos_partido', 'public read eventos')
 ),
+privileges_to_check(privilege_type) as (
+  values
+    ('SELECT'),
+    ('INSERT'),
+    ('UPDATE'),
+    ('DELETE'),
+    ('TRUNCATE'),
+    ('REFERENCES'),
+    ('TRIGGER'),
+    ('MAINTAIN')
+),
 table_state as (
   select
     targets.tabla,
@@ -23,6 +34,36 @@ table_state as (
   from targets
   left join pg_class cls
     on cls.oid = to_regclass(targets.qualified_name)
+),
+direct_acl as (
+  select
+    table_state.tabla,
+    case
+      when acl.grantee = 0 then 'PUBLIC'
+      else grantee_role.rolname
+    end as grantee,
+    grantor_role.rolname as grantor,
+    acl.privilege_type::text as privilege_type,
+    acl.is_grantable
+  from table_state
+  join pg_class cls
+    on cls.oid = to_regclass(table_state.qualified_name)
+  cross join lateral aclexplode(coalesce(cls.relacl, array[]::aclitem[])) acl
+  left join pg_roles grantee_role
+    on grantee_role.oid = acl.grantee
+  left join pg_roles grantor_role
+    on grantor_role.oid = acl.grantor
+),
+anon_effective_acl as (
+  select tabla, privilege_type
+  from direct_acl
+  where grantee = 'anon'
+
+  union
+
+  select tabla, privilege_type
+  from direct_acl
+  where grantee = 'PUBLIC'
 ),
 checks(orden, control, ok, detalle) as (
   select
@@ -46,142 +87,114 @@ checks(orden, control, ok, detalle) as (
   union all
 
   select
-    3,
-    'anon tiene SELECT: partidos',
+    10 + case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'anon tiene SELECT efectivo: ' || table_state.tabla,
     case
-      when existe then has_table_privilege('anon', qualified_name, 'SELECT')
+      when table_state.existe then exists (
+        select 1
+        from anon_effective_acl acl
+        where acl.tabla = table_state.tabla
+          and acl.privilege_type = 'SELECT'
+      ) and has_table_privilege('anon', table_state.qualified_name, 'SELECT')
       else false
     end,
     case
-      when existe then has_table_privilege('anon', qualified_name, 'SELECT')::text
+      when table_state.existe then 'acl=' ||
+        (exists (
+          select 1
+          from anon_effective_acl acl
+          where acl.tabla = table_state.tabla
+            and acl.privilege_type = 'SELECT'
+        ))::text ||
+        ', has_table_privilege=' ||
+        has_table_privilege('anon', table_state.qualified_name, 'SELECT')::text
       else '<tabla inexistente>'
     end
   from table_state
-  where tabla = 'partidos'
 
   union all
 
   select
-    4,
-    'anon tiene SELECT: eventos_partido',
-    case
-      when existe then has_table_privilege('anon', qualified_name, 'SELECT')
-      else false
-    end,
-    case
-      when existe then has_table_privilege('anon', qualified_name, 'SELECT')::text
-      else '<tabla inexistente>'
-    end
+    20 +
+      case privileges_to_check.privilege_type
+        when 'INSERT' then 1
+        when 'UPDATE' then 2
+        when 'DELETE' then 3
+        when 'TRUNCATE' then 4
+        when 'REFERENCES' then 5
+        when 'TRIGGER' then 6
+        when 'MAINTAIN' then 7
+        else 99
+      end +
+      case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'anon no tiene ' || privileges_to_check.privilege_type || ' efectivo: ' ||
+      table_state.tabla,
+    not exists (
+      select 1
+      from anon_effective_acl acl
+      where acl.tabla = table_state.tabla
+        and acl.privilege_type = privileges_to_check.privilege_type
+    ),
+    'acl=' ||
+      (exists (
+        select 1
+        from anon_effective_acl acl
+        where acl.tabla = table_state.tabla
+          and acl.privilege_type = privileges_to_check.privilege_type
+      ))::text
   from table_state
-  where tabla = 'eventos_partido'
+  cross join privileges_to_check
+  where privileges_to_check.privilege_type <> 'SELECT'
 
   union all
 
   select
-    5,
-    'anon no tiene INSERT: partidos',
-    case
-      when existe then not has_table_privilege('anon', qualified_name, 'INSERT')
-      else false
-    end,
-    case
-      when existe then 'insert=' || has_table_privilege('anon', qualified_name, 'INSERT')::text
-      else '<tabla inexistente>'
-    end
+    40 + case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'ACL directa anon solo SELECT: ' || table_state.tabla,
+    coalesce((
+      select array_agg(distinct acl.privilege_type order by acl.privilege_type)
+      from direct_acl acl
+      where acl.tabla = table_state.tabla
+        and acl.grantee = 'anon'
+    ), array[]::text[]) = array['SELECT']::text[],
+    coalesce((
+      select array_to_string(array_agg(distinct acl.privilege_type order by acl.privilege_type), ',')
+      from direct_acl acl
+      where acl.tabla = table_state.tabla
+        and acl.grantee = 'anon'
+    ), '<sin grants directos>')
   from table_state
-  where tabla = 'partidos'
 
   union all
 
   select
-    6,
-    'anon no tiene UPDATE: partidos',
-    case
-      when existe then not has_table_privilege('anon', qualified_name, 'UPDATE')
-      else false
-    end,
-    case
-      when existe then 'update=' || has_table_privilege('anon', qualified_name, 'UPDATE')::text
-      else '<tabla inexistente>'
-    end
+    50 + case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'Sin privilegios heredados desde PUBLIC: ' || table_state.tabla,
+    not exists (
+      select 1
+      from direct_acl acl
+      where acl.tabla = table_state.tabla
+        and acl.grantee = 'PUBLIC'
+    ),
+    coalesce((
+      select string_agg(acl.privilege_type, ',' order by acl.privilege_type)
+      from direct_acl acl
+      where acl.tabla = table_state.tabla
+        and acl.grantee = 'PUBLIC'
+    ), 'ninguno')
   from table_state
-  where tabla = 'partidos'
 
   union all
 
   select
-    7,
-    'anon no tiene DELETE: partidos',
-    case
-      when existe then not has_table_privilege('anon', qualified_name, 'DELETE')
-      else false
-    end,
-    case
-      when existe then 'delete=' || has_table_privilege('anon', qualified_name, 'DELETE')::text
-      else '<tabla inexistente>'
-    end
-  from table_state
-  where tabla = 'partidos'
-
-  union all
-
-  select
-    8,
-    'anon no tiene INSERT: eventos_partido',
-    case
-      when existe then not has_table_privilege('anon', qualified_name, 'INSERT')
-      else false
-    end,
-    case
-      when existe then 'insert=' || has_table_privilege('anon', qualified_name, 'INSERT')::text
-      else '<tabla inexistente>'
-    end
-  from table_state
-  where tabla = 'eventos_partido'
-
-  union all
-
-  select
-    9,
-    'anon no tiene UPDATE: eventos_partido',
-    case
-      when existe then not has_table_privilege('anon', qualified_name, 'UPDATE')
-      else false
-    end,
-    case
-      when existe then 'update=' || has_table_privilege('anon', qualified_name, 'UPDATE')::text
-      else '<tabla inexistente>'
-    end
-  from table_state
-  where tabla = 'eventos_partido'
-
-  union all
-
-  select
-    10,
-    'anon no tiene DELETE: eventos_partido',
-    case
-      when existe then not has_table_privilege('anon', qualified_name, 'DELETE')
-      else false
-    end,
-    case
-      when existe then 'delete=' || has_table_privilege('anon', qualified_name, 'DELETE')::text
-      else '<tabla inexistente>'
-    end
-  from table_state
-  where tabla = 'eventos_partido'
-
-  union all
-
-  select
-    11,
-    'Politica publica SELECT: partidos',
+    60 + case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'Politica publica SELECT: ' || table_state.tabla,
     exists (
       select 1
       from pg_policies policies
       where policies.schemaname = 'public'
-        and policies.tablename = 'partidos'
-        and policies.policyname = 'lectura publica'
+        and policies.tablename = table_state.tabla
+        and policies.policyname = table_state.select_policy_name
         and policies.cmd = 'SELECT'
         and (
           'public' = any(policies.roles::text[]) or
@@ -189,50 +202,26 @@ checks(orden, control, ok, detalle) as (
         )
     ),
     coalesce((
-      select policies.policyname || ' [' || policies.cmd || ']'
+      select policies.policyname || ' [' || policies.cmd || '] roles=' ||
+        array_to_string(policies.roles::text[], ',')
       from pg_policies policies
       where policies.schemaname = 'public'
-        and policies.tablename = 'partidos'
-        and policies.policyname = 'lectura publica'
+        and policies.tablename = table_state.tabla
+        and policies.policyname = table_state.select_policy_name
       limit 1
     ), '<no encontrada>')
+  from table_state
 
   union all
 
   select
-    12,
-    'Politica publica SELECT: eventos_partido',
-    exists (
-      select 1
-      from pg_policies policies
-      where policies.schemaname = 'public'
-        and policies.tablename = 'eventos_partido'
-        and policies.policyname = 'public read eventos'
-        and policies.cmd = 'SELECT'
-        and (
-          'public' = any(policies.roles::text[]) or
-          'anon' = any(policies.roles::text[])
-        )
-    ),
-    coalesce((
-      select policies.policyname || ' [' || policies.cmd || ']'
-      from pg_policies policies
-      where policies.schemaname = 'public'
-        and policies.tablename = 'eventos_partido'
-        and policies.policyname = 'public read eventos'
-      limit 1
-    ), '<no encontrada>')
-
-  union all
-
-  select
-    13,
-    'Sin politicas publicas de escritura: partidos',
+    70 + case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'Sin politicas publicas de escritura: ' || table_state.tabla,
     not exists (
       select 1
       from pg_policies policies
       where policies.schemaname = 'public'
-        and policies.tablename = 'partidos'
+        and policies.tablename = table_state.tabla
         and policies.cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
         and (
           'public' = any(policies.roles::text[]) or
@@ -243,85 +232,14 @@ checks(orden, control, ok, detalle) as (
       select string_agg(policies.policyname || ' [' || policies.cmd || ']', ', ')
       from pg_policies policies
       where policies.schemaname = 'public'
-        and policies.tablename = 'partidos'
+        and policies.tablename = table_state.tabla
         and policies.cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
         and (
           'public' = any(policies.roles::text[]) or
           'anon' = any(policies.roles::text[])
         )
     ), 'ninguna')
-
-  union all
-
-  select
-    14,
-    'Sin politicas publicas de escritura: eventos_partido',
-    not exists (
-      select 1
-      from pg_policies policies
-      where policies.schemaname = 'public'
-        and policies.tablename = 'eventos_partido'
-        and policies.cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
-        and (
-          'public' = any(policies.roles::text[]) or
-          'anon' = any(policies.roles::text[])
-        )
-    ),
-    coalesce((
-      select string_agg(policies.policyname || ' [' || policies.cmd || ']', ', ')
-      from pg_policies policies
-      where policies.schemaname = 'public'
-        and policies.tablename = 'eventos_partido'
-        and policies.cmd in ('ALL', 'INSERT', 'UPDATE', 'DELETE')
-        and (
-          'public' = any(policies.roles::text[]) or
-          'anon' = any(policies.roles::text[])
-        )
-    ), 'ninguna')
-
-  union all
-
-  select
-    15,
-    'Lectura efectiva disponible para anon',
-    case
-      when (select existe from table_state where tabla = 'partidos') and
-        (select existe from table_state where tabla = 'eventos_partido')
-      then has_table_privilege('anon', 'public.partidos', 'SELECT') and
-        has_table_privilege('anon', 'public.eventos_partido', 'SELECT')
-      else false
-    end,
-    case
-      when (select existe from table_state where tabla = 'partidos') and
-        (select existe from table_state where tabla = 'eventos_partido')
-      then 'partidos=' ||
-        has_table_privilege('anon', 'public.partidos', 'SELECT')::text ||
-        ', eventos_partido=' ||
-        has_table_privilege('anon', 'public.eventos_partido', 'SELECT')::text
-      else '<tabla inexistente>'
-    end
-
-  union all
-
-  select
-    16,
-    'Sin escritura heredada desde PUBLIC',
-    not exists (
-      select 1
-      from information_schema.table_privileges grants
-      where grants.table_schema = 'public'
-        and grants.table_name in ('partidos', 'eventos_partido')
-        and grants.grantee = 'PUBLIC'
-        and grants.privilege_type in ('INSERT', 'UPDATE', 'DELETE')
-    ),
-    coalesce((
-      select string_agg(grants.table_name || ':' || grants.privilege_type, ', ')
-      from information_schema.table_privileges grants
-      where grants.table_schema = 'public'
-        and grants.table_name in ('partidos', 'eventos_partido')
-        and grants.grantee = 'PUBLIC'
-        and grants.privilege_type in ('INSERT', 'UPDATE', 'DELETE')
-    ), 'ninguna')
+  from table_state
 )
 select
   control,
