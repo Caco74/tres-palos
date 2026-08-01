@@ -87,10 +87,32 @@ torneo:
 
 La seguridad depende de RLS y permisos minimos en Supabase. El SQL versionado
 confirma RLS y lectura `anon` para `torneos`, `jugadores`,
-`inscripciones_jugadores`, `clubes` y `goleadores_oficiales`. El repositorio
-todavia no permite confirmar por completo la configuracion efectiva remota de
-`partidos` y de la lectura publica de `eventos_partido`: Requiere verificacion
-manual en Supabase.
+`inscripciones_jugadores`, `clubes` y `goleadores_oficiales`.
+
+La auditoria manual de produccion del 2026-08-01 confirmo para `partidos` y
+`eventos_partido`:
+
+- RLS activo en ambas tablas;
+- `anon` con SELECT en ambas tablas;
+- politicas publicas de SELECT presentes:
+  - `lectura publica` en `partidos`;
+  - `public read eventos` en `eventos_partido`;
+- ninguna politica publica de INSERT, UPDATE o DELETE.
+
+La misma auditoria detecto que `anon` conserva privilegios de tabla
+innecesarios de INSERT, UPDATE y DELETE. RLS actualmente impide usarlos porque
+no hay politicas publicas de escritura aplicables, pero la configuracion debe
+ajustarse a minimo privilegio.
+
+La correccion preparada queda en `sql/corregir-permisos-anon-goleadores.sql` y
+debe aplicarse manualmente, despues de ejecutar
+`sql/auditar-permisos-publicos-goleadores.sql`. La funcion publica de
+goleadores requiere unicamente SELECT y seguira funcionando despues de revocar
+los privilegios DML innecesarios.
+
+No hacer merge de esta rama hasta ejecutar la correccion manual autorizada,
+correr `sql/verificar-permisos-anon-goleadores.sql` y confirmar que la web
+publica sigue mostrando la tabla de goleadores.
 
 ## Evolucion futura
 
