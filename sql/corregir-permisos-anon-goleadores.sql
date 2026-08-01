@@ -380,6 +380,44 @@ begin
     raise exception 'Verificacion final fallo. ACL directa de anon no quedo en SELECT para: %.', v_error;
   end if;
 
+  with targets(tabla, qualified_name) as (
+    values
+      ('partidos', 'public.partidos'),
+      ('eventos_partido', 'public.eventos_partido')
+  ),
+  direct_acl as (
+    select
+      targets.tabla,
+      case
+        when acl.grantee = 0 then 'PUBLIC'
+        else grantee_role.rolname
+      end as grantee,
+      grantor_role.rolname as grantor,
+      acl.privilege_type::text as privilege_type,
+      acl.is_grantable
+    from targets
+    join pg_class cls
+      on cls.oid = to_regclass(targets.qualified_name)
+    cross join lateral aclexplode(coalesce(cls.relacl, array[]::aclitem[])) acl
+    left join pg_roles grantee_role
+      on grantee_role.oid = acl.grantee
+    left join pg_roles grantor_role
+      on grantor_role.oid = acl.grantor
+    where case
+      when acl.grantee = 0 then 'PUBLIC'
+      else grantee_role.rolname
+    end in ('anon', 'PUBLIC')
+  )
+  select string_agg(tabla || ':' || grantee || ':' || coalesce(grantor, '<sin grantor>'), ', ' order by tabla, grantee)
+  into v_error
+  from direct_acl
+  where privilege_type = 'SELECT'
+    and is_grantable;
+
+  if v_error is not null then
+    raise exception 'Verificacion final fallo. anon conserva SELECT WITH GRANT OPTION: %.', v_error;
+  end if;
+
   with standard_privileges(privilege_type) as (
     values
       ('INSERT'),
@@ -387,7 +425,8 @@ begin
       ('DELETE'),
       ('TRUNCATE'),
       ('REFERENCES'),
-      ('TRIGGER')
+      ('TRIGGER'),
+      ('MAINTAIN')
   ),
   targets(tabla, qualified_name) as (
     values

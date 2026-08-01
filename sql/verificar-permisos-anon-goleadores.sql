@@ -129,19 +129,35 @@ checks(orden, control, ok, detalle) as (
       case when table_state.tabla = 'partidos' then 0 else 100 end,
     'anon no tiene ' || privileges_to_check.privilege_type || ' efectivo: ' ||
       table_state.tabla,
-    not exists (
-      select 1
-      from anon_effective_acl acl
-      where acl.tabla = table_state.tabla
-        and acl.privilege_type = privileges_to_check.privilege_type
-    ),
-    'acl=' ||
-      (exists (
+    case
+      when table_state.existe then not exists (
         select 1
         from anon_effective_acl acl
         where acl.tabla = table_state.tabla
           and acl.privilege_type = privileges_to_check.privilege_type
-      ))::text
+      ) and not has_table_privilege(
+        'anon',
+        table_state.qualified_name,
+        privileges_to_check.privilege_type
+      )
+      else false
+    end,
+    case
+      when table_state.existe then 'acl=' ||
+        (exists (
+          select 1
+          from anon_effective_acl acl
+          where acl.tabla = table_state.tabla
+            and acl.privilege_type = privileges_to_check.privilege_type
+        ))::text ||
+        ', has_table_privilege=' ||
+        has_table_privilege(
+          'anon',
+          table_state.qualified_name,
+          privileges_to_check.privilege_type
+        )::text
+      else '<tabla inexistente>'
+    end
   from table_state
   cross join privileges_to_check
   where privileges_to_check.privilege_type <> 'SELECT'
@@ -163,6 +179,32 @@ checks(orden, control, ok, detalle) as (
       where acl.tabla = table_state.tabla
         and acl.grantee = 'anon'
     ), '<sin grants directos>')
+  from table_state
+
+  union all
+
+  select
+    45 + case when table_state.tabla = 'partidos' then 0 else 100 end,
+    'anon sin SELECT WITH GRANT OPTION: ' || table_state.tabla,
+    case
+      when table_state.existe then not exists (
+        select 1
+        from direct_acl acl
+        where acl.tabla = table_state.tabla
+          and acl.grantee in ('anon', 'PUBLIC')
+          and acl.privilege_type = 'SELECT'
+          and acl.is_grantable
+      )
+      else false
+    end,
+    coalesce((
+      select string_agg(acl.grantee || ':' || coalesce(acl.grantor, '<sin grantor>'), ',' order by acl.grantee, acl.grantor)
+      from direct_acl acl
+      where acl.tabla = table_state.tabla
+        and acl.grantee in ('anon', 'PUBLIC')
+        and acl.privilege_type = 'SELECT'
+        and acl.is_grantable
+    ), 'ninguno')
   from table_state
 
   union all

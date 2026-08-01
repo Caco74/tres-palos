@@ -129,12 +129,15 @@ function assertAnonCorrectionSql() {
     "'TRUNCATE'",
     "'REFERENCES'",
     "'TRIGGER'",
-    "'MAINTAIN'"
+    "'MAINTAIN'",
+    "SELECT WITH GRANT OPTION",
+    "is_grantable"
   ].forEach(text => assert.match(sql, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
   assert.match(sql, /grantor is distinct from 'postgres'/);
   assert.match(sql, /grantee = 'PUBLIC'/);
   assert.match(sql, /privilege_type <> 'SELECT'/);
   assert.match(sql, /has_table_privilege\('anon', targets\.qualified_name, standard_privileges\.privilege_type\)/);
+  assert.match(sql, /where privilege_type = 'SELECT'\s+and is_grantable/i);
 
   const firstChange = rawNormalized.indexOf(
     "revoke all privileges on table public.partidos, public.eventos_partido from anon;"
@@ -195,10 +198,13 @@ function assertAuthorizedAnonSql() {
     authorizedSql,
     /v_autorizacion constant text := 'AUTORIZO PERMISOS GOLEADORES PUBLICOS';/
   );
-  assert.doesNotMatch(
-    authorizedSql,
-    /v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';/
-  );
+  assert.doesNotMatch(authorizedSql, /PENDIENTE_AUTORIZACION/);
+  assert.doesNotMatch(authorizedSql, /No ejecutar esta version/i);
+  assert.match(authorizedSql, /habilitado para una unica ejecucion manual completa/i);
+  assert.match(authorizedSql, /Ejecutar el archivo completo; no ejecutar fragmentos ni repetir ante un error\./);
+  assert.match(authorizedSql, /'MAINTAIN'/);
+  assert.match(authorizedSql, /SELECT WITH GRANT OPTION/);
+  assert.match(authorizedSql, /where privilege_type = 'SELECT'\s+and is_grantable/i);
   assert.deepEqual(grantRevokeStatements(authorizedSql), [
     "revoke all privileges on table public.partidos, public.eventos_partido from anon;",
     "revoke all privileges on table public.partidos, public.eventos_partido from public;",
@@ -209,16 +215,11 @@ function assertAuthorizedAnonSql() {
     assert.doesNotMatch(statement, /\bservice_role\b/);
   });
   assertCorrectionDoesNotModifyRowsOrRls("sql/corregir-permisos-anon-goleadores-autorizado.sql");
-
-  const bodyStart = authorizedSql.toLowerCase().indexOf("begin;");
-  assert.ok(bodyStart >= 0, "el autorizado debe conservar el cuerpo SQL");
-  const restoredProtected = authorizedSql
-    .slice(bodyStart)
-    .replace(
-      "v_autorizacion constant text := 'AUTORIZO PERMISOS GOLEADORES PUBLICOS';",
-      "v_autorizacion constant text := 'PENDIENTE_AUTORIZACION';"
-    );
-  assert.equal(restoredProtected, protectedSql);
+  assert.equal(
+    normalizedSql(authorizedSql),
+    normalizedSql(protectedSql),
+    "el autorizado debe conservar la misma logica SQL que el protegido"
+  );
 }
 
 function assertAuthenticatedCorrectionSql() {
@@ -263,6 +264,7 @@ function assertVerificationSql() {
     "RLS activo: eventos_partido",
     "anon tiene SELECT efectivo:",
     "'anon no tiene ' || privileges_to_check.privilege_type || ' efectivo: '",
+    "anon sin SELECT WITH GRANT OPTION:",
     "ACL directa anon solo SELECT:",
     "Sin privilegios heredados desde PUBLIC:",
     "Politica publica SELECT:",
@@ -281,6 +283,8 @@ function assertVerificationSql() {
   assert.match(sql, /direct_acl as \(/);
   assert.match(sql, /anon_effective_acl as \(/);
   assert.match(sql, /aclexplode\s*\(/);
+  assert.match(sql, /has_table_privilege\(\s*'anon',\s*table_state\.qualified_name,\s*privileges_to_check\.privilege_type\s*\)/);
+  assert.match(sql, /acl\.privilege_type = 'SELECT'\s+and acl\.is_grantable/i);
   assert.match(sql, /case when ok then 'OK' else 'REVISAR' end as resultado/);
   assert.match(sql, /control,\s*\n\s*case when ok then 'OK'/);
   assert.doesNotMatch(sql, /information_schema\.table_privileges/);
