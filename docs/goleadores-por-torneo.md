@@ -114,27 +114,31 @@ publicas de escritura aplicables. Aun asi, no debe confiarse en RLS para
 privilegios que no operan fila por fila, como TRUNCATE. La configuracion debe
 ajustarse a minimo privilegio para que `anon` conserve solo SELECT.
 
-La correccion preparada queda en `sql/corregir-permisos-anon-goleadores.sql` y
-debe aplicarse manualmente, despues de ejecutar
-`sql/auditar-permisos-publicos-goleadores.sql`. La variante elegida usa
-`REVOKE ALL PRIVILEGES` sobre `anon` y `PUBLIC`, seguido por `GRANT SELECT` a
-`anon`. Asi se elimina el conjunto completo de privilegios innecesarios sin
-usar una lista incompleta, se preserva la lectura publica y no se modifican
-propietario, `service_role`, RLS, politicas ni filas.
+La correccion manual de `anon` se aplico en produccion el 2026-08-01 usando la
+version temporal autorizada completa. La ejecucion termino con Success y la
+verificacion posterior devolvio 28/28 controles OK. `anon` quedo solo con
+SELECT en `public.partidos` y `public.eventos_partido`.
+
+La variante aplicada uso `REVOKE ALL PRIVILEGES` sobre `anon` y `PUBLIC`,
+seguido por `GRANT SELECT` a `anon`. Asi se elimino el conjunto completo de
+privilegios innecesarios sin usar una lista incompleta, se preservo la lectura
+publica y no se modificaron propietario, `service_role`, `authenticated`, RLS,
+politicas ni filas.
+
+La version protegida queda en `sql/corregir-permisos-anon-goleadores.sql` como
+referencia no autorizada y bloqueada.
 
 Se creo tambien `sql/corregir-permisos-authenticated-goleadores.sql` como
 correccion protegida e independiente porque el repositorio no muestra uso de
 Supabase Auth ni sesiones de usuario. No debe autorizarse ni ejecutarse junto
 con la correccion de `anon` sin una decision explicita sobre `authenticated`.
 
-La funcion publica de goleadores requiere unicamente SELECT y seguira
+La funcion publica de goleadores requiere unicamente SELECT y siguio
 funcionando despues de revocar los privilegios innecesarios de `anon`.
+Produccion y el Deploy Preview del PR #12 fueron revisados sin detectar fallas.
 
-No hacer merge de esta rama hasta ejecutar la correccion manual autorizada,
-correr `sql/verificar-permisos-anon-goleadores.sql` y confirmar que la web
-publica sigue mostrando la tabla de goleadores. El archivo temporal autorizado
-`sql/corregir-permisos-anon-goleadores-autorizado.sql` debe eliminarse antes
-del merge.
+El archivo temporal autorizado fue eliminado de la rama antes del cierre local
+del PR.
 
 ## Evolucion futura
 

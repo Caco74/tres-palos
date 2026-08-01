@@ -178,47 +178,11 @@ function assertAnonCorrectionSql() {
   assert.match(rawNormalized, /anon conserva privilegios efectivos/);
 }
 
-function assertAuthorizedAnonSql() {
-  const protectedSql = read("sql/corregir-permisos-anon-goleadores.sql");
-  const authorizedSql = read("sql/corregir-permisos-anon-goleadores-autorizado.sql");
-
-  assert.match(
-    authorizedSql,
-    /^-- ARCHIVO TEMPORAL AUTORIZADO PARA CORRECCI.N MANUAL DE PERMISOS/m
-  );
-  [
-    "Ejecutar el archivo completo",
-    "no ejecutar fragmentos",
-    "No repetir ante un error",
-    "Ejecutar despues sql/verificar-permisos-anon-goleadores.sql",
-    "Eliminar este archivo antes del merge"
-  ].forEach(text => assert.match(authorizedSql, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))));
-
-  assert.match(
-    authorizedSql,
-    /v_autorizacion constant text := 'AUTORIZO PERMISOS GOLEADORES PUBLICOS';/
-  );
-  assert.doesNotMatch(authorizedSql, /PENDIENTE_AUTORIZACION/);
-  assert.doesNotMatch(authorizedSql, /No ejecutar esta version/i);
-  assert.match(authorizedSql, /habilitado para una unica ejecucion manual completa/i);
-  assert.match(authorizedSql, /Ejecutar el archivo completo; no ejecutar fragmentos ni repetir ante un error\./);
-  assert.match(authorizedSql, /'MAINTAIN'/);
-  assert.match(authorizedSql, /SELECT WITH GRANT OPTION/);
-  assert.match(authorizedSql, /where privilege_type = 'SELECT'\s+and is_grantable/i);
-  assert.deepEqual(grantRevokeStatements(authorizedSql), [
-    "revoke all privileges on table public.partidos, public.eventos_partido from anon;",
-    "revoke all privileges on table public.partidos, public.eventos_partido from public;",
-    "grant select on table public.partidos, public.eventos_partido to anon;"
-  ]);
-  grantRevokeStatements(authorizedSql).forEach(statement => {
-    assert.doesNotMatch(statement, /\bauthenticated\b/);
-    assert.doesNotMatch(statement, /\bservice_role\b/);
-  });
-  assertCorrectionDoesNotModifyRowsOrRls("sql/corregir-permisos-anon-goleadores-autorizado.sql");
+function assertNoAuthorizedAnonSql() {
   assert.equal(
-    normalizedSql(authorizedSql),
-    normalizedSql(protectedSql),
-    "el autorizado debe conservar la misma logica SQL que el protegido"
+    fs.existsSync(path.join(ROOT, "sql", "corregir-permisos-anon-goleadores-autorizado.sql")),
+    false,
+    "el SQL temporal autorizado de anon debe estar eliminado antes del merge"
   );
 }
 
@@ -416,7 +380,6 @@ function assertDocsAndNoSecrets() {
   const sql = [
     "sql/auditar-permisos-publicos-goleadores.sql",
     "sql/corregir-permisos-anon-goleadores.sql",
-    "sql/corregir-permisos-anon-goleadores-autorizado.sql",
     "sql/corregir-permisos-authenticated-goleadores.sql",
     "sql/verificar-permisos-anon-goleadores.sql"
   ].map(read).join("\n");
@@ -432,12 +395,18 @@ function assertDocsAndNoSecrets() {
     /REVOKE ALL PRIVILEGES/,
     /GRANT SELECT/,
     /conserve solo SELECT/,
-    /SQL temporal autorizado/,
-    /debe eliminarse antes del merge/,
+    /se aplico en produccion el 2026-08-01/,
+    /28\/28 controles OK/,
+    /anon` quedo solo con SELECT/,
+    /authenticated` no fue modificado/,
+    /RLS no fue modificado/,
+    /politicas no fueron modificadas/,
+    /no se modificaron filas/,
+    /no se modificaron datos deportivos/,
+    /archivo temporal autorizado fue eliminado/,
     /no encontro uso de Supabase Auth/,
     /correccion protegida e independiente/,
-    /requiere unicamente SELECT/,
-    /No hacer merge/
+    /requiere unicamente SELECT/
   ].forEach(pattern => assert.match(docs, pattern));
   assert.doesNotMatch(
     combined,
@@ -451,8 +420,8 @@ function runTests() {
   results.push("auditoria SQL READ ONLY y ACL directa: ok");
   assertAnonCorrectionSql();
   results.push("correccion anon usa REVOKE ALL y conserva solo SELECT: ok");
-  assertAuthorizedAnonSql();
-  results.push("SQL temporal autorizado de anon derivado y marcado: ok");
+  assertNoAuthorizedAnonSql();
+  results.push("SQL temporal autorizado de anon eliminado: ok");
   assertAuthenticatedCorrectionSql();
   results.push("correccion authenticated protegida e independiente: ok");
   assertVerificationSql();

@@ -79,19 +79,25 @@ La correccion no modifica:
 - `service_role`;
 - `authenticated`.
 
-## 4. SQL temporal autorizado
+## 4. Correccion aplicada
 
-Existe un archivo temporal autorizado para aplicar manualmente solo la
-correccion de `anon`:
+La correccion de `anon` fue aplicada manualmente en produccion el 2026-08-01.
+Se ejecuto completo el SQL temporal autorizado y la ejecucion termino con
+Success.
 
-`sql/corregir-permisos-anon-goleadores-autorizado.sql`
+Resultado registrado:
 
-Ejecutar el archivo completo; no ejecutar fragmentos. Si falla, no repetirlo:
-guardar el error, revisar el estado y volver a auditar. Despues de aplicarlo,
-ejecutar la verificacion posterior.
+- verificacion posterior: 28/28 controles OK;
+- `anon` quedo solo con SELECT en `public.partidos` y
+  `public.eventos_partido`;
+- `authenticated` no fue modificado;
+- RLS no fue modificado;
+- politicas no fueron modificadas;
+- no se modificaron filas;
+- no se modificaron datos deportivos.
 
-Este archivo temporal debe eliminarse antes del merge. No debe quedar versionado
-en el PR final que se fusione.
+El archivo temporal autorizado fue eliminado de la rama. No debe volver a
+versionarse antes del merge.
 
 ## 5. authenticated
 
@@ -145,11 +151,12 @@ Verificar que la tabla publica de goleadores sigue funcionando:
 - General disponible al final;
 - lideres empatados destacados correctamente.
 
-## 8. Limpiar antes del merge
+## 8. Cierre local antes del merge
 
 Antes de mergear:
 
-- eliminar `sql/corregir-permisos-anon-goleadores-autorizado.sql`;
+- confirmar que `sql/corregir-permisos-anon-goleadores-autorizado.sql` no esta
+  en la rama;
 - confirmar que no quedaron credenciales ni capturas con secretos;
 - confirmar que no se modificaron datos deportivos;
-- confirmar que la verificacion posterior queda documentada fuera del codigo.
+- conservar la verificacion posterior documentada sin incluir datos sensibles.
