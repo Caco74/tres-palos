@@ -1370,6 +1370,77 @@ function filtrarGoleadoresPorTorneo(goleadores, torneo) {
     );
 }
 
+function crearTablaGoleadoresVacia() {
+  return {
+    fuente: null,
+    mensaje_vacio: "",
+    tablas: {
+      "1": [],
+      "2": [],
+      "3": [],
+      general: []
+    }
+  };
+}
+
+function normalizarRespuestaGoleadoresTabla(data) {
+  const tablas = data?.tablas || {};
+
+  return {
+    fuente: data?.fuente || null,
+    mensaje_vacio: data?.mensaje_vacio || "",
+    tablas: {
+      "1": normalizarFilasGoleadoresTabla(tablas["1"]),
+      "2": normalizarFilasGoleadoresTabla(tablas["2"]),
+      "3": normalizarFilasGoleadoresTabla(tablas["3"]),
+      general: normalizarFilasGoleadoresTabla(tablas.general)
+    }
+  };
+}
+
+function normalizarFilasGoleadoresTabla(filas) {
+  return (Array.isArray(filas) ? filas : [])
+    .filter(goleador => Number(goleador.goles) > 0)
+    .map(goleador => ({
+      torneo_id: goleador.torneo_id ?? null,
+      posicion: Number(goleador.posicion || 0),
+      equipo_id: goleador.equipo_id ?? null,
+      equipo_nombre: goleador.equipo_nombre || "",
+      jugador_nombre: goleador.jugador_nombre || "",
+      goles: Number(goleador.goles || 0)
+    }))
+    .sort(compararGoleadoresTabla);
+}
+
+function compararGoleadoresTabla(a, b) {
+  return (
+    Number(b.goles || 0) - Number(a.goles || 0) ||
+    String(a.jugador_nombre || "").localeCompare(
+      String(b.jugador_nombre || ""),
+      "es",
+      { sensitivity: "base" }
+    ) ||
+    String(a.equipo_nombre || "").localeCompare(
+      String(b.equipo_nombre || ""),
+      "es",
+      { sensitivity: "base" }
+    ) ||
+    Number(a.posicion || 0) - Number(b.posicion || 0)
+  );
+}
+
+function obtenerClaveFiltroGoleadoresTabla() {
+  return tablaPosicionesActual === "general"
+    ? "general"
+    : String(Number(tablaPosicionesActual) || zonaActual || 1);
+}
+
+function obtenerEtiquetaFiltroGoleadoresTabla() {
+  return tablaPosicionesActual === "general"
+    ? "General"
+    : `Zona ${Number(tablaPosicionesActual) || zonaActual || 1}`;
+}
+
 function obtenerTorneoSeleccionado(torneos, torneoVigente) {
   const lista = Array.isArray(torneos) ? torneos : [];
   const preview = obtenerTorneoPreview(lista);
@@ -3193,25 +3264,19 @@ function renderPulsoInicio() {
   `;
 }
 
-function obtenerGoleadoresOficialesPublicables() {
-  return (Array.isArray(state.goleadoresOficiales)
-    ? state.goleadoresOficiales
-    : []
-  )
-    .filter(goleador => Number(goleador.goles) > 0)
-    .sort(
-      (a, b) =>
-        Number(b.goles || 0) - Number(a.goles || 0) ||
-        Number(a.posicion || 0) - Number(b.posicion || 0) ||
-        String(a.jugador_nombre || "").localeCompare(
-          String(b.jugador_nombre || ""),
-          "es",
-          { sensitivity: "base" }
-        )
-    );
+function obtenerGoleadoresTablaPublicables() {
+  const clave = obtenerClaveFiltroGoleadoresTabla();
+  const tablas = state.goleadoresTabla?.tablas || {};
+
+  return normalizarFilasGoleadoresTabla(tablas[clave]);
 }
 
-function renderFilaGoleadorTabla(goleador, indice) {
+function obtenerMensajeVacioGoleadoresTabla() {
+  return state.goleadoresTabla?.mensaje_vacio ||
+    "Todav\u00eda no hay snapshot de goleadores para este torneo.";
+}
+
+function renderFilaGoleadorTabla(goleador, esLider = false) {
   const goles = Number(goleador.goles || 0);
   const equipo = goleador.equipo_id
     ? nombre(goleador.equipo_nombre, goleador.equipo_id)
@@ -3223,7 +3288,7 @@ function renderFilaGoleadorTabla(goleador, indice) {
         <strong>${escaparHtml(goleador.jugador_nombre || "Jugador")}</strong>
         <small>${escaparHtml(equipo || "Equipo")}</small>
       </div>
-      <b class="${indice === 0 ? "leader" : ""}">
+      <b class="${esLider ? "leader" : ""}">
         ${goles}<small>${goles === 1 ? "gol" : "goles"}</small>
       </b>
     </div>
@@ -5497,7 +5562,10 @@ function renderIndicadoresFormaTabla(fila) {
 }
 
 function renderTablaGoleadores(cont) {
-  if (errorCargaDatos && state.goleadoresOficiales.length === 0) {
+  if (
+    (errorCargaDatos || state.errorGoleadoresTabla) &&
+    obtenerGoleadoresTablaPublicables().length === 0
+  ) {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar goleadores",
@@ -5512,14 +5580,19 @@ function renderTablaGoleadores(cont) {
     return;
   }
 
-  const goleadores = obtenerGoleadoresOficialesPublicables();
+  const goleadores = obtenerGoleadoresTablaPublicables();
+  const maximoGoles = Math.max(
+    0,
+    ...goleadores.map(goleador => Number(goleador.goles || 0))
+  );
   const nombreTorneo = obtenerNombreTorneoActivo();
+  const filtro = obtenerEtiquetaFiltroGoleadoresTabla();
 
   if (goleadores.length === 0) {
     cont.innerHTML = renderEstadoVista(
       "vacio",
       "Sin goleadores cargados",
-      `Todavía no hay snapshot de goleadores para ${nombreTorneo}.`
+      obtenerMensajeVacioGoleadoresTabla()
     );
     return;
   }
@@ -5528,13 +5601,20 @@ function renderTablaGoleadores(cont) {
     <div class="tabla-general tabla-general--standalone tabla-scorers">
       <div class="tabla-general-head">
         <div>
-          <div class="tabla-general-kicker">${escaparHtml(nombreTorneo)}</div>
+          <div class="tabla-general-kicker">
+            ${escaparHtml(nombreTorneo)} &middot; ${escaparHtml(filtro)}
+          </div>
           <h3>Goleadores destacados</h3>
         </div>
         <span>${goleadores.length} jugadores</span>
       </div>
       <div class="tabla-scorers-list">
-        ${goleadores.map(renderFilaGoleadorTabla).join("")}
+        ${goleadores
+          .map(goleador => renderFilaGoleadorTabla(
+            goleador,
+            Number(goleador.goles || 0) === maximoGoles
+          ))
+          .join("")}
       </div>
     </div>
   `;
@@ -5746,7 +5826,9 @@ function actualizarNavegacionTabla() {
 
   const tabsPosiciones = document.getElementById("tablaPosicionesTabs");
   if (tabsPosiciones) {
-    tabsPosiciones.hidden = tablaVistaActual !== "posiciones";
+    tabsPosiciones.hidden = !["posiciones", "goleadores"].includes(
+      tablaVistaActual
+    );
   }
 
   document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
@@ -8822,9 +8904,9 @@ async function obtenerPartidos() {
     const filtroTorneoActual = torneoSeleccionado?.id
       ? `&torneo_id=eq.${encodeURIComponent(torneoSeleccionado.id)}`
       : "";
-    const filtroGoleadores = torneoSeleccionado?.id
-      ? `&torneo_id=eq.${encodeURIComponent(torneoSeleccionado.id)}`
-      : "";
+    const urlGoleadores = torneoSeleccionado?.id
+      ? `/.netlify/functions/goleadores-publicos?torneo_id=${encodeURIComponent(torneoSeleccionado.id)}`
+      : null;
     const [
       res,
       resPartidosTodos,
@@ -8848,10 +8930,7 @@ async function obtenerPartidos() {
         `${SUPABASE_URL}/rest/v1/clubes?select=*&order=zona.asc,nombre_corto.asc`,
         { headers }
       ),
-      fetch(
-        `${SUPABASE_URL}/rest/v1/goleadores_oficiales?select=*${filtroGoleadores}&order=torneo_id.asc,posicion.asc`,
-        { headers }
-      )
+      urlGoleadores ? fetch(urlGoleadores) : Promise.resolve(null)
     ]);
 
     if (!res.ok) {
@@ -8875,9 +8954,9 @@ async function obtenerPartidos() {
     const eventos = resEventos.ok
       ? await resEventos.json()
       : state.eventosTodos;
-    const goleadores = resGoleadores.ok
-      ? await resGoleadores.json()
-      : state.goleadoresOficialesTodos;
+    const goleadoresTabla = resGoleadores?.ok
+      ? normalizarRespuestaGoleadoresTabla(await resGoleadores.json())
+      : crearTablaGoleadoresVacia();
 
     cargaPartidosFinalizada = true;
     errorCargaDatos = false;
@@ -8886,9 +8965,9 @@ async function obtenerPartidos() {
     state.torneoVigente = torneoVigente;
     state.partidosTodos = dataTodos;
     state.eventosTodos = Array.isArray(eventos) ? eventos : [];
-    state.goleadoresOficialesTodos = Array.isArray(goleadores)
-      ? goleadores
-      : [];
+    state.goleadoresTabla = goleadoresTabla;
+    state.errorGoleadoresTabla = Boolean(resGoleadores && !resGoleadores.ok);
+    state.goleadoresOficialesTodos = [];
     aplicarDatosTorneo(torneoSeleccionado);
     if (resClubes.ok) {
       aplicarClubes(await resClubes.json());
@@ -8917,9 +8996,9 @@ async function obtenerPartidos() {
         "Se muestran todos los partidos."
       );
     }
-    if (!resGoleadores.ok) {
+    if (resGoleadores && !resGoleadores.ok) {
       console.warn(
-        `No se pudieron cargar los goleadores oficiales: ${resGoleadores.status}.`
+        `No se pudieron cargar los goleadores publicos: ${resGoleadores.status}.`
       );
     }
 
@@ -8952,6 +9031,8 @@ async function obtenerPartidos() {
     state.eventosTodos = [];
     state.goleadoresOficiales = [];
     state.goleadoresOficialesTodos = [];
+    state.goleadoresTabla = crearTablaGoleadoresVacia();
+    state.errorGoleadoresTabla = true;
     etapaActual = null;
     actualizarNavegacionEtapas();
     renderMatches();

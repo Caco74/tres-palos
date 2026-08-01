@@ -633,7 +633,8 @@ function runTests() {
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   assert.match(indexSource, /\/styles\/main\.css\?v=63/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=72/);
+  assert.match(indexSource, /\/js\/app\.js\?v=73/);
+  assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.match(indexSource, /Clasificaci&oacute;n/);
@@ -782,6 +783,10 @@ function runTests() {
   assert.match(extractFunction(appSource, "obtenerEquiposZonaTorneo"), /getTeamsByZone/);
   assert.match(extractFunction(appSource, "obtenerEquipoLibre"), /getFreeParticipants/);
   assert.match(extractFunction(appSource, "calcularTablaZona"), /buildZoneTable/);
+  assert.match(extractFunction(appSource, "renderTablaGoleadores"), /obtenerGoleadoresTablaPublicables/);
+  assert.match(extractFunction(appSource, "actualizarNavegacionTabla"), /goleadores/);
+  assert.match(appSource, /\/\.netlify\/functions\/goleadores-publicos/);
+  assert.doesNotMatch(appSource, /goleadores_oficiales\?select/);
   assert.match(extractFunction(appSource, "renderTeams"), /buildTeamList/);
   assert.match(extractFunction(appSource, "obtenerEtapaInicial"), /getInitialRegularStageKey/);
   assert.match(extractFunction(appSource, "actualizarNavegacionEtapas"), /etapa\.clave === etapaActual/);
