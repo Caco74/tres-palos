@@ -601,7 +601,7 @@ async function runGoleadoresPublicosTests() {
         (appSource + utilsSource + indexSource).includes(serviceRoleName),
         false
       );
-      assert.match(indexSource, /\/js\/app\.js\?v=73/);
+      assert.match(indexSource, /\/js\/app\.js\?v=74/);
       assert.match(indexSource, /aria-label="Tabla por zona o general"/);
       assert.match(styleSource, /\.tabla-scorer[\s\S]*minmax\(0, 1fr\)/);
       assert.match(styleSource, /\.tabla-scorer-player strong,[\s\S]*text-overflow: ellipsis/);
