@@ -3612,14 +3612,6 @@ body.detail-mode .app-main {
   text-transform: uppercase;
 }
 
-.incident-team-local h4 {
-  color: var(--red);
-}
-
-.incident-team-visitante h4 {
-  color: var(--blue);
-}
-
 .incident-list {
   margin: 0;
   padding: 0;
