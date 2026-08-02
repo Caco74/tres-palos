@@ -2205,6 +2205,55 @@ button {
   border-radius: 12px;
 }
 
+.tabla-scorers-toggle {
+  width: calc(100% - 2rem);
+  min-height: 40px;
+  margin: .65rem 1rem 0;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  color: var(--white);
+  background: rgba(255, 255, 255, .045);
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.tabla-scorers-toggle:hover,
+.tabla-scorers-toggle:focus-visible {
+  border-color: rgba(255, 255, 255, .24);
+  background: rgba(255, 255, 255, .075);
+}
+
+.tabla-scorers-toggle span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabla-scorers-toggle-chevron {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.tabla-scorers-toggle-chevron.up {
+  transform: rotate(225deg) translateY(-2px);
+}
+
 .tabla-scorer {
   min-width: 0;
   display: grid;
@@ -2275,6 +2324,12 @@ button {
 @media (max-width: 420px) {
   .tabla-scorers-list {
     margin-inline: .75rem;
+  }
+
+  .tabla-scorers-toggle {
+    width: calc(100% - 1.5rem);
+    margin-inline: .75rem;
+    font-size: .58rem;
   }
 
   .tabla-scorer {

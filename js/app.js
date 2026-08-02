@@ -2,6 +2,7 @@ let etapaActual = null;
 let zonaActual = 1;
 let tablaVistaActual = "posiciones";
 let tablaPosicionesActual = "1";
+let goleadoresTablaExpandida = false;
 let fasePlayoffActiva = null;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
@@ -3302,6 +3303,51 @@ function obtenerMensajeVacioGoleadoresTabla() {
     "Todav\u00eda no hay snapshot de goleadores para este torneo.";
 }
 
+function contraerListaGoleadoresTabla() {
+  goleadoresTablaExpandida = false;
+}
+
+function obtenerIdListaGoleadoresTabla() {
+  return `tablaGoleadoresList-${obtenerClaveFiltroGoleadoresTabla()}`;
+}
+
+function obtenerGoleadoresVisiblesTabla(goleadores) {
+  if (goleadoresTablaExpandida || goleadores.length <= 5) {
+    return goleadores;
+  }
+
+  return goleadores.slice(0, 5);
+}
+
+function renderControlExpansionGoleadoresTabla(total, idLista) {
+  if (total <= 5) return "";
+
+  const texto = goleadoresTablaExpandida
+    ? "Ver menos"
+    : `Ver todos los goleadores (${total})`;
+  const etiqueta = goleadoresTablaExpandida
+    ? "Ver menos goleadores"
+    : `Ver todos los goleadores (${total})`;
+  const direccion = goleadoresTablaExpandida ? "up" : "down";
+
+  return `
+    <button
+      type="button"
+      class="tabla-scorers-toggle"
+      data-goleadores-toggle
+      aria-expanded="${goleadoresTablaExpandida ? "true" : "false"}"
+      aria-controls="${escaparHtml(idLista)}"
+      aria-label="${escaparHtml(etiqueta)}"
+    >
+      <span>${escaparHtml(texto)}</span>
+      <span
+        class="tabla-scorers-toggle-chevron ${direccion}"
+        aria-hidden="true"
+      ></span>
+    </button>
+  `;
+}
+
 function renderFilaGoleadorTabla(goleador, esLider = false) {
   const goles = Number(goleador.goles || 0);
   const equipo = goleador.equipo_id
@@ -5613,6 +5659,8 @@ function renderTablaGoleadores(cont) {
   );
   const nombreTorneo = obtenerNombreTorneoActivo();
   const filtro = obtenerEtiquetaFiltroGoleadoresTabla();
+  const idLista = obtenerIdListaGoleadoresTabla();
+  const goleadoresVisibles = obtenerGoleadoresVisiblesTabla(goleadores);
 
   if (goleadores.length === 0) {
     cont.innerHTML = renderEstadoVista(
@@ -5634,14 +5682,15 @@ function renderTablaGoleadores(cont) {
         </div>
         <span>${goleadores.length} jugadores</span>
       </div>
-      <div class="tabla-scorers-list">
-        ${goleadores
+      <div class="tabla-scorers-list" id="${escaparHtml(idLista)}">
+        ${goleadoresVisibles
           .map(goleador => renderFilaGoleadorTabla(
             goleador,
             Number(goleador.goles || 0) === maximoGoles
           ))
           .join("")}
       </div>
+      ${renderControlExpansionGoleadoresTabla(goleadores.length, idLista)}
     </div>
   `;
 }
@@ -5870,6 +5919,7 @@ document.querySelectorAll("[data-tabla-vista]").forEach(btn => {
     if (!["posiciones", "goleadores"].includes(vista)) return;
 
     tablaVistaActual = vista;
+    contraerListaGoleadoresTabla();
     renderTabla();
   });
 });
@@ -5881,8 +5931,21 @@ document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
 
     tablaPosicionesActual = valor;
     if (valor !== "general") zonaActual = Number(valor);
+    contraerListaGoleadoresTabla();
     renderTabla();
   });
+});
+
+document.addEventListener("click", event => {
+  const target = event.target instanceof Element
+    ? event.target.closest("[data-goleadores-toggle]")
+    : null;
+
+  if (!target) return;
+
+  goleadoresTablaExpandida =
+    target.getAttribute("aria-expanded") !== "true";
+  renderTabla();
 });
 
 function renderDetallePartido(id) {
