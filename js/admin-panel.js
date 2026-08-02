@@ -2705,6 +2705,7 @@ async function cargarIncidenciasAdmin() {
     partidoPrevio,
     partidoRapidoPrevio
   );
+  renderLista();
   renderIncidenciasAdmin();
   renderModoPartido();
   if (etapasHabilitadas) renderEtapaSeleccionada();
@@ -3036,6 +3037,88 @@ function contarGolesIdentificados(partido, eventos) {
       ajustarMarcadorPorIncidencia(marcador, evento, partido),
     { local: 0, visitante: 0 }
   );
+}
+
+function incidenciasPartidoAdmin(partido, eventos = incidencias) {
+  if (!partido) return [];
+
+  return eventos.filter(evento =>
+    String(evento.partido_id) === String(partido.id) &&
+    (
+      evento.torneo_id === null ||
+      evento.torneo_id === undefined ||
+      partido.torneo_id === null ||
+      partido.torneo_id === undefined ||
+      String(evento.torneo_id) === String(partido.torneo_id)
+    )
+  );
+}
+
+function resumenGoleadoresPartidoAdmin(partido, eventos = incidencias) {
+  if (!resultadoPartidoCargado(partido)) return null;
+
+  const eventosPartido = incidenciasPartidoAdmin(partido, eventos);
+  const identificados = contarGolesIdentificados(partido, eventosPartido);
+  const esperados = {
+    local: Number(partido.goles_local) || 0,
+    visitante: Number(partido.goles_visitante) || 0
+  };
+  const exceso =
+    identificados.local > esperados.local ||
+    identificados.visitante > esperados.visitante;
+  const completo =
+    !exceso &&
+    identificados.local === esperados.local &&
+    identificados.visitante === esperados.visitante;
+  const faltan =
+    !exceso &&
+    (
+      identificados.local < esperados.local ||
+      identificados.visitante < esperados.visitante
+    );
+  const estado = exceso
+    ? "review"
+    : completo
+      ? "complete"
+      : faltan
+        ? "pending"
+        : "pending";
+  const texto = estado === "complete"
+    ? "Goleadores completos"
+    : estado === "review"
+      ? "Revisar goleadores"
+      : "Faltan goleadores";
+
+  return {
+    identificados,
+    esperados,
+    estado,
+    texto,
+    completo,
+    exceso
+  };
+}
+
+function renderIndicadorGoleadoresPartido(partido) {
+  const resumen = resumenGoleadoresPartidoAdmin(partido);
+  if (!resumen) return "";
+
+  const detalle =
+    `Goles ${resumen.identificados.local}/${resumen.esperados.local}` +
+    ` · ${resumen.identificados.visitante}/${resumen.esperados.visitante}`;
+  const etiqueta = `${resumen.texto}. ${detalle}.`;
+  const icono = resumen.estado === "complete" ? "✓" : "!";
+
+  return `
+    <span
+      class="match-goal-indicator ${resumen.estado}"
+      title="${escapeHtml(etiqueta)}"
+      aria-label="${escapeHtml(etiqueta)}"
+    >
+      <b aria-hidden="true">${icono}</b>
+      <span>${escapeHtml(detalle)}</span>
+    </span>
+  `;
 }
 
 function esGolIncidencia(tipo) {
@@ -5130,6 +5213,7 @@ function renderLista(options = {}) {
           ${etiquetaEstadoAdmin(estado)} · ${resultado} · ID #${partido.id}
           ${etapaCerrada ? " · Etapa cerrada" : ""}
         </small>
+        ${renderIndicadorGoleadoresPartido(partido)}
       </button>
     `;
   }).join("");

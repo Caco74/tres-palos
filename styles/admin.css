@@ -1042,6 +1042,55 @@ input[readonly] {
   overflow-wrap: anywhere;
 }
 
+.match-goal-indicator {
+  width: max-content;
+  max-width: 100%;
+  margin-top: 7px;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(244, 185, 66, .3);
+  border-radius: 999px;
+  color: var(--yellow);
+  background: rgba(244, 185, 66, .08);
+  font-size: .66rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.match-item .match-goal-indicator {
+  color: var(--yellow);
+  display: inline-flex;
+}
+
+.match-item .match-goal-indicator span {
+  display: inline;
+  min-width: 0;
+  overflow: hidden;
+  font-size: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-goal-indicator b {
+  flex: 0 0 auto;
+  font-size: .7rem;
+  line-height: 1;
+}
+
+.match-item .match-goal-indicator.complete {
+  color: var(--green);
+  border-color: rgba(53, 199, 122, .35);
+  background: rgba(53, 199, 122, .09);
+}
+
+.match-item .match-goal-indicator.review {
+  color: var(--red);
+  border-color: rgba(255, 48, 69, .35);
+  background: rgba(255, 48, 69, .08);
+}
+
 .selected-match-state {
   padding: 7px 10px;
   color: var(--muted);

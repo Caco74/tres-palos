@@ -2,6 +2,7 @@ let etapaActual = null;
 let zonaActual = 1;
 let tablaVistaActual = "posiciones";
 let tablaPosicionesActual = "1";
+let goleadoresTablaExpandida = false;
 let fasePlayoffActiva = null;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
@@ -140,6 +141,32 @@ const FASES_PLAYOFF = [
 ];
 
 const TORNEOS_SIN_CRONOLOGIA_CONFIABLE = new Set([1]);
+const LISTADO_NEUTRAL_INCIDENCIAS_PUBLICAS = true;
+
+const TIPOS_GOL_PARTIDO = new Set(["gol", "gol-penal", "gol-contra"]);
+
+const GRUPOS_INCIDENCIAS_DETALLE = [
+  {
+    clave: "goles",
+    titulo: "Goles",
+    tipos: ["gol", "gol-penal", "gol-contra"]
+  },
+  {
+    clave: "amarillas",
+    titulo: "Tarjetas amarillas",
+    tipos: ["amarilla"]
+  },
+  {
+    clave: "rojas",
+    titulo: "Tarjetas rojas",
+    tipos: ["roja", "doble-amarilla"]
+  },
+  {
+    clave: "otras",
+    titulo: "Otras incidencias",
+    tipos: ["cambio", "otro"]
+  }
+];
 
 const ESTADOS_DATO = {
   confirmar: "A confirmar",
@@ -3276,6 +3303,51 @@ function obtenerMensajeVacioGoleadoresTabla() {
     "Todav\u00eda no hay snapshot de goleadores para este torneo.";
 }
 
+function contraerListaGoleadoresTabla() {
+  goleadoresTablaExpandida = false;
+}
+
+function obtenerIdListaGoleadoresTabla() {
+  return `tablaGoleadoresList-${obtenerClaveFiltroGoleadoresTabla()}`;
+}
+
+function obtenerGoleadoresVisiblesTabla(goleadores) {
+  if (goleadoresTablaExpandida || goleadores.length <= 5) {
+    return goleadores;
+  }
+
+  return goleadores.slice(0, 5);
+}
+
+function renderControlExpansionGoleadoresTabla(total, idLista) {
+  if (total <= 5) return "";
+
+  const texto = goleadoresTablaExpandida
+    ? "Ver menos"
+    : `Ver todos los goleadores (${total})`;
+  const etiqueta = goleadoresTablaExpandida
+    ? "Ver menos goleadores"
+    : `Ver todos los goleadores (${total})`;
+  const direccion = goleadoresTablaExpandida ? "up" : "down";
+
+  return `
+    <button
+      type="button"
+      class="tabla-scorers-toggle"
+      data-goleadores-toggle
+      aria-expanded="${goleadoresTablaExpandida ? "true" : "false"}"
+      aria-controls="${escaparHtml(idLista)}"
+      aria-label="${escaparHtml(etiqueta)}"
+    >
+      <span>${escaparHtml(texto)}</span>
+      <span
+        class="tabla-scorers-toggle-chevron ${direccion}"
+        aria-hidden="true"
+      ></span>
+    </button>
+  `;
+}
+
 function renderFilaGoleadorTabla(goleador, esLider = false) {
   const goles = Number(goleador.goles || 0);
   const equipo = goleador.equipo_id
@@ -5587,6 +5659,8 @@ function renderTablaGoleadores(cont) {
   );
   const nombreTorneo = obtenerNombreTorneoActivo();
   const filtro = obtenerEtiquetaFiltroGoleadoresTabla();
+  const idLista = obtenerIdListaGoleadoresTabla();
+  const goleadoresVisibles = obtenerGoleadoresVisiblesTabla(goleadores);
 
   if (goleadores.length === 0) {
     cont.innerHTML = renderEstadoVista(
@@ -5608,14 +5682,15 @@ function renderTablaGoleadores(cont) {
         </div>
         <span>${goleadores.length} jugadores</span>
       </div>
-      <div class="tabla-scorers-list">
-        ${goleadores
+      <div class="tabla-scorers-list" id="${escaparHtml(idLista)}">
+        ${goleadoresVisibles
           .map(goleador => renderFilaGoleadorTabla(
             goleador,
             Number(goleador.goles || 0) === maximoGoles
           ))
           .join("")}
       </div>
+      ${renderControlExpansionGoleadoresTabla(goleadores.length, idLista)}
     </div>
   `;
 }
@@ -5844,6 +5919,7 @@ document.querySelectorAll("[data-tabla-vista]").forEach(btn => {
     if (!["posiciones", "goleadores"].includes(vista)) return;
 
     tablaVistaActual = vista;
+    contraerListaGoleadoresTabla();
     renderTabla();
   });
 });
@@ -5855,8 +5931,21 @@ document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
 
     tablaPosicionesActual = valor;
     if (valor !== "general") zonaActual = Number(valor);
+    contraerListaGoleadoresTabla();
     renderTabla();
   });
+});
+
+document.addEventListener("click", event => {
+  const target = event.target instanceof Element
+    ? event.target.closest("[data-goleadores-toggle]")
+    : null;
+
+  if (!target) return;
+
+  goleadoresTablaExpandida =
+    target.getAttribute("aria-expanded") !== "true";
+  renderTabla();
 });
 
 function renderDetallePartido(id) {
@@ -5886,11 +5975,11 @@ function renderDetallePartido(id) {
     eventosPublicables,
     partido
   );
-  const usaResumenGoleadores = debeUsarResumenGoleadores(
+  const usaListadoNeutralIncidencias = debeUsarListadoNeutralIncidencias(
     partido,
     analisisEventos
   );
-  const secuenciaEventos = usaResumenGoleadores
+  const secuenciaEventos = usaListadoNeutralIncidencias
     ? {
         eventos: eventosPublicables,
         secuenciaPublicable: false
@@ -5900,7 +5989,6 @@ function renderDetallePartido(id) {
         partido,
         analisisEventos
       );
-  const eventos = secuenciaEventos.eventos;
   const contextoPartido = partido.tipo === "playoff"
     ? `${etiquetaFase(partido.fase)} · ${etiquetaInstanciaPartido(partido)}`
     : `Fecha ${partido.fecha} · Zona ${partido.zona}`;
@@ -5916,10 +6004,10 @@ function renderDetallePartido(id) {
   const antecedentes = renderAntecedentesDetallePartido(partido);
   const incidencias = renderIncidenciasDetallePartido(
     partido,
-    eventos,
+    eventosPublicables,
     secuenciaEventos,
     estado,
-    usaResumenGoleadores
+    usaListadoNeutralIncidencias
   );
   const priorizarIncidencias =
     jugado ||
@@ -5996,114 +6084,166 @@ function renderIncidenciasDetallePartido(
   eventos,
   secuenciaEventos,
   estado,
-  usaResumenGoleadores
+  usaListadoNeutralIncidencias
 ) {
-  if (usaResumenGoleadores) {
-    return renderResumenGoleadoresDetallePartido(partido, eventos);
+  if (usaListadoNeutralIncidencias) {
+    return renderListadoIncidenciasDetallePartido(partido, eventos, estado);
   }
 
   return renderCronologiaIncidenciasDetallePartido(
     partido,
-    eventos,
+    secuenciaEventos.eventos,
     secuenciaEventos,
     estado
   );
 }
 
-function debeUsarResumenGoleadores(partido, analisisEventos) {
+function debeUsarListadoNeutralIncidencias(partido, analisisEventos) {
   const torneoSinCronologia = TORNEOS_SIN_CRONOLOGIA_CONFIABLE.has(
     Number(partido?.torneo_id)
   );
 
-  return torneoSinCronologia || !analisisEventos?.secuenciaPublicable;
+  return (
+    LISTADO_NEUTRAL_INCIDENCIAS_PUBLICAS ||
+    torneoSinCronologia ||
+    !analisisEventos?.secuenciaPublicable
+  );
 }
 
-function renderResumenGoleadoresDetallePartido(partido, eventos) {
-  const resumen = agruparGoleadoresDetallePartido(partido, eventos);
+function renderListadoIncidenciasDetallePartido(partido, eventos, estado) {
+  const resumen = agruparIncidenciasDetallePartido(partido, eventos);
   const etiquetaCantidad = resumen.total === 1
-    ? "1 gol"
+    ? "1 registro"
     : resumen.total > 1
-      ? `${resumen.total} goles`
-      : "Sin goles";
+      ? `${resumen.total} registros`
+      : "Sin registros";
 
   return `
-    <section class="detail-section detail-events detail-scorers">
+    <section class="detail-section detail-events detail-incidents">
       <div class="detail-section-head">
-        <h2>Goleadores</h2>
+        <h2>Incidencias</h2>
         <span>${etiquetaCantidad}</span>
       </div>
-      ${resumen.total > 0
+      ${resumen.total === 0
         ? `
-          <div class="scorer-summary">
-            ${renderColumnaResumenGoleadores(
-              partido.local,
-              resumen.local
-            )}
-            ${renderColumnaResumenGoleadores(
-              partido.visitante,
-              resumen.visitante
-            )}
+          <div class="detail-empty">
+            ${estado.tipo === "en-juego"
+              ? "Sin incidencias cargadas por el momento."
+              : "No hay incidencias cargadas para este partido."}
           </div>
         `
-        : `
-          <div class="detail-empty">
-            Sin goles cargados para este partido.
-          </div>
-        `}
+        : `<div class="incident-groups">${resumen.grupos.map(grupo =>
+            renderGrupoIncidenciasDetallePartido(partido, grupo)
+          ).join("")}</div>`}
     </section>
   `;
 }
 
-function agruparGoleadoresDetallePartido(partido, eventos) {
-  const columnas = {
-    local: new Map(),
-    visitante: new Map()
-  };
-  const goles = eventos.filter(evento =>
-    ["gol", "gol-penal", "gol-contra"].includes(
-      normalizarTipoEvento(evento.tipo)
-    )
-  );
+function agruparIncidenciasDetallePartido(partido, eventos) {
+  const grupos = GRUPOS_INCIDENCIAS_DETALLE.map(grupo => ({
+    ...grupo,
+    equipos: {
+      local: new Map(),
+      visitante: new Map(),
+      sinEquipo: new Map()
+    },
+    total: 0
+  }));
+  const gruposPorTipo = new Map();
 
-  goles.forEach(evento => {
+  grupos.forEach(grupo => {
+    grupo.tipos.forEach(tipo => gruposPorTipo.set(tipo, grupo));
+  });
+
+  eventos.forEach((evento, indice) => {
     const tipo = normalizarTipoEvento(evento.tipo);
-    const ladoAutor = resolverLadoEvento(evento, partido);
-    const ladoBeneficiado = tipo === "gol-contra"
-      ? invertirLadoPartido(ladoAutor)
-      : ladoAutor;
+    const grupo = gruposPorTipo.get(tipo) || gruposPorTipo.get("otro");
+    const lado = resolverLadoPresentacionIncidencia(evento, partido, tipo);
+    const equipo = grupo.equipos[lado] || grupo.equipos.sinEquipo;
+    const clave = obtenerClaveAgrupacionIncidencia(evento, tipo, indice);
+    const existente = equipo.get(clave);
 
-    if (!columnas[ladoBeneficiado]) return;
-
-    const jugador = limpiarNombreJugador(evento.jugador) ||
-      `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
-    const identidad = evento.inscripcion_jugador_id
-      ? `inscripcion:${evento.inscripcion_jugador_id}`
-      : `nombre:${jugador}`;
-    const esGolEnContra = tipo === "gol-contra";
-    const clave = `${identidad}:${esGolEnContra ? "ec" : "gol"}`;
-    const existente = columnas[ladoBeneficiado].get(clave);
+    grupo.total += 1;
 
     if (existente) {
       existente.cantidad += 1;
+      existente.eventos.push(evento);
       return;
     }
 
-    columnas[ladoBeneficiado].set(clave, {
-      jugador,
-      cantidad: 1,
-      esGolEnContra
-    });
+    equipo.set(clave, crearItemIncidenciaDetalle(evento, tipo, indice));
   });
 
-  const ordenar = columna => [...columna.values()].sort((a, b) =>
-    a.jugador.localeCompare(b.jugador, "es", { sensitivity: "base" })
-  );
+  return {
+    total: eventos.length,
+    grupos: grupos
+      .filter(grupo => grupo.total > 0)
+      .map(grupo => ({
+        clave: grupo.clave,
+        titulo: grupo.titulo,
+        total: grupo.total,
+        equipos: {
+          local: ordenarItemsIncidenciaDetalle(grupo.equipos.local),
+          visitante: ordenarItemsIncidenciaDetalle(grupo.equipos.visitante),
+          sinEquipo: ordenarItemsIncidenciaDetalle(grupo.equipos.sinEquipo)
+        }
+      }))
+  };
+}
+
+function resolverLadoPresentacionIncidencia(evento, partido, tipo) {
+  const lado = resolverLadoEvento(evento, partido);
+
+  if (tipo === "gol-contra") {
+    return invertirLadoPartido(lado) || lado;
+  }
+
+  return lado;
+}
+
+function obtenerClaveAgrupacionIncidencia(evento, tipo, indice) {
+  if (!TIPOS_GOL_PARTIDO.has(tipo)) {
+    return `evento:${evento.id ?? indice}`;
+  }
+
+  const jugador = limpiarNombreJugador(evento.jugador) ||
+    `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
+  const identidad = evento.inscripcion_jugador_id
+    ? `inscripcion:${evento.inscripcion_jugador_id}`
+    : `nombre:${normalizarClaveGoleador(jugador)}`;
+
+  return `gol:${identidad}`;
+}
+
+function crearItemIncidenciaDetalle(evento, tipo, indice) {
+  const jugadorIdentificado = Boolean(limpiarNombreJugador(evento.jugador));
 
   return {
-    local: ordenar(columnas.local),
-    visitante: ordenar(columnas.visitante),
-    total: goles.length
+    cantidad: 1,
+    eventos: [evento],
+    indice,
+    jugador: obtenerTextoJugadorIncidencia(evento, tipo),
+    jugadorIdentificado
   };
+}
+
+function obtenerTextoJugadorIncidencia(evento, tipo) {
+  const jugadorPrincipal = limpiarNombreJugador(evento.jugador) ||
+    `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
+
+  if (tipo !== "cambio") return jugadorPrincipal;
+
+  const jugadorRelacionado = limpiarNombreJugador(evento.jugador_relacionado) ||
+    `Jugador ${ESTADOS_DATO.sinIdentificar.toLowerCase()}`;
+
+  return `${jugadorPrincipal} -> ${jugadorRelacionado}`;
+}
+
+function ordenarItemsIncidenciaDetalle(items) {
+  return [...items.values()].sort((a, b) =>
+    a.jugador.localeCompare(b.jugador, "es", { sensitivity: "base" }) ||
+    a.indice - b.indice
+  );
 }
 
 function invertirLadoPartido(lado) {
@@ -6112,30 +6252,123 @@ function invertirLadoPartido(lado) {
   return null;
 }
 
-function renderColumnaResumenGoleadores(equipo, goleadores) {
+function renderGrupoIncidenciasDetallePartido(partido, grupo) {
   return `
-    <section class="scorer-summary-team">
-      <h3>${escaparHtml(nombre(equipo))}</h3>
-      ${goleadores.length > 0
-        ? `
-          <ul class="scorer-summary-list">
-            ${goleadores.map(goleador => `
-              <li>
-                <span>
-                  ${escaparHtml(goleador.jugador)}${goleador.esGolEnContra
-                    ? " <em>(e/c)</em>"
-                    : ""}
-                </span>
-                ${goleador.cantidad > 1
-                  ? `<strong>×${goleador.cantidad}</strong>`
-                  : ""}
-              </li>
-            `).join("")}
-          </ul>
-        `
-        : `<p class="scorer-summary-empty">Sin goles</p>`}
+    <section class="incident-group incident-group-${grupo.clave}">
+      <div class="incident-group-head">
+        <span class="incident-kind-mark incident-kind-${grupo.clave}" aria-hidden="true"></span>
+        <h3>${grupo.titulo}</h3>
+        <small>${grupo.total}</small>
+      </div>
+      <div class="incident-teams">
+        ${renderColumnaIncidenciasDetallePartido(
+          partido.local,
+          "local",
+          grupo.equipos.local
+        )}
+        ${renderColumnaIncidenciasDetallePartido(
+          partido.visitante,
+          "visitante",
+          grupo.equipos.visitante
+        )}
+        ${grupo.equipos.sinEquipo.length > 0
+          ? renderColumnaIncidenciasDetallePartido(
+              "Equipo sin identificar",
+              "sin-equipo",
+              grupo.equipos.sinEquipo
+            )
+          : ""}
+      </div>
     </section>
   `;
+}
+
+function renderColumnaIncidenciasDetallePartido(equipo, lado, items) {
+  return `
+    <section class="incident-team incident-team-${lado}">
+      <h4>${escaparHtml(nombre(equipo))}</h4>
+      ${items.length > 0
+        ? `
+          <ul class="incident-list">
+            ${items.map(renderItemIncidenciaDetallePartido).join("")}
+          </ul>
+        `
+        : `<p class="incident-empty">Sin registros</p>`}
+    </section>
+  `;
+}
+
+function renderItemIncidenciaDetallePartido(item) {
+  const detalles = obtenerDetallesItemIncidencia(item);
+
+  return `
+    <li>
+      <span class="incident-player">
+        <strong class="${item.jugadorIdentificado ? "" : "data-incomplete"}">
+          ${escaparHtml(item.jugador)}
+        </strong>
+        ${item.cantidad > 1
+          ? `<b>&times;${item.cantidad}</b>`
+          : ""}
+      </span>
+      ${detalles ? `<small>${detalles}</small>` : ""}
+    </li>
+  `;
+}
+
+function obtenerDetallesItemIncidencia(item) {
+  return [
+    ...obtenerEtiquetasEspecialesIncidencia(item),
+    obtenerDetalleMinutosIncidencia(item)
+  ].filter(Boolean).join(" &middot; ");
+}
+
+function obtenerEtiquetasEspecialesIncidencia(item) {
+  const conteos = item.eventos.reduce((tipos, evento) => {
+    const tipo = normalizarTipoEvento(evento.tipo);
+    tipos.set(tipo, (tipos.get(tipo) || 0) + 1);
+    return tipos;
+  }, new Map());
+  const etiquetas = [];
+
+  if (conteos.has("gol-penal")) {
+    etiquetas.push(
+      conteos.get("gol-penal") > 1
+        ? `${conteos.get("gol-penal")} de penal`
+        : "Gol de penal"
+    );
+  }
+  if (conteos.has("gol-contra")) {
+    etiquetas.push(
+      conteos.get("gol-contra") > 1
+        ? `${conteos.get("gol-contra")} en contra`
+        : "Gol en contra"
+    );
+  }
+  if (conteos.has("roja")) {
+    etiquetas.push("Expulsi&oacute;n");
+  }
+  if (conteos.has("doble-amarilla")) {
+    etiquetas.push("Doble amarilla + expulsi&oacute;n");
+  }
+  if (conteos.has("cambio")) {
+    etiquetas.push("Cambio");
+  }
+  if (conteos.has("otro")) {
+    etiquetas.push("Incidencia");
+  }
+
+  return etiquetas;
+}
+
+function obtenerDetalleMinutosIncidencia(item) {
+  const minutos = item.eventos
+    .map(evento => Number(evento.minuto))
+    .filter(minuto => Number.isInteger(minuto) && minuto > 0);
+
+  if (minutos.length !== item.eventos.length) return "";
+
+  return minutos.map(minuto => `${minuto}'`).join(", ");
 }
 
 function renderCronologiaIncidenciasDetallePartido(

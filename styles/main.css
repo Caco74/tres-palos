@@ -2205,6 +2205,55 @@ button {
   border-radius: 12px;
 }
 
+.tabla-scorers-toggle {
+  width: calc(100% - 2rem);
+  min-height: 40px;
+  margin: .65rem 1rem 0;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  color: var(--white);
+  background: rgba(255, 255, 255, .045);
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.tabla-scorers-toggle:hover,
+.tabla-scorers-toggle:focus-visible {
+  border-color: rgba(255, 255, 255, .24);
+  background: rgba(255, 255, 255, .075);
+}
+
+.tabla-scorers-toggle span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabla-scorers-toggle-chevron {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.tabla-scorers-toggle-chevron.up {
+  transform: rotate(225deg) translateY(-2px);
+}
+
 .tabla-scorer {
   min-width: 0;
   display: grid;
@@ -2275,6 +2324,12 @@ button {
 @media (max-width: 420px) {
   .tabla-scorers-list {
     margin-inline: .75rem;
+  }
+
+  .tabla-scorers-toggle {
+    width: calc(100% - 1.5rem);
+    margin-inline: .75rem;
+    font-size: .58rem;
   }
 
   .tabla-scorer {
@@ -3509,81 +3564,165 @@ body.detail-mode .app-main {
   text-align: center;
 }
 
-.scorer-summary {
+.incident-groups {
+  display: grid;
+}
+
+.incident-group {
+  border-bottom: 1px solid rgba(58,58,66,.65);
+}
+
+.incident-group:last-child {
+  border-bottom: 0;
+}
+
+.incident-group-head {
+  min-height: 38px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, .12);
+  border-bottom: 1px solid rgba(58,58,66,.65);
+}
+
+.incident-kind-mark {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.incident-kind-goles {
+  background: var(--win);
+}
+
+.incident-kind-amarillas,
+.incident-kind-rojas {
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.incident-kind-amarillas {
+  background: var(--draw);
+}
+
+.incident-kind-rojas {
+  background: var(--loss);
+}
+
+.incident-kind-otras {
+  background: var(--blue);
+}
+
+.incident-group-head h3 {
+  min-width: 0;
+  color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .86rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.incident-group-head small {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+}
+
+.incident-teams {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.scorer-summary-team {
+.incident-team {
   min-width: 0;
-  padding: 14px;
+  padding: 10px 14px 12px;
 }
 
-.scorer-summary-team + .scorer-summary-team {
+.incident-team + .incident-team {
   border-left: 1px solid rgba(58,58,66,.65);
 }
 
-.scorer-summary-team h3 {
-  margin: 0 0 12px;
+.incident-team.incident-team-sin-equipo {
+  grid-column: 1 / -1;
+  border-top: 1px solid rgba(58,58,66,.65);
+  border-left: 0;
+}
+
+.incident-team h4 {
+  margin: 0 0 8px;
   color: var(--muted);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: .76rem;
-  font-weight: 600;
-  letter-spacing: .08em;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
   line-height: 1.15;
   overflow-wrap: anywhere;
   text-transform: uppercase;
 }
 
-.scorer-summary-list {
+.incident-list {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 7px;
   list-style: none;
 }
 
-.scorer-summary-list li {
+.incident-list li {
+  min-width: 0;
+}
+
+.incident-player {
   min-width: 0;
   display: flex;
   align-items: baseline;
   gap: 6px;
-  color: var(--text);
-  font-size: .84rem;
-  line-height: 1.25;
 }
 
-.scorer-summary-list li span {
+.incident-player strong {
   min-width: 0;
+  color: var(--text);
+  font-size: .84rem;
+  line-height: 1.22;
   overflow-wrap: anywhere;
 }
 
-.scorer-summary-list em {
-  color: var(--draw);
-  font-style: normal;
-  white-space: nowrap;
-}
-
-.scorer-summary-list strong {
+.incident-player b {
   flex: 0 0 auto;
   color: var(--white);
   font-family: 'DM Mono', monospace;
   font-size: .68rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
-.scorer-summary-empty {
+.incident-list small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .66rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.incident-empty {
   margin: 0;
   color: var(--muted);
-  font-size: .78rem;
+  font-size: .76rem;
 }
 
 @media (max-width: 390px) {
-  .scorer-summary {
+  .incident-teams {
     grid-template-columns: 1fr;
   }
 
-  .scorer-summary-team + .scorer-summary-team {
+  .incident-team + .incident-team {
     border-top: 1px solid rgba(58,58,66,.65);
     border-left: 0;
   }

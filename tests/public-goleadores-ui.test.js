@@ -55,6 +55,7 @@ function buildSandbox(tablas, filtro) {
     },
     tablaPosicionesActual: filtro,
     zonaActual: 1,
+    goleadoresTablaExpandida: false,
     errorCargaDatos: false,
     cargaPartidosFinalizada: true,
     escaparHtml: escapeHtml,
@@ -71,6 +72,10 @@ function buildSandbox(tablas, filtro) {
     "obtenerEtiquetaFiltroGoleadoresTabla",
     "obtenerGoleadoresTablaPublicables",
     "obtenerMensajeVacioGoleadoresTabla",
+    "contraerListaGoleadoresTabla",
+    "obtenerIdListaGoleadoresTabla",
+    "obtenerGoleadoresVisiblesTabla",
+    "renderControlExpansionGoleadoresTabla",
     "renderFilaGoleadorTabla",
     "renderTablaGoleadores"
   ].map(name => extractFunction(APP_SOURCE, name)).join("\n\n");
@@ -79,8 +84,9 @@ function buildSandbox(tablas, filtro) {
   return sandbox;
 }
 
-function renderGoleadores(tablas, filtro) {
+function renderGoleadores(tablas, filtro, expandida = false) {
   const sandbox = buildSandbox(tablas, filtro);
+  sandbox.goleadoresTablaExpandida = expandida;
   const container = { innerHTML: "" };
   sandbox.renderTablaGoleadores(container);
   return container.innerHTML;
@@ -118,6 +124,16 @@ function scorer(jugador, club, goles) {
     equipo_nombre: club,
     goles
   };
+}
+
+function scorers(cantidad, club = "Club") {
+  return Array.from({ length: cantidad }, (_, index) =>
+    scorer(
+      `Jugador ${String(index + 1).padStart(2, "0")}`,
+      club,
+      cantidad - index
+    )
+  );
 }
 
 function sampleTables() {
@@ -204,6 +220,63 @@ function runTests() {
     /indice\s*===\s*0/
   );
   results.push("orden alfabetico: organiza empatados sin crear lider falso: ok");
+
+  const tablasResumen = {
+    "1": [],
+    "2": scorers(1, "Club Uno"),
+    "3": scorers(5, "Club Cinco"),
+    general: scorers(6, "Club Seis")
+  };
+
+  assert.equal(extractRows(renderGoleadores(tablasResumen, "1")).length, 0);
+  assert.doesNotMatch(renderGoleadores(tablasResumen, "1"), /data-goleadores-toggle/);
+  assert.equal(extractRows(renderGoleadores(tablasResumen, "2")).length, 1);
+  assert.doesNotMatch(renderGoleadores(tablasResumen, "2"), /data-goleadores-toggle/);
+  assert.equal(extractRows(renderGoleadores(tablasResumen, "3")).length, 5);
+  assert.doesNotMatch(renderGoleadores(tablasResumen, "3"), /data-goleadores-toggle/);
+
+  const htmlSeisContraido = renderGoleadores(tablasResumen, "general");
+  assert.equal(extractRows(htmlSeisContraido).length, 5);
+  assert.match(htmlSeisContraido, /Ver todos los goleadores \(6\)/);
+  assert.match(htmlSeisContraido, /aria-expanded="false"/);
+  assert.match(htmlSeisContraido, /aria-controls="tablaGoleadoresList-general"/);
+  assert.doesNotMatch(htmlSeisContraido, /Top 5/i);
+
+  const htmlSeisExpandido = renderGoleadores(tablasResumen, "general", true);
+  assert.equal(extractRows(htmlSeisExpandido).length, 6);
+  assert.match(htmlSeisExpandido, /Ver menos/);
+  assert.match(htmlSeisExpandido, /aria-expanded="true"/);
+  results.push("resumen: 0, 1 y 5 sin control; 6 contrae y expande con aria: ok");
+
+  const tablasVistas = {
+    "1": scorers(11, "Zona Uno"),
+    "2": scorers(12, "Zona Dos"),
+    "3": scorers(13, "Zona Tres"),
+    general: scorers(14, "General")
+  };
+
+  ["1", "2", "3", "general"].forEach(filtro => {
+    const html = renderGoleadores(tablasVistas, filtro);
+    assert.equal(extractRows(html).length, 5);
+    assert.match(html, new RegExp(`Ver todos los goleadores \\(${tablasVistas[filtro].length}\\)`));
+    assert.match(html, new RegExp(`aria-controls="tablaGoleadoresList-${filtro}"`));
+  });
+
+  const sandbox = buildSandbox(tablasVistas, "1");
+  sandbox.goleadoresTablaExpandida = true;
+  sandbox.contraerListaGoleadoresTabla();
+  const container = { innerHTML: "" };
+  sandbox.renderTablaGoleadores(container);
+  assert.equal(extractRows(container.innerHTML).length, 5);
+
+  const viewClickListener = /document\.querySelectorAll\("\[data-tabla-vista\]"\)\.forEach\(btn => \{\s*btn\.addEventListener\('click'[\s\S]*?renderTabla\(\);\s*\}\);\s*\}\);/.exec(APP_SOURCE);
+  const filterClickListener = /document\.querySelectorAll\("\[data-tabla-posiciones\]"\)\.forEach\(btn => \{\s*btn\.addEventListener\('click'[\s\S]*?renderTabla\(\);\s*\}\);\s*\}\);/.exec(APP_SOURCE);
+  assert.ok(viewClickListener, "No se encontro listener de click de vista");
+  assert.ok(filterClickListener, "No se encontro listener de click de filtro");
+  assert.match(viewClickListener[0], /contraerListaGoleadoresTabla\(\)/);
+  assert.match(filterClickListener[0], /contraerListaGoleadoresTabla\(\)/);
+  assert.match(APP_SOURCE, /data-goleadores-toggle/);
+  results.push("resumen: cuatro vistas, mas de 10, contraccion y cambios de pestana/filtro: ok");
 
   return results;
 }
