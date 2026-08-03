@@ -60,6 +60,10 @@ function buildSandbox(tablas, filtro) {
     cargaPartidosFinalizada: true,
     escaparHtml: escapeHtml,
     nombre: value => value,
+    obtenerEscudoEquipo: (equipo, clubId) =>
+      String(clubId) === "43" || equipo === "Sportivo A. Club"
+        ? "assets/img/sportivo.png"
+        : "",
     obtenerNombreTorneoActivo: () => "Clausura 2026",
     renderEstadoVista: () => "<estado></estado>",
     renderSkeletonTabla: () => "<skeleton></skeleton>"
@@ -118,10 +122,11 @@ function assertLeaders(tablas, filtro, expectedNames) {
   assert.deepEqual(extractLeaderNames(renderGoleadores(tablas, filtro)), expectedNames);
 }
 
-function scorer(jugador, club, goles) {
+function scorer(jugador, club, goles, equipoId = null) {
   return {
     jugador_nombre: jugador,
     equipo_nombre: club,
+    equipo_id: equipoId,
     goles
   };
 }
@@ -220,6 +225,29 @@ function runTests() {
     /indice\s*===\s*0/
   );
   results.push("orden alfabetico: organiza empatados sin crear lider falso: ok");
+
+  const tablaEscudo = {
+    "1": [scorer("Jugador Escudo", "Sportivo A. Club", 2, 43)],
+    "2": [],
+    "3": [],
+    general: []
+  };
+  const htmlEscudo = renderGoleadores(tablaEscudo, "1");
+  assert.match(htmlEscudo, /class="tabla-scorer-shield\s*"/);
+  assert.match(htmlEscudo, /<img[\s\S]*src="assets\/img\/sportivo\.png"[\s\S]*alt=""/);
+  assert.match(htmlEscudo, /class="tabla-scorer-team-name"[\s\S]*Sportivo A\. Club/);
+
+  const tablaSinEscudo = {
+    "1": [scorer("Jugador Fallback", "Sin Escudo", 1)],
+    "2": [],
+    "3": [],
+    general: []
+  };
+  const htmlSinEscudo = renderGoleadores(tablaSinEscudo, "1");
+  assert.match(htmlSinEscudo, /class="tabla-scorer-shield is-missing"/);
+  assert.match(htmlSinEscudo, /tabla-scorer-shield-fallback[\s\S]*SE/);
+  assert.doesNotMatch(htmlSinEscudo, /<img/);
+  results.push("escudos: goleadores muestran escudo decorativo y fallback sin imagen rota: ok");
 
   const tablasResumen = {
     "1": [],

@@ -2260,7 +2260,7 @@ button {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
-  padding: 13px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(40,40,46,0.75);
 }
 
@@ -2273,7 +2273,7 @@ button {
 }
 
 .tabla-scorer-player strong,
-.tabla-scorer-player small {
+.tabla-scorer-team-name {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2289,12 +2289,59 @@ button {
   letter-spacing: .02em;
 }
 
-.tabla-scorer-player small {
-  margin-top: 1px;
+.tabla-scorer-team {
+  min-width: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tabla-scorer-team-name {
+  min-width: 0;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: .52rem;
   letter-spacing: .08em;
+}
+
+.tabla-scorer-shield {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--shield-border);
+  border-radius: 50%;
+  background: var(--shield-bg);
+  color: var(--bg);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .46rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tabla-scorer-shield img {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  display: block;
+  object-fit: contain;
+}
+
+.tabla-scorer-shield.is-missing img {
+  display: none;
+}
+
+.tabla-scorer-shield-fallback {
+  padding-top: 1px;
+}
+
+.tabla-scorer-shield:not(.is-missing) .tabla-scorer-shield-fallback {
+  opacity: 0;
 }
 
 .tabla-scorer > b {
@@ -2335,7 +2382,7 @@ button {
   .tabla-scorer {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
-    padding: 12px 10px;
+    padding: 9px 10px;
   }
 
   .tabla-scorer-player strong {
@@ -3978,11 +4025,20 @@ body.detail-mode .app-main {
   color: var(--blue);
 }
 
+.team-detail-identity {
+  border-bottom: 1px solid rgba(58, 58, 66, .72);
+  background: rgba(255, 255, 255, .018);
+}
+
 .team-detail-head {
-  padding: 1.3rem;
+  padding: 1.2rem 1rem .85rem;
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.team-detail-head > div:last-child {
+  min-width: 0;
 }
 
 .team-detail-head h1 {
@@ -4006,6 +4062,45 @@ body.detail-mode .app-main {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.74rem;
+}
+
+.team-detail-meta-grid {
+  padding: 0 1rem 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.team-detail-meta-grid > div {
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .14);
+}
+
+.team-detail-meta-grid span,
+.team-detail-meta-grid strong {
+  display: block;
+}
+
+.team-detail-meta-grid span {
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.team-detail-meta-grid strong {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .team-stage-badge {
@@ -4050,8 +4145,8 @@ body.detail-mode .app-main {
 
 .team-season-switch {
   min-height: 44px;
-  padding: 7px 1rem 8px;
-  border-top: 1px solid var(--border);
+  padding: 8px 1rem;
+  border-bottom: 1px solid rgba(58, 58, 66, .62);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -4068,10 +4163,10 @@ body.detail-mode .app-main {
 .team-season-switch select {
   min-width: 0;
   flex: 1;
-  height: 34px;
+  height: 32px;
   padding: 0 30px 0 10px;
   color: var(--text);
-  background: var(--card2);
+  background: rgba(255, 255, 255, .035);
   border: 1px solid var(--border);
   border-radius: 6px;
   font-family: 'DM Mono', monospace;
@@ -4082,8 +4177,32 @@ body.detail-mode .app-main {
   color: var(--muted);
 }
 
+.team-season-block {
+  margin: 0 1rem;
+  padding: 13px 0;
+}
+
+.team-season-block + .team-season-block {
+  border-top: 1px solid rgba(58, 58, 66, .62);
+}
+
+.team-season-block-head {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.team-season-block-head h2 {
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .team-season-outcome {
-  padding: 0 1rem 10px;
+  padding: 0 0 12px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -4096,13 +4215,31 @@ body.detail-mode .app-main {
   line-height: 1.35;
 }
 
+.team-season-outcome span:first-child {
+  color: var(--white);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.72rem;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.team-season-outcome span + span {
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .team-season-campaign {
-  margin: 2px 1rem 0;
-  padding: 12px 0 10px;
-  border-top: 1px solid rgba(58, 58, 66, .65);
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .team-season-campaign > div,
@@ -4110,8 +4247,15 @@ body.detail-mode .app-main {
   min-width: 0;
 }
 
+.team-season-campaign > div {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .026);
+}
+
 .team-season-campaign span,
-.team-season-note span {
+.team-season-note div > span {
   display: block;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
@@ -4135,22 +4279,36 @@ body.detail-mode .app-main {
 }
 
 .team-season-notes {
-  margin: 0 1rem;
-  padding: 10px 0 4px;
-  border-top: 1px solid rgba(58, 58, 66, .45);
+  margin: 0;
+  padding: 0;
   display: grid;
-  gap: 9px;
+  gap: 8px;
 }
 
 .team-season-note {
   display: grid;
-  grid-template-columns: 94px minmax(0, 1fr);
-  gap: 2px 12px;
-  align-items: baseline;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .022);
 }
 
-.team-season-note span {
-  grid-row: 1 / span 2;
+.team-season-note-icon {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .045);
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .team-season-note strong {
@@ -4166,6 +4324,12 @@ body.detail-mode .app-main {
   color: var(--muted);
   font-size: 0.64rem;
   line-height: 1.35;
+}
+
+@media (min-width: 700px) {
+  .team-detail-meta-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .team-form {
@@ -4221,13 +4385,20 @@ body.detail-mode .app-main {
   text-transform: uppercase;
 }
 
+.team-match-list {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
 .team-match-row {
   width: 100%;
   min-height: 62px;
   padding: 11px 12px 14px;
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, .08);
   border-bottom: 1px solid rgba(255, 255, 255, .09);
-  background: transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .018);
   color: var(--muted);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -4238,7 +4409,7 @@ body.detail-mode .app-main {
 }
 
 .team-match-row:last-child {
-  border-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
 }
 
 button.team-match-row {
@@ -4286,7 +4457,7 @@ button.team-match-row:focus-visible {
 }
 
 .team-match-finished {
-  background: rgba(255, 255, 255, .016);
+  background: rgba(255, 255, 255, .024);
 }
 
 .team-match-finished strong {
@@ -4296,8 +4467,13 @@ button.team-match-row:focus-visible {
 
 .team-match-next {
   padding-left: 10px;
-  border-left: 2px solid rgba(85, 167, 255, .45);
-  background: rgba(85, 167, 255, .035);
+  border-color: rgba(243, 25, 43, .34);
+  border-left: 3px solid var(--red);
+  background: rgba(243, 25, 43, .07);
+}
+
+.team-match-future {
+  background: rgba(255, 255, 255, .012);
 }
 
 .team-match-future strong {
@@ -4318,11 +4494,12 @@ button.team-match-row:focus-visible {
   min-height: 50px;
   cursor: default;
   opacity: .76;
-  background: rgba(255, 255, 255, .018);
+  border-style: dashed;
+  background: rgba(255, 255, 255, .014);
 }
 
 .team-activity-free:hover {
-  background: rgba(255, 255, 255, .018);
+  background: rgba(255, 255, 255, .014);
 }
 
 .team-free-line {
@@ -4404,7 +4581,10 @@ button.team-match-row:focus-visible {
 }
 
 .team-match-row small {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
@@ -4418,6 +4598,38 @@ button.team-match-row:focus-visible {
   white-space: normal;
   word-break: normal;
   text-transform: uppercase;
+}
+
+.team-match-row small > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-match-state {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .045);
+  color: var(--muted);
+  font-size: 0.52rem;
+  line-height: 1;
+}
+
+.team-match-state.next {
+  border-color: rgba(243, 25, 43, .45);
+  background: rgba(243, 25, 43, .12);
+  color: var(--white);
+}
+
+.team-match-state.played {
+  color: var(--text);
+}
+
+.team-match-state.free {
+  border-color: rgba(255, 255, 255, .1);
+  background: transparent;
 }
 
 /* LOADING SKELETONS */
@@ -6838,7 +7050,7 @@ button.team-match-row:focus-visible {
   }
 
   .team-season-campaign {
-    grid-template-columns: .7fr 1.35fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -6851,12 +7063,13 @@ button.team-match-row:focus-visible {
   }
 
   .team-season-note {
-    grid-template-columns: 1fr;
-    gap: 2px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 9px;
   }
 
-  .team-season-note span {
-    grid-row: auto;
+  .team-season-note-icon {
+    width: 24px;
+    height: 24px;
   }
 
   .team-season-summary {
