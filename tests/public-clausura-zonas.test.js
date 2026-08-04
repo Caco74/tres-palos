@@ -637,7 +637,7 @@ function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=66/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=67/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
   assert.match(indexSource, /\/js\/app\.js\?v=76/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);

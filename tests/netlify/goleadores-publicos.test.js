@@ -606,7 +606,7 @@ async function runGoleadoresPublicosTests() {
       assert.match(styleSource, /\.tabla-scorer[\s\S]*30px minmax\(0, 1fr\) minmax\(78px, auto\)/);
       assert.match(styleSource, /\.tabla-scorer-player strong,[\s\S]*text-overflow: ellipsis/);
       assert.match(styleSource, /\.tabla-scorer-shield[\s\S]*object-fit: contain/);
-      assert.match(styleSource, /\.tabla-scorer-goals[\s\S]*grid-template-columns: 2ch auto/);
+      assert.match(styleSource, /\.tabla-scorer-goals[\s\S]*grid-template-columns: 2ch 5ch/);
       assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla-scorer/);
     }
   ));

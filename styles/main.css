@@ -2347,7 +2347,7 @@ button {
 .tabla-scorer-goals {
   min-width: 78px;
   display: grid;
-  grid-template-columns: 2ch auto;
+  grid-template-columns: 2ch 5ch;
   align-items: baseline;
   justify-content: end;
   justify-self: end;
