@@ -2257,9 +2257,9 @@ button {
 .tabla-scorer {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 30px minmax(0, 1fr) minmax(78px, auto);
   align-items: center;
-  gap: 11px;
+  column-gap: 11px;
   padding: 10px 14px;
   border-bottom: 1px solid rgba(40,40,46,0.75);
 }
@@ -2270,6 +2270,7 @@ button {
 
 .tabla-scorer-player {
   min-width: 0;
+  overflow: hidden;
 }
 
 .tabla-scorer-player strong,
@@ -2292,9 +2293,7 @@ button {
 .tabla-scorer-team {
   min-width: 0;
   margin-top: 2px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
+  display: block;
 }
 
 .tabla-scorer-team-name {
@@ -2306,9 +2305,10 @@ button {
 }
 
 .tabla-scorer-shield {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
+  width: 30px;
+  height: 30px;
+  justify-self: center;
+  align-self: center;
   display: grid;
   place-items: center;
   position: relative;
@@ -2318,7 +2318,7 @@ button {
   background: var(--shield-bg);
   color: var(--bg);
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: .46rem;
+  font-size: .5rem;
   font-weight: 800;
   line-height: 1;
 }
@@ -2344,27 +2344,40 @@ button {
   opacity: 0;
 }
 
-.tabla-scorer > b {
+.tabla-scorer-goals {
+  min-width: 78px;
+  display: grid;
+  grid-template-columns: 2ch auto;
+  align-items: baseline;
+  justify-content: end;
+  justify-self: end;
+  column-gap: 5px;
+  white-space: nowrap;
+}
+
+.tabla-scorer-goals-number {
   color: var(--white);
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.42rem;
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
   letter-spacing: .04em;
   line-height: 1;
-  white-space: nowrap;
+  text-align: right;
 }
 
-.tabla-scorer > b.leader {
+.tabla-scorer-goals.leader .tabla-scorer-goals-number {
   color: var(--red);
   font-size: 1.56rem;
 }
 
-.tabla-scorer > b small {
-  margin-left: 3px;
+.tabla-scorer-goals-unit {
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: .5rem;
   letter-spacing: .08em;
+  line-height: 1;
+  text-align: left;
   text-transform: uppercase;
 }
 
@@ -2380,21 +2393,36 @@ button {
   }
 
   .tabla-scorer {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+    grid-template-columns: 28px minmax(0, 1fr) minmax(72px, auto);
+    column-gap: 9px;
     padding: 9px 10px;
+  }
+
+  .tabla-scorer-shield {
+    width: 28px;
+    height: 28px;
+    font-size: .47rem;
   }
 
   .tabla-scorer-player strong {
     font-size: .9rem;
   }
 
-  .tabla-scorer > b {
+  .tabla-scorer-goals {
+    min-width: 72px;
+    column-gap: 4px;
+  }
+
+  .tabla-scorer-goals-number {
     font-size: 1.22rem;
   }
 
-  .tabla-scorer > b.leader {
+  .tabla-scorer-goals.leader .tabla-scorer-goals-number {
     font-size: 1.34rem;
+  }
+
+  .tabla-scorer-goals-unit {
+    font-size: .46rem;
   }
 }
 

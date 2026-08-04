@@ -98,7 +98,7 @@ function renderGoleadores(tablas, filtro, expandida = false) {
 
 function extractRows(html) {
   return [...html.matchAll(
-    /<div class="tabla-scorer">([\s\S]*?)<\/b>\s*<\/div>/g
+    /<div class="tabla-scorer">([\s\S]*?<div class="tabla-scorer-goals(?: leader)?">[\s\S]*?<\/div>)\s*<\/div>/g
   )].map(match => match[1]);
 }
 
@@ -111,7 +111,7 @@ function extractNames(html) {
 
 function extractLeaderNames(html) {
   return extractRows(html)
-    .filter(row => /<b class="leader">/.test(row))
+    .filter(row => /<div class="tabla-scorer-goals leader">/.test(row))
     .map(row => {
       const match = /<strong>([^<]+)<\/strong>/.exec(row);
       return match?.[1] || "";
@@ -214,8 +214,8 @@ function runTests() {
     general: []
   };
   assertLeaders(unico, "1", ["Jugador A"]);
-  assert.doesNotMatch(renderGoleadores(unico, "1"), /Jugador B[\s\S]*?<b class="leader">/);
-  assert.doesNotMatch(renderGoleadores(unico, "1"), /Jugador C[\s\S]*?<b class="leader">/);
+  assert.doesNotMatch(renderGoleadores(unico, "1"), /Jugador B[\s\S]*?tabla-scorer-goals leader/);
+  assert.doesNotMatch(renderGoleadores(unico, "1"), /Jugador C[\s\S]*?tabla-scorer-goals leader/);
   results.push("lider unico: jugadores por debajo del maximo no se destacan: ok");
 
   assert.match(extractFunction(APP_SOURCE, "compararGoleadoresTabla"), /jugador_nombre/);
@@ -233,9 +233,22 @@ function runTests() {
     general: []
   };
   const htmlEscudo = renderGoleadores(tablaEscudo, "1");
+  const rowEscudo = extractRows(htmlEscudo)[0];
   assert.match(htmlEscudo, /class="tabla-scorer-shield\s*"/);
   assert.match(htmlEscudo, /<img[\s\S]*src="assets\/img\/sportivo\.png"[\s\S]*alt=""/);
   assert.match(htmlEscudo, /class="tabla-scorer-team-name"[\s\S]*Sportivo A\. Club/);
+  assert.ok(
+    rowEscudo.indexOf("tabla-scorer-shield") <
+      rowEscudo.indexOf("tabla-scorer-player"),
+    "El escudo debe renderizarse antes del bloque textual"
+  );
+  assert.ok(
+    rowEscudo.indexOf("tabla-scorer-player") <
+      rowEscudo.indexOf("tabla-scorer-goals"),
+    "Los goles deben renderizarse despues del bloque textual"
+  );
+  assert.match(rowEscudo, /tabla-scorer-goals-number">2<\/span>/);
+  assert.match(rowEscudo, /tabla-scorer-goals-unit">\s*GOLES\s*<\/span>/);
 
   const tablaSinEscudo = {
     "1": [scorer("Jugador Fallback", "Sin Escudo", 1)],
@@ -244,10 +257,32 @@ function runTests() {
     general: []
   };
   const htmlSinEscudo = renderGoleadores(tablaSinEscudo, "1");
+  const rowSinEscudo = extractRows(htmlSinEscudo)[0];
   assert.match(htmlSinEscudo, /class="tabla-scorer-shield is-missing"/);
   assert.match(htmlSinEscudo, /tabla-scorer-shield-fallback[\s\S]*SE/);
   assert.doesNotMatch(htmlSinEscudo, /<img/);
-  results.push("escudos: goleadores muestran escudo decorativo y fallback sin imagen rota: ok");
+  assert.ok(
+    rowSinEscudo.indexOf("tabla-scorer-shield is-missing") <
+      rowSinEscudo.indexOf("tabla-scorer-player"),
+    "El fallback debe ocupar la columna previa al texto"
+  );
+  assert.match(rowSinEscudo, /tabla-scorer-goals-number">1<\/span>/);
+  assert.match(rowSinEscudo, /tabla-scorer-goals-unit">\s*GOL\s*<\/span>/);
+
+  const sandboxPlural = buildSandbox(tablaSinEscudo, "1");
+  const htmlCero = sandboxPlural.renderFilaGoleadorTabla(
+    scorer("Jugador Cero", "Sin Escudo", 0),
+    false
+  );
+  const htmlDoce = sandboxPlural.renderFilaGoleadorTabla(
+    scorer("Jugador Doce", "Sin Escudo", 12),
+    false
+  );
+  assert.match(htmlCero, /tabla-scorer-goals-number">0<\/span>/);
+  assert.match(htmlCero, /tabla-scorer-goals-unit">\s*GOLES\s*<\/span>/);
+  assert.match(htmlDoce, /tabla-scorer-goals-number">12<\/span>/);
+  assert.match(htmlDoce, /tabla-scorer-goals-unit">\s*GOLES\s*<\/span>/);
+  results.push("escudos y goles: estructura alineada, fallback y singular/plural separados: ok");
 
   const tablasResumen = {
     "1": [],

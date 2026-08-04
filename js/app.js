@@ -3377,8 +3377,8 @@ function renderFilaGoleadorTabla(goleador, esLider = false) {
         ? `<img
             src="${escaparHtml(escudo)}"
             alt=""
-            width="24"
-            height="24"
+            width="30"
+            height="30"
             loading="lazy"
             decoding="async"
             onerror="this.hidden=true;this.parentElement.classList.add('is-missing')"
@@ -3389,18 +3389,21 @@ function renderFilaGoleadorTabla(goleador, esLider = false) {
 
   return `
     <div class="tabla-scorer">
+      ${escudoEquipo}
       <div class="tabla-scorer-player">
         <strong>${escaparHtml(goleador.jugador_nombre || "Jugador")}</strong>
         <small class="tabla-scorer-team">
-          ${escudoEquipo}
           <span class="tabla-scorer-team-name">
             ${escaparHtml(equipo)}
           </span>
         </small>
       </div>
-      <b class="${esLider ? "leader" : ""}">
-        ${goles}<small>${goles === 1 ? "gol" : "goles"}</small>
-      </b>
+      <div class="tabla-scorer-goals${esLider ? " leader" : ""}">
+        <span class="tabla-scorer-goals-number">${goles}</span>
+        <span class="tabla-scorer-goals-unit">
+          ${goles === 1 ? "GOL" : "GOLES"}
+        </span>
+      </div>
     </div>
   `;
 }

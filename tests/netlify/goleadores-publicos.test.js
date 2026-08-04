@@ -601,11 +601,12 @@ async function runGoleadoresPublicosTests() {
         (appSource + utilsSource + indexSource).includes(serviceRoleName),
         false
       );
-      assert.match(indexSource, /\/js\/app\.js\?v=75/);
+      assert.match(indexSource, /\/js\/app\.js\?v=76/);
       assert.match(indexSource, /aria-label="Tabla por zona o general"/);
-      assert.match(styleSource, /\.tabla-scorer[\s\S]*minmax\(0, 1fr\)/);
+      assert.match(styleSource, /\.tabla-scorer[\s\S]*30px minmax\(0, 1fr\) minmax\(78px, auto\)/);
       assert.match(styleSource, /\.tabla-scorer-player strong,[\s\S]*text-overflow: ellipsis/);
       assert.match(styleSource, /\.tabla-scorer-shield[\s\S]*object-fit: contain/);
+      assert.match(styleSource, /\.tabla-scorer-goals[\s\S]*grid-template-columns: 2ch auto/);
       assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla-scorer/);
     }
   ));
