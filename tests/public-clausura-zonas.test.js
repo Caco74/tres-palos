@@ -637,9 +637,9 @@ function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=67/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=68/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=76/);
+  assert.match(indexSource, /\/js\/app\.js\?v=77/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -778,7 +778,6 @@ function runTests() {
   assert.match(extractFunction(appSource, "resolverSeleccionTorneoDetalleEquipo"), /torneoEquipoManual/);
   assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /torneoEquipoManual = true/);
   assert.match(extractFunction(appSource, "renderSelectorTorneosDetalleEquipo"), /esTorneoVigente\(torneo\)/);
-  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /torneoSeleccionado && esTorneoVigente\(torneoSeleccionado\)/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /actividadesEquipo/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /calcularRendimientoEquipoTorneo\(partidosEquipo/);
   assert.match(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /getFreeParticipants/);
@@ -829,6 +828,9 @@ function runTests() {
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /grupo\.clave === "regular"/);
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /detalle \? `<small>\$\{detalle\}<\/small>` : ""/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-identity/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-zone-line/);
+  assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-meta-grid/);
+  assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /<span>Campeonato<\/span>|<span>Estado<\/span>/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /renderResumenTorneoEquipo/);
   assert.match(extractFunction(appSource, "renderResumenTorneoEquipo"), /Resumen del torneo/);
   assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /Goles a favor/);

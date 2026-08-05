@@ -7951,9 +7951,7 @@ function renderDetalleEquipo(equipo) {
   const nombreOficial = club?.nombre_oficial || equipo || nombreEquipo;
   const apodo = club?.apodo?.trim();
   const ciudad = club?.ciudad?.trim();
-  const estadoCampeonato = torneoSeleccionado && esTorneoVigente(torneoSeleccionado)
-      ? "Actual"
-      : "Historial";
+  const zonaDetalle = datosTabla.zona ? `Zona ${datosTabla.zona}` : "";
   const escudo = obtenerEscudoEquipo(equipo, club?.id);
   const escudoEquipo = escudo
     ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreOficial)}" width="96" height="96" decoding="async">`
@@ -7987,25 +7985,9 @@ function renderDetalleEquipo(equipo) {
             ${ciudad
               ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
               : ""}
-          </div>
-        </div>
-
-        <div class="team-detail-meta-grid">
-          <div>
-            <span>Zona</span>
-            <strong>${datosTabla.zona ? `Zona ${datosTabla.zona}` : "Equipo"}</strong>
-          </div>
-          <div>
-            <span>Campeonato</span>
-            <strong>
-              ${torneoSeleccionado
-                ? escaparHtml(torneoSeleccionado.nombre)
-                : "Sin campeonato"}
-            </strong>
-          </div>
-          <div>
-            <span>Estado</span>
-            <strong>${estadoCampeonato}</strong>
+            ${zonaDetalle
+              ? `<div class="team-detail-zone-line">${escaparHtml(zonaDetalle)}</div>`
+              : ""}
           </div>
         </div>
       </section>
