@@ -3350,19 +3350,60 @@ function renderControlExpansionGoleadoresTabla(total, idLista) {
 
 function renderFilaGoleadorTabla(goleador, esLider = false) {
   const goles = Number(goleador.goles || 0);
-  const equipo = goleador.equipo_id
-    ? nombre(goleador.equipo_nombre, goleador.equipo_id)
-    : goleador.equipo_nombre;
+  const equipo =
+    nombre(goleador.equipo_nombre, goleador.equipo_id) ||
+    goleador.equipo_nombre ||
+    "Equipo";
+  const escudo = typeof obtenerEscudoEquipo === "function"
+    ? obtenerEscudoEquipo(goleador.equipo_nombre, goleador.equipo_id)
+    : "";
+  const inicialesEquipo = equipo
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(parte => parte.charAt(0))
+    .join("")
+    .toUpperCase() || "EQ";
+  const claseEscudo = `tabla-scorer-shield${escudo ? "" : " is-missing"}`;
+  const escudoEquipo = `
+    <span
+      class="${claseEscudo}"
+      aria-hidden="true"
+    >
+      <span class="tabla-scorer-shield-fallback">
+        ${escaparHtml(inicialesEquipo)}
+      </span>
+      ${escudo
+        ? `<img
+            src="${escaparHtml(escudo)}"
+            alt=""
+            width="30"
+            height="30"
+            loading="lazy"
+            decoding="async"
+            onerror="this.hidden=true;this.parentElement.classList.add('is-missing')"
+          >`
+        : ""}
+    </span>
+  `;
 
   return `
     <div class="tabla-scorer">
+      ${escudoEquipo}
       <div class="tabla-scorer-player">
         <strong>${escaparHtml(goleador.jugador_nombre || "Jugador")}</strong>
-        <small>${escaparHtml(equipo || "Equipo")}</small>
+        <small class="tabla-scorer-team">
+          <span class="tabla-scorer-team-name">
+            ${escaparHtml(equipo)}
+          </span>
+        </small>
       </div>
-      <b class="${esLider ? "leader" : ""}">
-        ${goles}<small>${goles === 1 ? "gol" : "goles"}</small>
-      </b>
+      <div class="tabla-scorer-goals${esLider ? " leader" : ""}">
+        <span class="tabla-scorer-goals-number">${goles}</span>
+        <span class="tabla-scorer-goals-unit">
+          ${goles === 1 ? "GOL" : "GOLES"}
+        </span>
+      </div>
     </div>
   `;
 }
@@ -7541,27 +7582,24 @@ function renderCampaniaEquipo(stats) {
   return `
     <div class="team-season-campaign" aria-label="Resumen de campania">
       <div>
-        <span>Partidos</span>
+        <span>Partidos jugados</span>
         <strong>${stats.pj}</strong>
-        ${sinPartidosJugados ? "<small>Aún sin partidos jugados</small>" : ""}
+        ${sinPartidosJugados ? "<small>A&uacute;n sin partidos jugados</small>" : ""}
       </div>
       <div>
         <span>Campa&ntilde;a</span>
-        ${sinPartidosJugados ? `
-          <strong>Sin datos todavía</strong>
-        ` : `
-        <strong>${stats.pg}G · ${stats.pe}E · ${stats.pp}P</strong>
-        `}
+        <strong>${stats.pg}G &middot; ${stats.pe}E &middot; ${stats.pp}P</strong>
+        ${sinPartidosJugados ? "<small>Sin datos todav&iacute;a</small>" : ""}
       </div>
       <div>
-        <span>Goles</span>
-        ${sinPartidosJugados ? `
-          <strong>Sin goles registrados</strong>
-          <small>Sin datos todavía</small>
-        ` : `
-        <strong>${stats.gf}-${stats.gc}</strong>
-        <small>a favor / en contra</small>
-        `}
+        <span>Goles a favor</span>
+        <strong>${stats.gf}</strong>
+        ${sinPartidosJugados ? "<small>Sin goles registrados</small>" : ""}
+      </div>
+      <div>
+        <span>Goles en contra</span>
+        <strong>${stats.gc}</strong>
+        ${sinPartidosJugados ? "<small>Sin goles recibidos</small>" : ""}
       </div>
     </div>
   `;
@@ -7573,18 +7611,22 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
   if (destacados.goleadores.jugadores.length > 0) {
     const nombresGoleadores = destacados.goleadores.jugadores
       .map(item => escaparHtml(item.jugador))
-      .join(" · ");
+      .filter(Boolean);
     const goles = destacados.goleadores.goles;
     const textoGoles = `${goles} ${goles === 1 ? "gol" : "goles"}`;
+
     items.push(`
       <div class="team-season-note">
-        <span>Goleador</span>
-        <strong>${nombresGoleadores}</strong>
-        <small>
-          ${destacados.goleadores.jugadores.length > 1
-            ? `comparten el primer lugar · ${textoGoles}`
-            : textoGoles}
-        </small>
+        <span class="team-season-note-icon" aria-hidden="true">G</span>
+        <div>
+          <span>Goleadores</span>
+          <strong>${unirFrases(nombresGoleadores)}</strong>
+          <small>
+            ${destacados.goleadores.jugadores.length > 1
+              ? `${textoGoles} cada uno`
+              : textoGoles}
+          </small>
+        </div>
       </div>
     `);
   }
@@ -7592,17 +7634,23 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
   if (destacados.mayoresVictorias.length > 0) {
     const partido = destacados.mayoresVictorias[0];
     const descripcion = describirPartidoDesdeEquipo(partido, equipo);
+
     items.push(`
       <div class="team-season-note">
-        <span>Mayor victoria</span>
-        <strong>
-          ${escaparHtml(descripcion.marcador)}
-          ante ${escaparHtml(descripcion.rival)}
-        </strong>
-        <small>
-          ${escaparHtml(descripcion.detalle)}
-          ${destacados.mayoresVictorias.length > 1 ? " · compartida" : ""}
-        </small>
+        <span class="team-season-note-icon" aria-hidden="true">V</span>
+        <div>
+          <span>Mayor victoria</span>
+          <strong>
+            ${escaparHtml(descripcion.marcador)}
+            ante ${escaparHtml(descripcion.rival)}
+          </strong>
+          <small>
+            ${escaparHtml(descripcion.detalle)}
+            ${destacados.mayoresVictorias.length > 1
+              ? " &middot; compartida"
+              : ""}
+          </small>
+        </div>
       </div>
     `);
   }
@@ -7610,28 +7658,37 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
   if (items.length === 0) {
     const detalle = destacados.jugados > 0
       ? "No hay registros destacados para este campeonato"
-      : "Aún sin partidos jugados";
+      : "A&uacute;n sin partidos jugados";
 
-    return `
-      <div class="team-season-notes">
-        <div class="team-season-note">
-          <span>Goleador</span>
+    items.push(`
+      <div class="team-season-note">
+        <span class="team-season-note-icon" aria-hidden="true">G</span>
+        <div>
+          <span>Goleadores</span>
           <strong>Sin goles registrados</strong>
           <small>${detalle}</small>
         </div>
-        <div class="team-season-note">
+      </div>
+      <div class="team-season-note">
+        <span class="team-season-note-icon" aria-hidden="true">V</span>
+        <div>
           <span>Mayor victoria</span>
-          <strong>Sin datos todavía</strong>
+          <strong>Sin datos todav&iacute;a</strong>
           <small>${detalle}</small>
         </div>
       </div>
-    `;
+    `);
   }
 
   return `
-    <div class="team-season-notes">
-      ${items.join("")}
-    </div>
+    <section class="team-season-block team-season-highlights">
+      <div class="team-season-block-head">
+        <h2>Destacados</h2>
+      </div>
+      <div class="team-season-notes">
+        ${items.join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -7654,6 +7711,18 @@ function renderResumenTablaEquipo(datosTabla, estadoTorneoEquipo) {
     <div class="team-season-outcome">
       ${lineas.map(linea => `<span>${linea}</span>`).join("")}
     </div>
+  `;
+}
+
+function renderResumenTorneoEquipo(stats, datosTabla, estadoTorneoEquipo) {
+  return `
+    <section class="team-season-block team-season-tournament">
+      <div class="team-season-block-head">
+        <h2>Resumen del torneo</h2>
+      </div>
+      ${renderResumenTablaEquipo(datosTabla, estadoTorneoEquipo)}
+      ${renderCampaniaEquipo(stats)}
+    </section>
   `;
 }
 
@@ -7882,6 +7951,7 @@ function renderDetalleEquipo(equipo) {
   const nombreOficial = club?.nombre_oficial || equipo || nombreEquipo;
   const apodo = club?.apodo?.trim();
   const ciudad = club?.ciudad?.trim();
+  const zonaDetalle = datosTabla.zona ? `Zona ${datosTabla.zona}` : "";
   const escudo = obtenerEscudoEquipo(equipo, club?.id);
   const escudoEquipo = escudo
     ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreOficial)}" width="96" height="96" decoding="async">`
@@ -7903,34 +7973,26 @@ function renderDetalleEquipo(equipo) {
     </div>
 
     <article class="team-detail-card">
-      <div class="team-detail-head">
-        <div class="team-detail-shield">${escudoEquipo}</div>
-        <div>
-          <span>
-            ${datosTabla.zona ? `Zona ${datosTabla.zona}` : "Equipo"}
-            ${torneoSeleccionado
-              ? ` · ${escaparHtml(torneoSeleccionado.nombre)}`
+      <section class="team-detail-identity">
+        <div class="team-detail-head">
+          <div class="team-detail-shield">${escudoEquipo}</div>
+          <div>
+            <span>Identidad del equipo</span>
+            <h1>${escaparHtml(nombreOficial)}</h1>
+            ${apodo
+              ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
               : ""}
-            ${torneoSeleccionado && esTorneoVigente(torneoSeleccionado)
-              ? " · Actual"
+            ${ciudad
+              ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
               : ""}
-          </span>
-          <h1>${escaparHtml(nombreOficial)}</h1>
-          ${apodo
-            ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
-            : ""}
-          ${ciudad
-            ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
-            : ""}
+            ${zonaDetalle
+              ? `<div class="team-detail-zone-line">${escaparHtml(zonaDetalle)}</div>`
+              : ""}
+          </div>
         </div>
-      </div>
-
+      </section>
       ${renderSelectorTorneosDetalleEquipo(torneosEquipo, torneoSeleccionado)}
-      ${renderResumenTablaEquipo(
-        datosTabla,
-        estadoTorneoEquipo
-      )}
-      ${renderCampaniaEquipo(stats)}
+      ${renderResumenTorneoEquipo(stats, datosTabla, estadoTorneoEquipo)}
       ${renderDestacadosEquipoTorneo(destacados, equipo)}
     </article>
 
@@ -7996,6 +8058,16 @@ function renderMiniPartido(partido, equipo, proximo = false) {
     : esProximo
       ? "team-match-next"
       : "team-match-future";
+  const etiquetaEstado = finalizado
+    ? "Jugado"
+    : esProximo
+      ? "Próximo"
+      : "Pendiente";
+  const claseEtiqueta = finalizado
+    ? "played"
+    : esProximo
+      ? "next"
+      : "pending";
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
   const nombreVisitante = obtenerNombreLadoPartido(partido, "visitante");
 
@@ -8004,6 +8076,9 @@ function renderMiniPartido(partido, equipo, proximo = false) {
       type="button"
       class="team-match-row ${claseEstado}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
+      aria-label="${escaparHtml(
+        `${contexto}: ${nombreLocal} vs ${nombreVisitante}. ${tieneMarcador ? `Resultado ${centro}` : centro}. ${etiquetaEstado}.`
+      )}"
     >
       <span class="team-match-line">
       <span class="${partido.local === equipo ? "focus-team" : ""}">
@@ -8014,7 +8089,12 @@ function renderMiniPartido(partido, equipo, proximo = false) {
         ${nombreVisitante}
       </span>
       </span>
-      <small>${contexto}</small>
+      <small class="team-match-meta">
+        <span>${contexto}</span>
+        <span class="team-match-state ${claseEtiqueta}">
+          ${etiquetaEstado}
+        </span>
+      </small>
     </button>
   `;
 }
@@ -8136,7 +8216,10 @@ function renderActividadLibre(actividad, equipo) {
         <span>${equipoLibre}</span>
         <strong>LIBRE</strong>
       </span>
-      <small>Fecha ${actividad.fecha} &middot; Libre</small>
+      <small class="team-match-meta">
+        <span>Fecha ${actividad.fecha}</span>
+        <span class="team-match-state free">Libre</span>
+      </small>
     </div>
   `;
 }
