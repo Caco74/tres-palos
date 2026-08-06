@@ -23,6 +23,11 @@
   --win:      #35c77a;
   --draw:     #f4b942;
   --loss:     #ef5b67;
+  --team-result-win: #4f9d73;
+  --team-result-draw: #b88a3d;
+  --team-result-loss: #b66b70;
+  --team-achievement-bg: #c8953c;
+  --team-achievement-text: #171207;
   --zone1:    #f3192b;
   --zone2:    #3d8ef0;
   --zone3:    #8b5cf6;
@@ -3591,7 +3596,7 @@ body.detail-mode .app-main {
 }
 
 .match-detail-meta span,
-.team-detail-head span {
+.team-detail-eyebrow {
   display: block;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
@@ -4054,94 +4059,127 @@ body.detail-mode .app-main {
 }
 
 .team-detail-identity {
+  position: relative;
   border-bottom: 1px solid rgba(58, 58, 66, .72);
-  background: rgba(255, 255, 255, .018);
+  background:
+    linear-gradient(135deg, rgba(243, 25, 43, .075), rgba(85, 167, 255, .045) 52%, rgba(255, 255, 255, .018));
+}
+
+.team-detail-identity::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(243, 25, 43, .72), rgba(85, 167, 255, .58));
 }
 
 .team-detail-head {
-  padding: 1.2rem 1rem .85rem;
+  position: relative;
+  padding: 1.35rem 1rem 1rem;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
-.team-detail-head > div:last-child {
+.team-detail-copy {
   min-width: 0;
+  display: grid;
+  gap: 6px;
 }
 
 .team-detail-head h1 {
-  margin-top: 3px;
   color: var(--white);
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 1.7rem;
-  letter-spacing: 0.05em;
-  line-height: 1.05;
+  font-size: 2.08rem;
+  letter-spacing: 0;
+  line-height: .96;
   overflow-wrap: anywhere;
 }
 
 .team-detail-nickname {
-  margin-top: 5px;
   color: var(--text);
-  font-size: 0.8rem;
+  font-size: 0.86rem;
   font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.team-detail-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 9px;
 }
 
 .team-detail-origin {
-  margin-top: 4px;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 .team-detail-zone-line {
   width: fit-content;
-  margin-top: 8px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .035);
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: 0.54rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   line-height: 1;
   text-transform: uppercase;
 }
 
+.team-detail-shield {
+  flex: 0 0 auto;
+  width: 82px;
+  height: 82px;
+}
+
+.team-detail-shield.is-missing {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .88), rgba(207, 207, 215, .82));
+  color: var(--bg);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0;
+}
+
 .team-stage-badge {
   width: fit-content;
-  margin-top: 9px;
-  padding: 5px 9px;
-  border: 1px solid rgba(53, 199, 122, .35);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, .12);
   border-radius: 999px;
-  background: rgba(53, 199, 122, .1);
-  color: var(--win);
+  background: rgba(255, 255, 255, .045);
+  color: var(--muted);
   font-family: 'DM Mono', monospace;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
+  line-height: 1;
   text-transform: uppercase;
 }
 
-.team-stage-badge.champion {
-  border-color: rgba(244, 185, 66, .4);
-  background: rgba(244, 185, 66, .1);
-  color: var(--draw);
+.team-detail-achievement--champion {
+  border-color: rgba(232, 182, 91, .74);
+  background: var(--team-achievement-bg);
+  color: var(--team-achievement-text);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
+  font-weight: 800;
 }
 
-.team-stage-badge.eliminated,
-.team-stage-badge.not-qualified {
-  border-color: rgba(239, 91, 103, .4);
-  background: rgba(239, 91, 103, .1);
-  color: var(--loss);
-}
-
-.team-stage-badge.runner-up {
-  border-color: var(--border2);
-  background: rgba(255, 255, 255, .045);
-  color: var(--muted);
-}
-
-.team-stage-badge.pending {
-  border-color: rgba(85, 167, 255, .35);
-  background: rgba(85, 167, 255, .09);
-  color: var(--blue);
+.team-detail-achievement-icon {
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  line-height: 1;
 }
 
 .team-season-switch {
@@ -4210,29 +4248,18 @@ body.detail-mode .app-main {
   gap: 6px 10px;
 }
 
-.team-season-outcome span {
+.team-season-outcome > span {
   color: var(--text);
   font-size: 0.76rem;
   line-height: 1.35;
 }
 
-.team-season-outcome span:first-child {
+.team-season-position {
   color: var(--white);
   font-family: 'Bebas Neue', sans-serif;
   font-size: 1.72rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   line-height: 1;
-}
-
-.team-season-outcome span + span {
-  padding: 4px 7px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 999px;
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .team-season-campaign {
@@ -4288,40 +4315,73 @@ body.detail-mode .app-main {
 
 .team-season-note {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 11px;
   align-items: start;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .022);
+  padding: 10px 10px 10px 12px;
+  border-left: 2px solid rgba(255, 255, 255, .16);
+  border-radius: 0 8px 8px 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .014));
+}
+
+.team-season-note--scorers {
+  border-left-color: rgba(184, 138, 61, .66);
+}
+
+.team-season-note--big-win {
+  border-left-color: rgba(79, 157, 115, .66);
+}
+
+.team-season-note--empty {
+  border-left-color: rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .018);
 }
 
 .team-season-note-icon {
-  width: 24px;
-  height: 24px;
+  position: relative;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 50%;
+  border-radius: 8px;
   background: rgba(255, 255, 255, .045);
   color: var(--white);
-  font-family: 'DM Mono', monospace;
-  font-size: 0.58rem;
-  font-weight: 700;
   line-height: 1;
+}
+
+.team-season-note-icon::before {
+  content: "";
+  display: block;
+}
+
+.team-season-note-icon--scorers::before {
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12);
+}
+
+.team-season-note-icon--big-win::before {
+  width: 14px;
+  height: 9px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg) translate(1px, -1px);
 }
 
 .team-season-note strong {
   color: var(--white);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 700;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .team-season-note small {
   display: block;
+  margin-top: 2px;
   color: var(--muted);
   font-size: 0.64rem;
   line-height: 1.35;
@@ -4460,11 +4520,28 @@ button.team-match-row:focus-visible {
   font-size: 0.82rem;
 }
 
+.team-match--win {
+  box-shadow: inset 3px 0 0 var(--team-result-win);
+}
+
+.team-match--draw {
+  box-shadow: inset 3px 0 0 var(--team-result-draw);
+}
+
+.team-match--loss {
+  box-shadow: inset 3px 0 0 var(--team-result-loss);
+}
+
+.team-match--neutral,
+.team-match--bye {
+  box-shadow: none;
+}
+
 .team-match-next {
   padding-left: 10px;
-  border-color: rgba(243, 25, 43, .34);
-  border-left: 3px solid var(--red);
-  background: rgba(243, 25, 43, .07);
+  border-color: rgba(255, 255, 255, .12);
+  border-left: 3px solid var(--border2);
+  background: rgba(255, 255, 255, .018);
 }
 
 .team-match-future {
@@ -7027,11 +7104,22 @@ button.team-match-row:focus-visible {
 
   .team-detail-head {
     padding: 1rem 1rem .95rem;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .team-detail-shield {
     width: 66px;
     height: 66px;
+  }
+
+  .team-detail-head h1 {
+    font-size: 1.74rem;
+    line-height: 1;
+  }
+
+  .team-detail-nickname {
+    font-size: 0.8rem;
   }
 
   .team-season-switch {
@@ -7058,13 +7146,13 @@ button.team-match-row:focus-visible {
   }
 
   .team-season-note {
-    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-columns: 32px minmax(0, 1fr);
     gap: 9px;
   }
 
   .team-season-note-icon {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
   }
 
   .team-season-summary {

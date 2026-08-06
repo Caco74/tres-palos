@@ -1154,11 +1154,7 @@ function obtenerEstadoTemporalPartido(partido, ahora = new Date()) {
 }
 
 function obtenerEstadoManualPartido(partido) {
-  const valor = String(partido.estado || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
+  const valor = normalizarEstadoPartidoValor(partido?.estado);
 
   if (!valor || valor === "programado") return null;
 
@@ -1202,6 +1198,16 @@ function obtenerEstadoManualPartido(partido) {
   };
 
   return estados[valor] || null;
+}
+
+function normalizarEstadoPartidoValor(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function obtenerEstadoTorneo(ahora = new Date()) {
@@ -7121,6 +7127,65 @@ function partidoFinalizadoParaRendimiento(partido) {
     Number.isFinite(Number(partido.goles_visitante));
 }
 
+const ESTADOS_PARTIDO_FINALIZADO_OFICIAL = new Set([
+  "finalizado",
+  "finalizada",
+  "resuelto",
+  "resuelta",
+  "cerrado",
+  "cerrada",
+  "terminado",
+  "terminada",
+  "completado",
+  "completada",
+  "homologado",
+  "homologada"
+]);
+
+function partidoTieneEstadoFinalizadoOficial(partido) {
+  const estado = normalizarEstadoPartidoValor(partido?.estado);
+  if (!estado) return false;
+
+  if (
+    typeof window !== "undefined" &&
+    window.TPPublicTournament?.isMatchResolved
+  ) {
+    return window.TPPublicTournament.isMatchResolved({ estado });
+  }
+
+  return ESTADOS_PARTIDO_FINALIZADO_OFICIAL.has(estado);
+}
+
+function partidoTieneResultadoVisualConfirmado(partido) {
+  return partidoTieneEstadoFinalizadoOficial(partido) &&
+    partidoTieneResultado(partido) &&
+    Number.isFinite(Number(partido.goles_local)) &&
+    Number.isFinite(Number(partido.goles_visitante));
+}
+
+function clasificarResultadoEquipoPartido(partido, equipo) {
+  if (!partidoTieneResultadoVisualConfirmado(partido)) return "neutral";
+
+  const lado = obtenerLadoEquipoPartido(partido, equipo);
+  if (!lado) return "neutral";
+
+  const esLocal = lado === "local";
+  const favor = Number(esLocal
+    ? partido.goles_local
+    : partido.goles_visitante);
+  const contra = Number(esLocal
+    ? partido.goles_visitante
+    : partido.goles_local);
+
+  if (favor > contra) return "win";
+  if (favor < contra) return "loss";
+  return "draw";
+}
+
+function obtenerClaseResultadoEquipoPartido(partido, equipo) {
+  return `team-match--${clasificarResultadoEquipoPartido(partido, equipo)}`;
+}
+
 function crearStatsRendimientoEquipo() {
   return {
     pj: 0,
@@ -7392,7 +7457,7 @@ function obtenerEstadoEquipoTorneoHistorial(equipo, partidosTorneo) {
     if (serieFinal.ganador) {
       const campeon = equipoCoincideConNombre(serieFinal.ganador, equipo);
       return {
-        texto: campeon ? "Campeon" : "Subcampeon",
+        texto: campeon ? "Campe\u00f3n" : "Subcampe\u00f3n",
         clase: campeon ? "champion" : "runner-up"
       };
     }
@@ -7616,8 +7681,8 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
     const textoGoles = `${goles} ${goles === 1 ? "gol" : "goles"}`;
 
     items.push(`
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">G</span>
+      <div class="team-season-note team-season-note--scorers">
+        <span class="team-season-note-icon team-season-note-icon--scorers" aria-hidden="true"></span>
         <div>
           <span>Goleadores</span>
           <strong>${unirFrases(nombresGoleadores)}</strong>
@@ -7636,8 +7701,8 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
     const descripcion = describirPartidoDesdeEquipo(partido, equipo);
 
     items.push(`
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">V</span>
+      <div class="team-season-note team-season-note--big-win">
+        <span class="team-season-note-icon team-season-note-icon--big-win" aria-hidden="true"></span>
         <div>
           <span>Mayor victoria</span>
           <strong>
@@ -7661,16 +7726,16 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
       : "A&uacute;n sin partidos jugados";
 
     items.push(`
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">G</span>
+      <div class="team-season-note team-season-note--scorers team-season-note--empty">
+        <span class="team-season-note-icon team-season-note-icon--scorers" aria-hidden="true"></span>
         <div>
           <span>Goleadores</span>
           <strong>Sin goles registrados</strong>
           <small>${detalle}</small>
         </div>
       </div>
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">V</span>
+      <div class="team-season-note team-season-note--big-win team-season-note--empty">
+        <span class="team-season-note-icon team-season-note-icon--big-win" aria-hidden="true"></span>
         <div>
           <span>Mayor victoria</span>
           <strong>Sin datos todav&iacute;a</strong>
@@ -7693,24 +7758,50 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
 }
 
 function renderResumenTablaEquipo(datosTabla, estadoTorneoEquipo) {
-  const lineas = [];
+  const items = [];
 
   if (datosTabla.zona && datosTabla.posicionZona) {
-    lineas.push(
-      `${datosTabla.posicionZona}.&ordm; en Zona ${datosTabla.zona}`
+    items.push(
+      `<span class="team-season-position">${datosTabla.posicionZona}.&ordm; en Zona ${datosTabla.zona}</span>`
     );
   }
 
   if (estadoTorneoEquipo?.texto) {
-    lineas.push(escaparHtml(estadoTorneoEquipo.texto));
+    items.push(renderInsigniaEstadoEquipoTorneo(estadoTorneoEquipo));
   }
 
-  if (lineas.length === 0) return "";
+  if (items.length === 0) return "";
 
   return `
     <div class="team-season-outcome">
-      ${lineas.map(linea => `<span>${linea}</span>`).join("")}
+      ${items.join("")}
     </div>
+  `;
+}
+
+function renderInsigniaEstadoEquipoTorneo(estadoTorneoEquipo) {
+  if (!estadoTorneoEquipo?.texto) return "";
+
+  const claseEstado = String(estadoTorneoEquipo.clase || "neutral")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+  const esCampeon = claseEstado === "champion";
+  const claseLogro = esCampeon
+    ? "team-detail-achievement--champion"
+    : "team-detail-achievement--neutral";
+  const icono = esCampeon
+    ? '<span class="team-detail-achievement-icon" aria-hidden="true">&#9733;</span>'
+    : "";
+  const texto = escaparHtml(estadoTorneoEquipo.texto);
+  const etiquetaAccesible = esCampeon ? "Logro" : "Estado del torneo";
+
+  return `
+    <span
+      class="team-stage-badge team-detail-achievement ${claseLogro} team-stage-badge-${claseEstado}"
+      aria-label="${etiquetaAccesible}: ${texto}"
+    >
+      ${icono}<span>${texto}</span>
+    </span>
   `;
 }
 
@@ -7955,7 +8046,12 @@ function renderDetalleEquipo(equipo) {
   const escudo = obtenerEscudoEquipo(equipo, club?.id);
   const escudoEquipo = escudo
     ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreOficial)}" width="96" height="96" decoding="async">`
-    : nombreEquipo.slice(0, 2).toUpperCase();
+    : `<span aria-hidden="true">${escaparHtml(
+        (nombreEquipo || "?").trim().slice(0, 2).toUpperCase()
+      )}</span>`;
+  const claseEscudoEquipo = escudo
+    ? "team-detail-shield"
+    : "team-detail-shield is-missing";
 
   if (
     (seleccion.fallbackAplicado || seleccion.desdeUrl) &&
@@ -7973,20 +8069,25 @@ function renderDetalleEquipo(equipo) {
     </div>
 
     <article class="team-detail-card">
-      <section class="team-detail-identity">
+      <section class="team-detail-identity team-detail-header">
         <div class="team-detail-head">
-          <div class="team-detail-shield">${escudoEquipo}</div>
-          <div>
-            <span>Identidad del equipo</span>
+          <div class="${claseEscudoEquipo}">${escudoEquipo}</div>
+          <div class="team-detail-copy">
             <h1>${escaparHtml(nombreOficial)}</h1>
             ${apodo
               ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
               : ""}
-            ${ciudad
-              ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
-              : ""}
-            ${zonaDetalle
-              ? `<div class="team-detail-zone-line">${escaparHtml(zonaDetalle)}</div>`
+            ${ciudad || zonaDetalle
+              ? `
+                <div class="team-detail-meta-line">
+                  ${ciudad
+                    ? `<span class="team-detail-origin">${escaparHtml(ciudad)}</span>`
+                    : ""}
+                  ${zonaDetalle
+                    ? `<span class="team-detail-zone-line">${escaparHtml(zonaDetalle)}</span>`
+                    : ""}
+                </div>
+              `
               : ""}
           </div>
         </div>
@@ -8040,7 +8141,7 @@ function resultadoEquipoDetalle(partido, equipo) {
 }
 
 function partidoFinalizadoRecorridoEquipo(partido) {
-  return partidoResueltoParaVista(partido) || partidoTieneResultado(partido);
+  return partidoTieneResultadoVisualConfirmado(partido);
 }
 
 function renderMiniPartido(partido, equipo, proximo = false) {
@@ -8068,24 +8169,26 @@ function renderMiniPartido(partido, equipo, proximo = false) {
     : esProximo
       ? "next"
       : "pending";
+  const ladoEquipo = obtenerLadoEquipoPartido(partido, equipo);
+  const claseResultado = obtenerClaseResultadoEquipoPartido(partido, equipo);
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
   const nombreVisitante = obtenerNombreLadoPartido(partido, "visitante");
 
   return `
     <button
       type="button"
-      class="team-match-row ${claseEstado}"
+      class="team-match-row ${claseEstado} ${claseResultado}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
       aria-label="${escaparHtml(
         `${contexto}: ${nombreLocal} vs ${nombreVisitante}. ${tieneMarcador ? `Resultado ${centro}` : centro}. ${etiquetaEstado}.`
       )}"
     >
       <span class="team-match-line">
-      <span class="${partido.local === equipo ? "focus-team" : ""}">
+      <span class="${ladoEquipo === "local" ? "focus-team" : ""}">
         ${nombreLocal}
       </span>
       <strong class="${tieneMarcador ? "team-match-score" : "team-match-pending"}">${centro}</strong>
-      <span class="${partido.visitante === equipo ? "focus-team" : ""}">
+      <span class="${ladoEquipo === "visitante" ? "focus-team" : ""}">
         ${nombreVisitante}
       </span>
       </span>
@@ -8209,7 +8312,7 @@ function renderActividadLibre(actividad, equipo) {
 
   return `
     <div
-      class="team-match-row team-activity-free"
+      class="team-match-row team-activity-free team-match--bye"
       aria-label="Fecha ${actividad.fecha} libre de ${equipoLibre}"
     >
       <span class="team-free-line">

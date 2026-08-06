@@ -181,6 +181,9 @@ function extractSmallTexts(html) {
 function buildRenderMiniPartido(appSource) {
   const sandbox = {
     JSON,
+    window: {
+      TPPublicTournament: PublicTournament
+    },
     partidoResueltoParaVista: partido =>
       ["finalizado", "resuelto"].includes(partido.estado) ||
       (
@@ -195,6 +198,32 @@ function buildRenderMiniPartido(appSource) {
       partido.goles_local !== undefined &&
       partido.goles_visitante !== null &&
       partido.goles_visitante !== undefined,
+    ESTADOS_PARTIDO_FINALIZADO_OFICIAL: new Set([
+      "finalizado",
+      "finalizada",
+      "resuelto",
+      "resuelta",
+      "cerrado",
+      "cerrada",
+      "terminado",
+      "terminada",
+      "completado",
+      "completada",
+      "homologado",
+      "homologada"
+    ]),
+    obtenerLadoEquipoPartido: (partido, equipo) => {
+      if (partido.local === equipo || String(partido.local_id) === String(equipo)) {
+        return "local";
+      }
+      if (
+        partido.visitante === equipo ||
+        String(partido.visitante_id) === String(equipo)
+      ) {
+        return "visitante";
+      }
+      return null;
+    },
     obtenerEstadoTemporalPartido: partido => ({
       texto: partido.estadoTexto || "A confirmar"
     }),
@@ -223,7 +252,12 @@ function buildRenderMiniPartido(appSource) {
   };
 
   vm.runInNewContext(
-    `${extractFunction(appSource, "partidoFinalizadoRecorridoEquipo")}
+    `${extractFunction(appSource, "normalizarEstadoPartidoValor")}
+     ${extractFunction(appSource, "partidoTieneEstadoFinalizadoOficial")}
+     ${extractFunction(appSource, "partidoTieneResultadoVisualConfirmado")}
+     ${extractFunction(appSource, "clasificarResultadoEquipoPartido")}
+     ${extractFunction(appSource, "obtenerClaseResultadoEquipoPartido")}
+     ${extractFunction(appSource, "partidoFinalizadoRecorridoEquipo")}
      ${extractFunction(appSource, "renderMiniPartido")}
      this.renderMiniPartido = renderMiniPartido;`,
     sandbox
@@ -249,6 +283,85 @@ function buildRenderActividadLibre(appSource) {
   );
 
   return sandbox.renderActividadLibre;
+}
+
+function buildRenderResumenTablaEquipo(appSource) {
+  const sandbox = {
+    escaparHtml: value => String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "renderInsigniaEstadoEquipoTorneo")}
+     ${extractFunction(appSource, "renderResumenTablaEquipo")}
+     this.renderResumenTablaEquipo = renderResumenTablaEquipo;`,
+    sandbox
+  );
+
+  return sandbox.renderResumenTablaEquipo;
+}
+
+function buildRenderDetalleEquipo(appSource, overrides = {}) {
+  const container = { innerHTML: "" };
+  const torneo = { id: 901, nombre: "Torneo de prueba", activo: true };
+  const stats = { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0 };
+  const sandbox = {
+    document: {
+      getElementById: id => (id === "teamDetail" ? container : null)
+    },
+    vistaActual: { id: "equipo", equipo: overrides.equipo || "Equipo" },
+    cargaPartidosFinalizada: true,
+    errorCargaDatos: false,
+    state: { partidosTodos: [] },
+    renderDetalleVacio: mensaje => `<p>${mensaje}</p>`,
+    resolverEquipoDesdeSegmentoRuta: () => null,
+    renderEstadoVista: () => "",
+    volverDetalle: () => {},
+    obtenerClub: () => overrides.club || null,
+    obtenerTorneosDisponiblesEquipo: () => [torneo],
+    resolverSeleccionTorneoDetalleEquipo: () => ({
+      torneo,
+      fallbackAplicado: false,
+      desdeUrl: false
+    }),
+    obtenerPartidosResueltosTorneoHistorial: () => [],
+    equipoParticipaEnPartido: () => false,
+    ordenarPartidosCronologicamente: () => 0,
+    obtenerFechasLibresEquipoTorneo: () => [],
+    calcularRendimientoEquipoTorneo: () => stats,
+    obtenerDatosTablaEquipoTorneo: () => ({ zona: overrides.zona || null }),
+    obtenerEventosPartidosHistorial: () => [],
+    calcularDestacadosEquipoTorneo: () => ({ jugados: 0 }),
+    obtenerEstadoEquipoTorneoHistorial: () => null,
+    nombre: value => overrides.nombre || value,
+    obtenerEscudoEquipo: () => overrides.escudo || "",
+    escaparHtml: value => String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;"),
+    guardarVistaEnHistorial: () => {},
+    renderSelectorTorneosDetalleEquipo: () => "",
+    renderResumenTorneoEquipo: () => "",
+    renderDestacadosEquipoTorneo: () => "",
+    renderPartidosEquipoPorFase: () => ""
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "renderDetalleEquipo")}
+     this.renderDetalleEquipo = renderDetalleEquipo;`,
+    sandbox
+  );
+
+  return {
+    render: equipo => {
+      sandbox.renderDetalleEquipo(equipo);
+      return container.innerHTML;
+    }
+  };
 }
 
 function runTests() {
@@ -637,9 +750,9 @@ function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=68/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=69/);
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=77/);
+  assert.match(indexSource, /\/js\/app\.js\?v=78/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -647,6 +760,38 @@ function runTests() {
   assert.doesNotMatch(indexSource, /Tabla de posiciones/);
   assert.doesNotMatch(indexSource, />21 clubes</);
   assert.doesNotMatch(indexSource, /preview_torneo[\s\S]{0,160}<select/i);
+
+  const renderResumenTablaEquipoPrueba = buildRenderResumenTablaEquipo(appSource);
+  const resumenCampeon = renderResumenTablaEquipoPrueba(
+    { zona: 3, posicionZona: 2 },
+    { texto: "Campe\u00f3n", clase: "champion" }
+  );
+  assert.match(resumenCampeon, /team-season-position/);
+  assert.match(resumenCampeon, /2\.&ordm; en Zona 3/);
+  assert.match(resumenCampeon, /team-detail-achievement--champion/);
+  assert.match(resumenCampeon, /team-stage-badge-champion/);
+  assert.match(resumenCampeon, /&#9733;/);
+  assert.match(resumenCampeon, /aria-label="Logro: Campe\u00f3n"/);
+
+  const resumenNoCampeon = renderResumenTablaEquipoPrueba(
+    { zona: 1, posicionZona: 4 },
+    { texto: "Subcampe\u00f3n", clase: "runner-up" }
+  );
+  assert.match(resumenNoCampeon, /team-detail-achievement--neutral/);
+  assert.match(resumenNoCampeon, /team-stage-badge-runner-up/);
+  assert.doesNotMatch(resumenNoCampeon, /team-detail-achievement--champion/);
+  assert.doesNotMatch(resumenNoCampeon, /&#9733;/);
+
+  const funcionesDetalleEquipo = [
+    "renderInsigniaEstadoEquipoTorneo",
+    "partidoTieneResultadoVisualConfirmado",
+    "clasificarResultadoEquipoPartido",
+    "obtenerClaseResultadoEquipoPartido",
+    "renderMiniPartido",
+    "renderDetalleEquipo"
+  ].map(name => extractFunction(appSource, name)).join("\n");
+  assert.doesNotMatch(funcionesDetalleEquipo, /Sportivo/i);
+  results.push("detalle equipo: insignia campeon estructurada y sin hardcode de club: ok");
 
   const renderMiniPartidoPrueba = buildRenderMiniPartido(appSource);
   const regularFinalizado = renderMiniPartidoPrueba({
@@ -712,7 +857,7 @@ function runTests() {
   assert.match(sportivoAperturaFecha3, /Fecha 3/);
   assert.doesNotMatch(sportivoAperturaFecha3, /FINALIZADO/);
   assert.match(sportivoAperturaFecha3, /<strong class="team-match-score">0 - 0<\/strong>/);
-  assert.deepEqual(extractSmallTexts(sportivoAperturaFecha3), ["Fecha 3 Jugado"]);
+  assert.deepEqual(extractSmallTexts(sportivoAperturaFecha3), ["Fecha 3 Pendiente"]);
   assert.doesNotMatch(sportivoAperturaFecha3, /<small>[\s\S]*FINALIZADO[\s\S]*<\/small>/);
 
   const futuroNeutral = renderMiniPartidoPrueba({
@@ -749,16 +894,211 @@ function runTests() {
   assert.doesNotMatch(proximo, /FINALIZADO/);
   assert.deepEqual(extractSmallTexts(proximo), ["Fecha 6 Próximo"]);
 
+  const assertResultadoVisual = (html, claseEsperada) => {
+    assert.match(html, new RegExp(`team-match--${claseEsperada}`));
+    ["win", "draw", "loss", "neutral"].forEach(clase => {
+      if (clase !== claseEsperada) {
+        assert.doesNotMatch(html, new RegExp(`team-match--${clase}`));
+      }
+    });
+  };
+  const equipoBase = "Equipo Central";
+  const rivalBase = "Club Norte";
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 601,
+    tipo: "regular",
+    fecha: 1,
+    estado: "finalizado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 2,
+    goles_visitante: 0
+  }, equipoBase), "win");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 602,
+    tipo: "regular",
+    fecha: 2,
+    estado: "finalizado",
+    local: rivalBase,
+    visitante: equipoBase,
+    goles_local: 0,
+    goles_visitante: 1
+  }, equipoBase), "win");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 603,
+    tipo: "regular",
+    fecha: 3,
+    estado: "finalizado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 0,
+    goles_visitante: 3
+  }, equipoBase), "loss");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 604,
+    tipo: "regular",
+    fecha: 4,
+    estado: "finalizado",
+    local: rivalBase,
+    visitante: equipoBase,
+    goles_local: 2,
+    goles_visitante: 1
+  }, equipoBase), "loss");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 605,
+    tipo: "regular",
+    fecha: 5,
+    estado: "finalizado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 1,
+    goles_visitante: 1
+  }, equipoBase), "draw");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 610,
+    tipo: "playoff",
+    fase: "final",
+    estado: "resuelto",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 3,
+    goles_visitante: 1
+  }, equipoBase), "win");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 611,
+    tipo: "regular",
+    fecha: 10,
+    estado: "programado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 0,
+    goles_visitante: 0
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 612,
+    tipo: "regular",
+    fecha: 11,
+    estado: "en_vivo",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 1,
+    goles_visitante: 0
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 613,
+    tipo: "regular",
+    fecha: 12,
+    estado: "en_juego",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 2,
+    goles_visitante: 1
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 614,
+    tipo: "regular",
+    fecha: 13,
+    estado: "estado_nuevo",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 4,
+    goles_visitante: 4
+  }, equipoBase), "neutral");
+  assertResultadoVisual(futuroNeutral, "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 606,
+    tipo: "regular",
+    fecha: 6,
+    estado: "postergado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 2,
+    goles_visitante: 0
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 607,
+    tipo: "regular",
+    fecha: 7,
+    estado: "suspendido",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 2,
+    goles_visitante: 0
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 608,
+    tipo: "regular",
+    fecha: 8,
+    estado: "finalizado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: null,
+    goles_visitante: null
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 609,
+    tipo: "regular",
+    fecha: 9,
+    estado: "pendiente_resultado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 1,
+    goles_visitante: 0
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 615,
+    tipo: "regular",
+    fecha: 14,
+    estado: "programado",
+    local: equipoBase,
+    visitante: rivalBase,
+    goles_local: 0,
+    goles_visitante: 0,
+    fecha_partido: "2030-01-01"
+  }, equipoBase), "neutral");
+  assertResultadoVisual(renderMiniPartidoPrueba({
+    id: 616,
+    tipo: "regular",
+    fecha: 15,
+    estado: "finalizado",
+    local: "Club Sur",
+    visitante: rivalBase,
+    goles_local: 2,
+    goles_visitante: 0
+  }, equipoBase), "neutral");
+  results.push("detalle equipo: clases resultado local/visitante y neutrales: ok");
+
   const renderActividadLibrePrueba = buildRenderActividadLibre(appSource);
   const libre = renderActividadLibrePrueba({
     tipoActividad: "libre",
     fecha: 4
   }, "Sportivo A. Club");
   assert.match(libre, /team-activity-free/);
+  assert.match(libre, /team-match--bye/);
+  assert.doesNotMatch(libre, /team-match--win|team-match--draw|team-match--loss/);
   assert.match(libre, /Sportivo A\. Club/);
   assert.match(libre, /<strong>LIBRE<\/strong>/);
   assert.deepEqual(extractSmallTexts(libre), ["Fecha 4 Libre"]);
   assert.doesNotMatch(libre, /<button|onclick|abrirPartido/);
+
+  const renderDetalleSinEscudo = buildRenderDetalleEquipo(appSource, {
+    equipo: "Club Deportivo Social y Cultural Barrio Central Unido",
+    club: {
+      nombre_oficial: "Club Deportivo Social y Cultural Barrio Central Unido",
+      apodo: "",
+      ciudad: "Las Rosas"
+    },
+    zona: 2
+  }).render("Club Deportivo Social y Cultural Barrio Central Unido");
+  assert.match(renderDetalleSinEscudo, /team-detail-header/);
+  assert.match(renderDetalleSinEscudo, /team-detail-shield is-missing/);
+  assert.match(
+    renderDetalleSinEscudo,
+    /Club Deportivo Social y Cultural Barrio Central Unido/
+  );
+  assert.match(renderDetalleSinEscudo, /team-detail-origin/);
+  assert.match(renderDetalleSinEscudo, /team-detail-zone-line/);
+  assert.doesNotMatch(renderDetalleSinEscudo, /team-detail-nickname/);
   results.push("recorrido equipo: filas simples con marcador, A confirmar, fecha y libre compacto: ok");
 
   assert.match(appSource, /previewTorneoIdSolicitado[\s\S]{0,120}getPreviewTournamentId/);
@@ -777,6 +1117,7 @@ function runTests() {
   assert.match(extractFunction(appSource, "resolverSeleccionTorneoDetalleEquipo"), /obtenerTorneoVisualizacionDetalleEquipo/);
   assert.match(extractFunction(appSource, "resolverSeleccionTorneoDetalleEquipo"), /torneoEquipoManual/);
   assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /torneoEquipoManual = true/);
+  assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /renderDetalleEquipo\(vistaActual\.equipo\)/);
   assert.match(extractFunction(appSource, "renderSelectorTorneosDetalleEquipo"), /esTorneoVigente\(torneo\)/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /actividadesEquipo/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /calcularRendimientoEquipoTorneo\(partidosEquipo/);
@@ -808,8 +1149,15 @@ function runTests() {
   assert.match(extractFunction(appSource, "obtenerProximoPartidoEquipo"), /getNextPendingMatch/);
   assert.match(extractFunction(appSource, "renderPartidosEquipoPorFase"), /proximoId/);
   assert.match(extractFunction(appSource, "renderPartidosEquipoPorFase"), /obtenerProximoPartidoEquipo\(partidosEquipo, torneo\)/);
-  assert.match(extractFunction(appSource, "partidoFinalizadoRecorridoEquipo"), /partidoResueltoParaVista\(partido\) \|\| partidoTieneResultado\(partido\)/);
+  assert.match(extractFunction(appSource, "partidoFinalizadoRecorridoEquipo"), /partidoTieneResultadoVisualConfirmado\(partido\)/);
+  assert.match(appSource, /ESTADOS_PARTIDO_FINALIZADO_OFICIAL/);
+  assert.match(extractFunction(appSource, "partidoTieneEstadoFinalizadoOficial"), /TPPublicTournament\?\.isMatchResolved/);
+  assert.match(extractFunction(appSource, "partidoTieneResultadoVisualConfirmado"), /partidoTieneEstadoFinalizadoOficial\(partido\)/);
+  assert.doesNotMatch(extractFunction(appSource, "partidoTieneResultadoVisualConfirmado"), /ESTADOS_RESULTADO_VISUAL_NEUTRAL/);
+  assert.match(extractFunction(appSource, "clasificarResultadoEquipoPartido"), /obtenerLadoEquipoPartido\(partido, equipo\)/);
+  assert.match(extractFunction(appSource, "obtenerClaseResultadoEquipoPartido"), /team-match--/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-finished/);
+  assert.match(extractFunction(appSource, "renderMiniPartido"), /obtenerClaseResultadoEquipoPartido\(partido, equipo\)/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /const esProximo = proximo && !finalizado/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /ESTADOS_DATO\.confirmar/);
   assert.match(extractFunction(appSource, "renderMiniPartido"), /team-match-pending/);
@@ -828,7 +1176,10 @@ function runTests() {
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /grupo\.clave === "regular"/);
   assert.match(extractFunction(appSource, "renderResumenGrupoPartidosEquipo"), /detalle \? `<small>\$\{detalle\}<\/small>` : ""/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-identity/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-header/);
+  assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /Identidad del equipo/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-zone-line/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-shield is-missing/);
   assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /team-detail-meta-grid/);
   assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /<span>Campeonato<\/span>|<span>Estado<\/span>/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /renderResumenTorneoEquipo/);
@@ -837,6 +1188,8 @@ function runTests() {
   assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /Goles en contra/);
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /Destacados/);
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /Goleadores/);
+  assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /team-season-note--scorers/);
+  assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /team-season-note--big-win/);
   assert.match(extractFunction(appSource, "renderIndicadoresFormaTabla"), /Number\(fila\.pj\) === 0/);
   assert.match(extractFunction(appSource, "renderIndicadoresFormaTabla"), /aria-label="&Uacute;ltimo resultado: \$\{etiqueta\}"/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /dots \? `<div class="form-row">\$\{dots\}<\/div>` : ""/);
@@ -850,6 +1203,10 @@ function runTests() {
   assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*padding: 11px 12px 14px/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*border-bottom: 1px solid rgba\(255, 255, 255, \.09\)/);
+  assert.match(styleSource, /\.team-match--win[\s\S]*--team-result-win/);
+  assert.match(styleSource, /\.team-match--draw[\s\S]*--team-result-draw/);
+  assert.match(styleSource, /\.team-match--loss[\s\S]*--team-result-loss/);
+  assert.match(styleSource, /\.team-match--bye[\s\S]*box-shadow: none/);
   assert.match(styleSource, /\.team-match-line > span[\s\S]*text-overflow: ellipsis/);
   assert.match(styleSource, /\.team-match-next[\s\S]*border-left/);
   assert.match(styleSource, /\.team-activity-free[\s\S]*cursor: default/);
@@ -859,6 +1216,10 @@ function runTests() {
   assert.match(styleSource, /\.match-detail-featured-meta \.home-featured-time strong[\s\S]*clamp/);
   assert.match(styleSource, /\.team-match-row small[\s\S]*white-space: normal/);
   assert.match(styleSource, /\.team-match-row small[\s\S]*letter-spacing: 0\.02em/);
+  assert.match(styleSource, /\.team-detail-identity::before[\s\S]*linear-gradient/);
+  assert.match(styleSource, /\.team-detail-achievement--champion[\s\S]*--team-achievement-bg/);
+  assert.match(styleSource, /\.team-season-note-icon--scorers::before/);
+  assert.match(styleSource, /\.team-season-note-icon--big-win::before/);
   assert.match(styleSource, /\.t-pts[\s\S]*font-weight: 700/);
   assert.doesNotMatch(
     fs.readFileSync(path.join(ROOT, "js", "public-tournament.js"), "utf8"),
