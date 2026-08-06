@@ -3808,15 +3808,6 @@ body.detail-mode .app-main {
   }
 }
 
-.detail-history-summary {
-  padding: 11px 14px;
-  color: var(--text);
-  background: rgba(0, 0, 0, .16);
-  border-bottom: 1px solid rgba(58,58,66,.65);
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
 .detail-history-list {
   display: grid;
 }
@@ -3828,10 +3819,10 @@ body.detail-mode .app-main {
   border: 0;
   border-bottom: 1px solid rgba(58,58,66,.65);
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  padding: 11px 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: start;
+  padding: 10px 14px 12px;
   text-align: left;
 }
 
@@ -3839,35 +3830,68 @@ body.detail-mode .app-main {
   border-bottom: 0;
 }
 
-.detail-history-row span {
+.detail-history-row:hover,
+.detail-history-row:focus-visible {
+  background: rgba(255, 255, 255, .035);
+}
+
+.detail-history-row:focus-visible {
+  outline: 2px solid rgba(47, 123, 255, .45);
+  outline-offset: -2px;
+}
+
+.detail-history-context,
+.detail-history-date {
+  min-width: 0;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: 0.56rem;
   letter-spacing: 0.04em;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
-.detail-history-row strong {
-  min-width: 0;
+.detail-history-context {
   overflow: hidden;
-  color: var(--muted);
-  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.detail-history-row strong:last-child {
+.detail-history-date {
+  white-space: nowrap;
+}
+
+.detail-history-scoreline {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-history-scoreline strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-history-scoreline strong:last-child {
   text-align: right;
 }
 
-.detail-history-row strong.winner {
+.detail-history-scoreline strong.winner {
   color: var(--white);
 }
 
-.detail-history-row b {
+.detail-history-scoreline b {
   color: var(--white);
   font-family: 'DM Mono', monospace;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
   white-space: nowrap;
 }
