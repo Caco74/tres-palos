@@ -2912,7 +2912,7 @@ function actualizarResumenTorneo(agenda) {
   if (tituloSeccion) {
     tituloSeccion.textContent = campeon
       ? "Campeón del torneo"
-      : "Agenda del torneo";
+      : "Agenda";
   }
   document.getElementById("sidebarEye").textContent =
     estadoTorneo.etiqueta;
