@@ -2783,6 +2783,8 @@ function renderInicio() {
       : "Ver fecha completa"
     : "Ver fase completa";
   const claveAgenda = agenda.clave || `fase:${agenda.fase.valor}`;
+  const etiquetaCantidadAgenda =
+    `${agenda.partidos.length} ${agenda.partidos.length === 1 ? "PARTIDO" : "PARTIDOS"}`;
 
   cont.innerHTML = `
     <div class="next-card home-agenda">
@@ -2791,7 +2793,7 @@ function renderInicio() {
           ${estadoTorneo.animado ? `<span class="nc-pulse"></span>` : ""}
           ${estadoTorneo.agenda}
         </div>
-        <div class="nc-round">${agenda.fase.etiqueta}</div>
+        <div class="nc-round">${etiquetaCantidadAgenda}</div>
       </div>
 
       <div class="home-match-list">
