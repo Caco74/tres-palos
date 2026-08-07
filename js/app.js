@@ -1154,11 +1154,7 @@ function obtenerEstadoTemporalPartido(partido, ahora = new Date()) {
 }
 
 function obtenerEstadoManualPartido(partido) {
-  const valor = String(partido.estado || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
+  const valor = normalizarEstadoPartidoValor(partido?.estado);
 
   if (!valor || valor === "programado") return null;
 
@@ -1202,6 +1198,16 @@ function obtenerEstadoManualPartido(partido) {
   };
 
   return estados[valor] || null;
+}
+
+function normalizarEstadoPartidoValor(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function obtenerEstadoTorneo(ahora = new Date()) {
@@ -2777,6 +2783,8 @@ function renderInicio() {
       : "Ver fecha completa"
     : "Ver fase completa";
   const claveAgenda = agenda.clave || `fase:${agenda.fase.valor}`;
+  const etiquetaCantidadAgenda =
+    `${agenda.partidos.length} ${agenda.partidos.length === 1 ? "PARTIDO" : "PARTIDOS"}`;
 
   cont.innerHTML = `
     <div class="next-card home-agenda">
@@ -2785,7 +2793,7 @@ function renderInicio() {
           ${estadoTorneo.animado ? `<span class="nc-pulse"></span>` : ""}
           ${estadoTorneo.agenda}
         </div>
-        <div class="nc-round">${agenda.fase.etiqueta}</div>
+        <div class="nc-round">${etiquetaCantidadAgenda}</div>
       </div>
 
       <div class="home-match-list">
@@ -2904,7 +2912,7 @@ function actualizarResumenTorneo(agenda) {
   if (tituloSeccion) {
     tituloSeccion.textContent = campeon
       ? "Campeón del torneo"
-      : "Agenda del torneo";
+      : "Agenda";
   }
   document.getElementById("sidebarEye").textContent =
     estadoTorneo.etiqueta;
@@ -5996,6 +6004,11 @@ function renderDetallePartido(id) {
   );
 
   if (!partidoBase) {
+    if (!cargaPartidosFinalizada) {
+      cont.innerHTML = renderDetalleVacio("Cargando partido...");
+      return;
+    }
+
     cont.innerHTML = renderDetalleVacio("Partido no encontrado");
     return;
   }
@@ -6466,63 +6479,245 @@ function renderValorDetalle(etiqueta, valor) {
 function renderAntecedentesDetallePartido(partido) {
   if (!partido.local || !partido.visitante) return "";
 
-  const antecedentes = obtenerAntecedentesRegulares(
-    partido.local,
-    partido.visitante,
-    partido.id
-  );
+  if (!cargaPartidosFinalizada) {
+    return `
+      <section class="detail-section detail-history">
+        <div class="detail-section-head">
+          <h2>&Uacute;ltimos antecedentes</h2>
+          <span>CARGANDO</span>
+        </div>
+        <div class="detail-empty" role="status" aria-busy="true">
+          Cargando antecedentes entre estos equipos...
+        </div>
+      </section>
+    `;
+  }
+
+  const antecedentes = obtenerUltimosAntecedentesPartido(partido);
   const cantidad = antecedentes.partidos.length;
+  const etiquetaCantidad = cantidad === 0
+    ? "SIN ANTECEDENTES"
+    : `${cantidad} ${cantidad === 1 ? "PARTIDO" : "PARTIDOS"}`;
 
   return `
     <section class="detail-section detail-history">
       <div class="detail-section-head">
-        <h2>Antecedentes en fase regular</h2>
-        <span>
-          ${cantidad || "Sin"} ${cantidad === 1 ? "cruce" : "cruces"}
-        </span>
+        <h2>&Uacute;ltimos antecedentes</h2>
+        <span>${etiquetaCantidad}</span>
       </div>
       ${cantidad > 0
         ? `
-          <div class="detail-history-summary">
-            ${resumirAntecedentesRegulares(antecedentes)}
-          </div>
           <div class="detail-history-list">
             ${antecedentes.partidos.map(item =>
-              renderAntecedenteDetallePartido(item, antecedentes)
+              renderAntecedenteDetallePartido(item)
             ).join("")}
           </div>
         `
         : `
           <div class="detail-empty">
-            Sin cruces previos de fase regular cargados para estos equipos.
+            No hay enfrentamientos anteriores cargados entre estos equipos.
           </div>
         `}
     </section>
   `;
 }
 
-function renderAntecedenteDetallePartido(item, antecedentes) {
+function obtenerClubIdLadoPartido(partido, lado) {
+  const id = partido?.[`${lado}_id`];
+  if (id !== null && id !== undefined && id !== "") {
+    return String(id);
+  }
+
+  const club = obtenerClub(partido?.[lado]);
+  return club?.id !== null && club?.id !== undefined
+    ? String(club.id)
+    : null;
+}
+
+function obtenerParejaClubesPartido(partido) {
+  const localId = obtenerClubIdLadoPartido(partido, "local");
+  const visitanteId = obtenerClubIdLadoPartido(partido, "visitante");
+
+  if (!localId || !visitanteId || localId === visitanteId) return null;
+
+  return { localId, visitanteId };
+}
+
+function partidoCoincideConParejaClubes(partido, pareja) {
+  if (!pareja) return false;
+
+  const localId = obtenerClubIdLadoPartido(partido, "local");
+  const visitanteId = obtenerClubIdLadoPartido(partido, "visitante");
+
+  if (!localId || !visitanteId) return false;
+
+  return (
+    (localId === pareja.localId && visitanteId === pareja.visitanteId) ||
+    (localId === pareja.visitanteId && visitanteId === pareja.localId)
+  );
+}
+
+function obtenerFechaCalendarioPartido(partido) {
+  const fecha = String(partido?.fecha_partido || "").trim();
+  if (!fecha) return "";
+
+  if (window.TPPublicTournament?.isValidMatchDate) {
+    return window.TPPublicTournament.isValidMatchDate(fecha) ? fecha : "";
+  }
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : "";
+}
+
+function antecedenteEsAnteriorAlPartido(antecedente, partidoActual) {
+  const fechaActual = obtenerFechaCalendarioPartido(partidoActual);
+  if (!fechaActual) return true;
+
+  const fechaAntecedente = obtenerFechaCalendarioPartido(antecedente);
+  return Boolean(fechaAntecedente && fechaAntecedente < fechaActual);
+}
+
+function obtenerPartidosHistoricosDetallePartido() {
+  const partidosBase = Array.isArray(state.partidosTodos) &&
+    state.partidosTodos.length > 0
+    ? state.partidosTodos
+    : state.partidos;
+  const torneoIds = [
+    ...new Set(
+      partidosBase
+        .map(partido => partido.torneo_id)
+        .filter(id => id !== null && id !== undefined && id !== "")
+        .map(String)
+    )
+  ];
+
+  if (torneoIds.length === 0) {
+    return partidosBase.map(partido => resolverPartidoPlayoff(partido));
+  }
+
+  return torneoIds.flatMap(torneoId => {
+    const torneo = state.torneos.find(
+      item => String(item.id) === torneoId
+    ) || { id: torneoId };
+
+    return obtenerPartidosResueltosTorneoHistorial(torneo);
+  });
+}
+
+function compararAntecedentesRecientes(a, b) {
+  const fechaA = obtenerFechaCalendarioPartido(a.partido);
+  const fechaB = obtenerFechaCalendarioPartido(b.partido);
+  const porFecha = fechaB.localeCompare(fechaA);
+
+  if (porFecha !== 0) return porFecha;
+
+  const idA = Number(a.partido.id);
+  const idB = Number(b.partido.id);
+
+  if (Number.isFinite(idA) && Number.isFinite(idB) && idA !== idB) {
+    return idB - idA;
+  }
+
+  return String(b.partido.id || "").localeCompare(
+    String(a.partido.id || "")
+  );
+}
+
+function obtenerUltimosAntecedentesPartido(partido, limite = 3) {
+  const pareja = obtenerParejaClubesPartido(partido);
+  if (!pareja) {
+    return { partidos: [] };
+  }
+
+  const partidos = obtenerPartidosHistoricosDetallePartido()
+    .filter(antecedente => {
+      if (String(antecedente.id) === String(partido.id)) return false;
+      if (!partidoCoincideConParejaClubes(antecedente, pareja)) return false;
+      if (!partidoTieneResultadoVisualConfirmado(antecedente)) return false;
+      return antecedenteEsAnteriorAlPartido(antecedente, partido);
+    })
+    .map(antecedente => ({ partido: antecedente }))
+    .sort(compararAntecedentesRecientes);
+
+  return {
+    partidos: partidos.slice(0, Math.max(0, Number(limite) || 0))
+  };
+}
+
+function obtenerTorneoPartidoHistorial(partido) {
+  return state.torneos.find(
+    torneo => String(torneo.id) === String(partido?.torneo_id)
+  ) || null;
+}
+
+function obtenerEtiquetaTorneoPartido(partido) {
+  const torneo = obtenerTorneoPartidoHistorial(partido);
+  if (torneo?.nombre) return torneo.nombre;
+  if (partido?.torneo_id) return `Torneo ${partido.torneo_id}`;
+  return "Torneo";
+}
+
+function obtenerEtiquetaInstanciaAntecedente(partido) {
+  if (partido.tipo === "regular") {
+    return partido.fecha ? `Fecha ${partido.fecha}` : "Fase regular";
+  }
+
+  if (partido.tipo === "playoff") {
+    return [etiquetaFase(partido.fase), etiquetaInstanciaPartido(partido)]
+      .filter(Boolean)
+      .join(" - ");
+  }
+
+  return partido.fase || partido.tipo || "";
+}
+
+function formatearFechaAntecedente(fecha) {
+  const [year, month, day] = String(fecha || "").split("-").map(Number);
+  const meses = [
+    "ENE", "FEB", "MAR", "ABR", "MAY", "JUN",
+    "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"
+  ];
+
+  if (!year || !month || !day || !meses[month - 1]) return "";
+
+  return `${String(day).padStart(2, "0")} ${meses[month - 1]} ${year}`;
+}
+
+function renderAntecedenteDetallePartido(item) {
   const partido = item.partido;
-  const ganaA = item.golesEquipoA > item.golesEquipoB;
-  const ganaB = item.golesEquipoB > item.golesEquipoA;
-  const contexto = partido.fecha
-    ? `Fecha ${partido.fecha}`
-    : formatearFechaCompleta(partido.fecha_partido);
+  const ganaLocal = Number(partido.goles_local) > Number(partido.goles_visitante);
+  const ganaVisitante = Number(partido.goles_visitante) > Number(partido.goles_local);
+  const torneo = escaparHtml(obtenerEtiquetaTorneoPartido(partido));
+  const instancia = escaparHtml(obtenerEtiquetaInstanciaAntecedente(partido));
+  const contexto = instancia ? `${torneo} &middot; ${instancia}` : torneo;
+  const fecha = formatearFechaAntecedente(
+    obtenerFechaCalendarioPartido(partido)
+  );
+  const nombreLocal = nombre(partido.local, partido.local_id);
+  const nombreVisitante = nombre(partido.visitante, partido.visitante_id);
+  const marcador = `${partido.goles_local} - ${partido.goles_visitante}`;
 
   return `
     <button
       type="button"
       class="detail-history-row"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
+      aria-label="${escaparHtml(
+        `${obtenerEtiquetaTorneoPartido(partido)}. ` +
+        `${obtenerEtiquetaInstanciaAntecedente(partido)}. ` +
+        `${nombreLocal} ${marcador} ${nombreVisitante}.`
+      )}"
     >
-      <span>${contexto}</span>
-      <strong class="${ganaA ? "winner" : ""}">
-        ${nombre(antecedentes.equipoA)}
-      </strong>
-      <b>${item.golesEquipoA} - ${item.golesEquipoB}</b>
-      <strong class="${ganaB ? "winner" : ""}">
-        ${nombre(antecedentes.equipoB)}
-      </strong>
+      <span class="detail-history-context">${contexto}</span>
+      ${fecha ? `<span class="detail-history-date">${fecha}</span>` : ""}
+      <span class="detail-history-scoreline">
+        <strong class="${ganaLocal ? "winner" : ""}">
+          ${escaparHtml(nombreLocal)}
+        </strong>
+        <b>${marcador}</b>
+        <strong class="${ganaVisitante ? "winner" : ""}">
+          ${escaparHtml(nombreVisitante)}
+        </strong>
+      </span>
     </button>
   `;
 }
@@ -7121,6 +7316,65 @@ function partidoFinalizadoParaRendimiento(partido) {
     Number.isFinite(Number(partido.goles_visitante));
 }
 
+const ESTADOS_PARTIDO_FINALIZADO_OFICIAL = new Set([
+  "finalizado",
+  "finalizada",
+  "resuelto",
+  "resuelta",
+  "cerrado",
+  "cerrada",
+  "terminado",
+  "terminada",
+  "completado",
+  "completada",
+  "homologado",
+  "homologada"
+]);
+
+function partidoTieneEstadoFinalizadoOficial(partido) {
+  const estado = normalizarEstadoPartidoValor(partido?.estado);
+  if (!estado) return false;
+
+  if (
+    typeof window !== "undefined" &&
+    window.TPPublicTournament?.isMatchResolved
+  ) {
+    return window.TPPublicTournament.isMatchResolved({ estado });
+  }
+
+  return ESTADOS_PARTIDO_FINALIZADO_OFICIAL.has(estado);
+}
+
+function partidoTieneResultadoVisualConfirmado(partido) {
+  return partidoTieneEstadoFinalizadoOficial(partido) &&
+    partidoTieneResultado(partido) &&
+    Number.isFinite(Number(partido.goles_local)) &&
+    Number.isFinite(Number(partido.goles_visitante));
+}
+
+function clasificarResultadoEquipoPartido(partido, equipo) {
+  if (!partidoTieneResultadoVisualConfirmado(partido)) return "neutral";
+
+  const lado = obtenerLadoEquipoPartido(partido, equipo);
+  if (!lado) return "neutral";
+
+  const esLocal = lado === "local";
+  const favor = Number(esLocal
+    ? partido.goles_local
+    : partido.goles_visitante);
+  const contra = Number(esLocal
+    ? partido.goles_visitante
+    : partido.goles_local);
+
+  if (favor > contra) return "win";
+  if (favor < contra) return "loss";
+  return "draw";
+}
+
+function obtenerClaseResultadoEquipoPartido(partido, equipo) {
+  return `team-match--${clasificarResultadoEquipoPartido(partido, equipo)}`;
+}
+
 function crearStatsRendimientoEquipo() {
   return {
     pj: 0,
@@ -7392,7 +7646,7 @@ function obtenerEstadoEquipoTorneoHistorial(equipo, partidosTorneo) {
     if (serieFinal.ganador) {
       const campeon = equipoCoincideConNombre(serieFinal.ganador, equipo);
       return {
-        texto: campeon ? "Campeon" : "Subcampeon",
+        texto: campeon ? "Campe\u00f3n" : "Subcampe\u00f3n",
         clase: campeon ? "champion" : "runner-up"
       };
     }
@@ -7616,8 +7870,8 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
     const textoGoles = `${goles} ${goles === 1 ? "gol" : "goles"}`;
 
     items.push(`
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">G</span>
+      <div class="team-season-note team-season-note--scorers">
+        <span class="team-season-note-icon team-season-note-icon--scorers" aria-hidden="true"></span>
         <div>
           <span>Goleadores</span>
           <strong>${unirFrases(nombresGoleadores)}</strong>
@@ -7636,8 +7890,8 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
     const descripcion = describirPartidoDesdeEquipo(partido, equipo);
 
     items.push(`
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">V</span>
+      <div class="team-season-note team-season-note--big-win">
+        <span class="team-season-note-icon team-season-note-icon--big-win" aria-hidden="true"></span>
         <div>
           <span>Mayor victoria</span>
           <strong>
@@ -7661,16 +7915,16 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
       : "A&uacute;n sin partidos jugados";
 
     items.push(`
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">G</span>
+      <div class="team-season-note team-season-note--scorers team-season-note--empty">
+        <span class="team-season-note-icon team-season-note-icon--scorers" aria-hidden="true"></span>
         <div>
           <span>Goleadores</span>
           <strong>Sin goles registrados</strong>
           <small>${detalle}</small>
         </div>
       </div>
-      <div class="team-season-note">
-        <span class="team-season-note-icon" aria-hidden="true">V</span>
+      <div class="team-season-note team-season-note--big-win team-season-note--empty">
+        <span class="team-season-note-icon team-season-note-icon--big-win" aria-hidden="true"></span>
         <div>
           <span>Mayor victoria</span>
           <strong>Sin datos todav&iacute;a</strong>
@@ -7693,24 +7947,50 @@ function renderDestacadosEquipoTorneo(destacados, equipo) {
 }
 
 function renderResumenTablaEquipo(datosTabla, estadoTorneoEquipo) {
-  const lineas = [];
+  const items = [];
 
   if (datosTabla.zona && datosTabla.posicionZona) {
-    lineas.push(
-      `${datosTabla.posicionZona}.&ordm; en Zona ${datosTabla.zona}`
+    items.push(
+      `<span class="team-season-position">${datosTabla.posicionZona}.&ordm; en Zona ${datosTabla.zona}</span>`
     );
   }
 
   if (estadoTorneoEquipo?.texto) {
-    lineas.push(escaparHtml(estadoTorneoEquipo.texto));
+    items.push(renderInsigniaEstadoEquipoTorneo(estadoTorneoEquipo));
   }
 
-  if (lineas.length === 0) return "";
+  if (items.length === 0) return "";
 
   return `
     <div class="team-season-outcome">
-      ${lineas.map(linea => `<span>${linea}</span>`).join("")}
+      ${items.join("")}
     </div>
+  `;
+}
+
+function renderInsigniaEstadoEquipoTorneo(estadoTorneoEquipo) {
+  if (!estadoTorneoEquipo?.texto) return "";
+
+  const claseEstado = String(estadoTorneoEquipo.clase || "neutral")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+  const esCampeon = claseEstado === "champion";
+  const claseLogro = esCampeon
+    ? "team-detail-achievement--champion"
+    : "team-detail-achievement--neutral";
+  const icono = esCampeon
+    ? '<span class="team-detail-achievement-icon" aria-hidden="true">&#9733;</span>'
+    : "";
+  const texto = escaparHtml(estadoTorneoEquipo.texto);
+  const etiquetaAccesible = esCampeon ? "Logro" : "Estado del torneo";
+
+  return `
+    <span
+      class="team-stage-badge team-detail-achievement ${claseLogro} team-stage-badge-${claseEstado}"
+      aria-label="${etiquetaAccesible}: ${texto}"
+    >
+      ${icono}<span>${texto}</span>
+    </span>
   `;
 }
 
@@ -7955,7 +8235,12 @@ function renderDetalleEquipo(equipo) {
   const escudo = obtenerEscudoEquipo(equipo, club?.id);
   const escudoEquipo = escudo
     ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreOficial)}" width="96" height="96" decoding="async">`
-    : nombreEquipo.slice(0, 2).toUpperCase();
+    : `<span aria-hidden="true">${escaparHtml(
+        (nombreEquipo || "?").trim().slice(0, 2).toUpperCase()
+      )}</span>`;
+  const claseEscudoEquipo = escudo
+    ? "team-detail-shield"
+    : "team-detail-shield is-missing";
 
   if (
     (seleccion.fallbackAplicado || seleccion.desdeUrl) &&
@@ -7973,20 +8258,25 @@ function renderDetalleEquipo(equipo) {
     </div>
 
     <article class="team-detail-card">
-      <section class="team-detail-identity">
+      <section class="team-detail-identity team-detail-header">
         <div class="team-detail-head">
-          <div class="team-detail-shield">${escudoEquipo}</div>
-          <div>
-            <span>Identidad del equipo</span>
+          <div class="${claseEscudoEquipo}">${escudoEquipo}</div>
+          <div class="team-detail-copy">
             <h1>${escaparHtml(nombreOficial)}</h1>
             ${apodo
               ? `<p class="team-detail-nickname">${escaparHtml(apodo)}</p>`
               : ""}
-            ${ciudad
-              ? `<div class="team-detail-origin">${escaparHtml(ciudad)}</div>`
-              : ""}
-            ${zonaDetalle
-              ? `<div class="team-detail-zone-line">${escaparHtml(zonaDetalle)}</div>`
+            ${ciudad || zonaDetalle
+              ? `
+                <div class="team-detail-meta-line">
+                  ${ciudad
+                    ? `<span class="team-detail-origin">${escaparHtml(ciudad)}</span>`
+                    : ""}
+                  ${zonaDetalle
+                    ? `<span class="team-detail-zone-line">${escaparHtml(zonaDetalle)}</span>`
+                    : ""}
+                </div>
+              `
               : ""}
           </div>
         </div>
@@ -8040,7 +8330,7 @@ function resultadoEquipoDetalle(partido, equipo) {
 }
 
 function partidoFinalizadoRecorridoEquipo(partido) {
-  return partidoResueltoParaVista(partido) || partidoTieneResultado(partido);
+  return partidoTieneResultadoVisualConfirmado(partido);
 }
 
 function renderMiniPartido(partido, equipo, proximo = false) {
@@ -8068,24 +8358,26 @@ function renderMiniPartido(partido, equipo, proximo = false) {
     : esProximo
       ? "next"
       : "pending";
+  const ladoEquipo = obtenerLadoEquipoPartido(partido, equipo);
+  const claseResultado = obtenerClaseResultadoEquipoPartido(partido, equipo);
   const nombreLocal = obtenerNombreLadoPartido(partido, "local");
   const nombreVisitante = obtenerNombreLadoPartido(partido, "visitante");
 
   return `
     <button
       type="button"
-      class="team-match-row ${claseEstado}"
+      class="team-match-row ${claseEstado} ${claseResultado}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
       aria-label="${escaparHtml(
         `${contexto}: ${nombreLocal} vs ${nombreVisitante}. ${tieneMarcador ? `Resultado ${centro}` : centro}. ${etiquetaEstado}.`
       )}"
     >
       <span class="team-match-line">
-      <span class="${partido.local === equipo ? "focus-team" : ""}">
+      <span class="${ladoEquipo === "local" ? "focus-team" : ""}">
         ${nombreLocal}
       </span>
       <strong class="${tieneMarcador ? "team-match-score" : "team-match-pending"}">${centro}</strong>
-      <span class="${partido.visitante === equipo ? "focus-team" : ""}">
+      <span class="${ladoEquipo === "visitante" ? "focus-team" : ""}">
         ${nombreVisitante}
       </span>
       </span>
@@ -8209,7 +8501,7 @@ function renderActividadLibre(actividad, equipo) {
 
   return `
     <div
-      class="team-match-row team-activity-free"
+      class="team-match-row team-activity-free team-match--bye"
       aria-label="Fecha ${actividad.fecha} libre de ${equipoLibre}"
     >
       <span class="team-free-line">
