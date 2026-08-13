@@ -144,6 +144,20 @@ const TORNEOS_SIN_CRONOLOGIA_CONFIABLE = new Set([1]);
 const LISTADO_NEUTRAL_INCIDENCIAS_PUBLICAS = true;
 
 const TIPOS_GOL_PARTIDO = new Set(["gol", "gol-penal", "gol-contra"]);
+const EVENTOS_PUBLICOS_SELECT = [
+  "id",
+  "partido_id",
+  "tipo",
+  "equipo_id",
+  "equipo",
+  "jugador",
+  "jugador_relacionado",
+  "inscripcion_jugador_id",
+  "orden",
+  "periodo",
+  "minuto",
+  "estado_dato"
+].join(",");
 
 const GRUPOS_INCIDENCIAS_DETALLE = [
   {
@@ -9531,7 +9545,7 @@ async function obtenerPartidos() {
         { headers }
       ),
       fetch(
-        `${SUPABASE_URL}/rest/v1/eventos_partido?select=*&order=id.asc`,
+        `${SUPABASE_URL}/rest/v1/eventos_partido_publicos?select=${EVENTOS_PUBLICOS_SELECT}&order=id.asc`,
         { headers }
       ),
       fetch(

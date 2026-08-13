@@ -1632,6 +1632,9 @@ function runTests() {
   assert.match(extractFunction(appSource, "actualizarNavegacionTabla"), /goleadores/);
   assert.match(appSource, /\/\.netlify\/functions\/goleadores-publicos/);
   assert.doesNotMatch(appSource, /goleadores_oficiales\?select/);
+  assert.match(appSource, /eventos_partido_publicos\?select=\$\{EVENTOS_PUBLICOS_SELECT\}&order=id\.asc/);
+  assert.doesNotMatch(appSource, /\/rest\/v1\/eventos_partido\?select=\*/);
+  assert.match(appSource, /const EVENTOS_PUBLICOS_SELECT = \[/);
   assert.match(extractFunction(appSource, "renderTeams"), /buildTeamList/);
   assert.match(extractFunction(appSource, "obtenerEtapaInicial"), /getInitialRegularStageKey/);
   assert.match(extractFunction(appSource, "actualizarNavegacionEtapas"), /etapa\.clave === etapaActual/);

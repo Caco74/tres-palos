@@ -159,7 +159,7 @@ async function getConfirmedGoalEvents(matchIds) {
   const responses = await Promise.all(
     chunk(ids, 120).map(group =>
       supabaseFetch(
-        "/rest/v1/eventos_partido" +
+        "/rest/v1/eventos_partido_publicos" +
         "?select=id,partido_id,tipo,estado_dato,inscripcion_jugador_id,jugador" +
         `&partido_id=in.(${group.map(encodeURIComponent).join(",")})` +
         "&tipo=in.(gol,gol_penal)" +

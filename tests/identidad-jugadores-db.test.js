@@ -697,6 +697,72 @@ function runTests() {
       respaldo.TABLES.some(table => table.name === "eventos_partido"),
       true
     );
+    assert.deepEqual(auditoria.REMOTE_SELECTS.eventos_partido.split(","), [
+      "id",
+      "partido_id",
+      "tipo",
+      "jugador",
+      "equipo_id",
+      "equipo",
+      "inscripcion_jugador_id"
+    ]);
+
+    const auditoriaSource = read("scripts/auditar-jugadores-historicos.js");
+    assert.match(auditoriaSource, /process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
+    assert.doesNotMatch(auditoriaSource, /SUPABASE_KEY/);
+    assert.doesNotMatch(auditoriaSource, /SUPABASE_ANON_KEY/);
+    assert.doesNotMatch(auditoriaSource, /process\.env\.SUPABASE_(?:KEY|ANON_KEY)/);
+    assert.doesNotMatch(auditoriaSource, /\bkeyMatch\b/);
+    assert.doesNotMatch(auditoriaSource, /eventos_partido\?select=\*/);
+    assert.doesNotMatch(auditoriaSource, /select=\*/);
+    assert.match(auditoriaSource, /\/rest\/v1\/eventos_partido\?select=\$\{REMOTE_SELECTS\.eventos_partido\}&order=id\.asc/);
+
+    const serviceRoleEnv = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
+    const anonKeyEnv = ["SUPABASE", "ANON", "KEY"].join("_");
+    const publicKeyEnv = ["SUPABASE", "KEY"].join("_");
+    const urlEnv = ["SUPABASE", "URL"].join("_");
+    const originalServiceRoleKey = process.env[serviceRoleEnv];
+    const originalAnonKey = process.env[anonKeyEnv];
+    const originalSupabaseKey = process.env[publicKeyEnv];
+    const originalSupabaseUrl = process.env[urlEnv];
+    try {
+      delete process.env[serviceRoleEnv];
+      process.env[anonKeyEnv] = "dummy-public-anon-key";
+      process.env[publicKeyEnv] = "dummy-public-key";
+      process.env[urlEnv] = "https://supabase.test";
+      assert.throws(
+        () => auditoria.extractRemoteSupabaseConfig(),
+        /--remote-read requiere SUPABASE_SERVICE_ROLE_KEY/
+      );
+
+      process.env[serviceRoleEnv] = "dummy-internal-service-key";
+      const remoteConfig = auditoria.extractRemoteSupabaseConfig();
+      assert.deepEqual(remoteConfig, {
+        url: "https://supabase.test",
+        key: "dummy-internal-service-key"
+      });
+    } finally {
+      if (originalServiceRoleKey === undefined) {
+        delete process.env[serviceRoleEnv];
+      } else {
+        process.env[serviceRoleEnv] = originalServiceRoleKey;
+      }
+      if (originalAnonKey === undefined) {
+        delete process.env[anonKeyEnv];
+      } else {
+        process.env[anonKeyEnv] = originalAnonKey;
+      }
+      if (originalSupabaseKey === undefined) {
+        delete process.env[publicKeyEnv];
+      } else {
+        process.env[publicKeyEnv] = originalSupabaseKey;
+      }
+      if (originalSupabaseUrl === undefined) {
+        delete process.env[urlEnv];
+      } else {
+        process.env[urlEnv] = originalSupabaseUrl;
+      }
+    }
     results.push("scripts bloquean escrituras Supabase y respaldo usa GET: ok");
   }
 

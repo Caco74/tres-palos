@@ -266,6 +266,16 @@ function assertPublicScorersFunctionIsReadOnly() {
   assert.match(source, /httpMethod !== "GET"/);
   assert.match(source, /Access-Control-Allow-Methods": "GET, OPTIONS"/);
   assert.doesNotMatch(source, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+  assert.match(source, /\/rest\/v1\/eventos_partido_publicos/);
+  assert.doesNotMatch(source, /\/rest\/v1\/eventos_partido["?]/);
+  assert.match(
+    source,
+    /\?select=id,partido_id,tipo,estado_dato,inscripcion_jugador_id,jugador/
+  );
+  assert.doesNotMatch(
+    source,
+    /eventos_partido_publicos[\s\S]{0,160}(?:fuente|observaciones)/
+  );
   assert.doesNotMatch(
     cleaned,
     /\.(insert|update|delete|upsert|rpc)\s*\(|method:\s*(?:''|"")(?:POST|PUT|PATCH|DELETE)/i

@@ -40,6 +40,47 @@ const INVALID_PLAYER_NAMES = new Set([
   "desconocido"
 ]);
 const REMOTE_HTTP_METHODS = ["GET"];
+const REMOTE_SELECTS = {
+  torneos: [
+    "id"
+  ].join(","),
+  clubes: [
+    "id",
+    "nombre_corto",
+    "nombre_oficial"
+  ].join(","),
+  jugadores: [
+    "id",
+    "nombre_completo",
+    "aliases"
+  ].join(","),
+  inscripciones_jugadores: [
+    "id",
+    "jugador_id",
+    "club_id",
+    "torneo_id"
+  ].join(","),
+  partidos: [
+    "id",
+    "torneo_id",
+    "fecha",
+    "fase",
+    "local_id",
+    "visitante_id"
+  ].join(","),
+  eventos_partido: [
+    "id",
+    "partido_id",
+    "tipo",
+    "jugador",
+    "equipo_id",
+    "equipo",
+    "inscripcion_jugador_id"
+  ].join(","),
+  goleadores_oficiales: [
+    "id"
+  ].join(",")
+};
 const ORDERED_STATUSES = [
   "coincidencia_exacta_segura",
   "coincidencia_alias_confirmado",
@@ -886,14 +927,32 @@ function groupScorersTransition(events) {
   );
 }
 
-function extractPublicSupabaseConfig() {
+function extractPublicSupabaseUrl() {
   const text = fs.readFileSync(path.join(ROOT, "js", "config.js"), "utf8");
   const urlMatch = text.match(/SUPABASE_URL\s*=\s*"([^"]+)"/);
-  const keyMatch = text.match(/SUPABASE_KEY\s*=\s*"([^"]+)"/);
-  if (!urlMatch || !keyMatch) {
-    throw new Error("No se pudo leer la configuracion publica de Supabase.");
+  if (!urlMatch) {
+    throw new Error("No se pudo leer la URL publica de Supabase.");
   }
-  return { url: urlMatch[1].replace(/\/+$/, ""), key: keyMatch[1] };
+  return urlMatch[1];
+}
+
+function extractRemoteSupabaseConfig() {
+  const key = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+  if (!key) {
+    throw new Error(
+      "--remote-read requiere SUPABASE_SERVICE_ROLE_KEY en el entorno. " +
+        "No se usa ninguna clave publica como fallback."
+    );
+  }
+
+  const url = String(
+    process.env.SUPABASE_URL || extractPublicSupabaseUrl()
+  ).trim();
+  if (!url) {
+    throw new Error("No se pudo resolver SUPABASE_URL para --remote-read.");
+  }
+
+  return { url: url.replace(/\/+$/, ""), key };
 }
 
 function supabaseGet(config, restPath) {
@@ -933,7 +992,7 @@ function supabaseGet(config, restPath) {
 }
 
 async function loadRemoteDataset() {
-  const config = extractPublicSupabaseConfig();
+  const config = extractRemoteSupabaseConfig();
   const [
     torneos,
     clubes,
@@ -943,18 +1002,21 @@ async function loadRemoteDataset() {
     eventos,
     goleadores
   ] = await Promise.all([
-    supabaseGet(config, "/rest/v1/torneos?select=*&order=id.asc"),
-    supabaseGet(config, "/rest/v1/clubes?select=*&order=id.asc"),
-    supabaseGet(config, "/rest/v1/jugadores?select=*&order=id.asc"),
+    supabaseGet(config, `/rest/v1/torneos?select=${REMOTE_SELECTS.torneos}&order=id.asc`),
+    supabaseGet(config, `/rest/v1/clubes?select=${REMOTE_SELECTS.clubes}&order=id.asc`),
+    supabaseGet(config, `/rest/v1/jugadores?select=${REMOTE_SELECTS.jugadores}&order=id.asc`),
     supabaseGet(
       config,
-      "/rest/v1/inscripciones_jugadores?select=*&order=id.asc"
+      `/rest/v1/inscripciones_jugadores?select=${REMOTE_SELECTS.inscripciones_jugadores}&order=id.asc`
     ),
-    supabaseGet(config, "/rest/v1/partidos?select=*&order=id.asc"),
-    supabaseGet(config, "/rest/v1/eventos_partido?select=*&order=id.asc"),
+    supabaseGet(config, `/rest/v1/partidos?select=${REMOTE_SELECTS.partidos}&order=id.asc`),
     supabaseGet(
       config,
-      "/rest/v1/goleadores_oficiales?select=*&order=id.asc"
+      `/rest/v1/eventos_partido?select=${REMOTE_SELECTS.eventos_partido}&order=id.asc`
+    ),
+    supabaseGet(
+      config,
+      `/rest/v1/goleadores_oficiales?select=${REMOTE_SELECTS.goleadores_oficiales}&order=id.asc`
     )
   ]);
 
@@ -962,7 +1024,7 @@ async function loadRemoteDataset() {
     metadata: {
       formato: "tres-palos-auditoria-remota-identidad-jugadores",
       generado_en: new Date().toISOString(),
-      metodo: "Supabase REST publico, solo GET"
+      metodo: "Supabase REST service_role, solo GET"
     },
     torneos,
     clubes,
@@ -1030,6 +1092,7 @@ if (require.main === module) {
 module.exports = {
   BLOCKED_FLAGS,
   REMOTE_HTTP_METHODS,
+  REMOTE_SELECTS,
   DEFAULT_BACKUP_PATH,
   DEFAULT_REPORT_PATH,
   DEFAULT_MAPPING_PATH,
@@ -1037,6 +1100,8 @@ module.exports = {
   SCORER_TYPES,
   parseArgs,
   readJson,
+  extractRemoteSupabaseConfig,
+  loadRemoteDataset,
   normalizePlayerName,
   cleanPlayerName,
   normalizeEventType,
