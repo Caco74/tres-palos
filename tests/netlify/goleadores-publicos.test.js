@@ -316,7 +316,8 @@ async function runGoleadoresPublicosTests() {
             })
           ]);
         }
-        if (call.url.includes("/rest/v1/eventos_partido")) {
+        if (call.url.includes("/rest/v1/eventos_partido_publicos")) {
+          assert.doesNotMatch(call.url, /\/rest\/v1\/eventos_partido\?/);
           assert.match(call.url, /tipo=in\.\(gol,gol_penal\)/);
           assert.match(call.url, /estado_dato=eq\.confirmado/);
           assert.match(call.url, /inscripcion_jugador_id=not\.is\.null/);
@@ -523,7 +524,8 @@ async function runGoleadoresPublicosTests() {
         if (call.url.includes("/rest/v1/partidos")) {
           return mockResponse(200, [match({ id: 401, torneo_id: 3 })]);
         }
-        if (call.url.includes("/rest/v1/eventos_partido")) {
+        if (call.url.includes("/rest/v1/eventos_partido_publicos")) {
+          assert.doesNotMatch(call.url, /\/rest\/v1\/eventos_partido\?/);
           return mockResponse(200, []);
         }
         throw new Error(call.url);
@@ -558,6 +560,16 @@ async function runGoleadoresPublicosTests() {
       assert.doesNotMatch(
         functionSource,
         /\.(insert|update|delete|upsert|rpc)\s*\(|method:\s*["'](?:POST|PUT|PATCH|DELETE)["']/i
+      );
+      assert.match(functionSource, /\/rest\/v1\/eventos_partido_publicos/);
+      assert.doesNotMatch(functionSource, /\/rest\/v1\/eventos_partido["?]/);
+      assert.match(
+        functionSource,
+        /\?select=id,partido_id,tipo,estado_dato,inscripcion_jugador_id,jugador/
+      );
+      assert.doesNotMatch(
+        functionSource,
+        /eventos_partido_publicos[\s\S]{0,160}(?:fuente|observaciones)/
       );
       assert.match(functionSource, /SUPABASE_ANON_KEY/);
       assert.match(functionSource, /Access-Control-Allow-Methods": "GET, OPTIONS"/);
@@ -596,6 +608,36 @@ async function runGoleadoresPublicosTests() {
 
       assert.match(appSource, /\/\.netlify\/functions\/goleadores-publicos/);
       assert.doesNotMatch(appSource, /goleadores_oficiales\?select/);
+      assert.match(appSource, /eventos_partido_publicos\?select=\$\{EVENTOS_PUBLICOS_SELECT\}&order=id\.asc/);
+      assert.doesNotMatch(appSource, /\/rest\/v1\/eventos_partido\?select=\*/);
+      const publicEventsSelect = appSource.match(
+        /const EVENTOS_PUBLICOS_SELECT = \[([\s\S]*?)\]\.join\(","\);/
+      )?.[1] || "";
+      [
+        "id",
+        "partido_id",
+        "tipo",
+        "equipo_id",
+        "equipo",
+        "jugador",
+        "jugador_relacionado",
+        "inscripcion_jugador_id",
+        "orden",
+        "periodo",
+        "minuto",
+        "estado_dato"
+      ].forEach(column => {
+        assert.match(publicEventsSelect, new RegExp(`"${column}"`));
+      });
+      [
+        "fuente",
+        "observaciones",
+        "inscripcion_relacionada_id",
+        "created_at",
+        "actualizado_en"
+      ].forEach(column => {
+        assert.doesNotMatch(publicEventsSelect, new RegExp(`"${column}"`));
+      });
       const serviceRoleName = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
       assert.equal(
         (appSource + utilsSource + indexSource).includes(serviceRoleName),
