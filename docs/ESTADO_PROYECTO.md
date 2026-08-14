@@ -1,10 +1,14 @@
 # Tres Palos — Estado del proyecto
 
-Fecha de auditoría: 2026-08-09, America/Buenos_Aires.
+Fecha de auditoría original: 2026-08-09, America/Buenos_Aires.
 
-Commit/main auditado:
+Última actualización operativa: 2026-08-14, cierre de seguridad validado en producción y cambio de foco hacia operación/lanzamiento.
 
-- Rama documental actual: `docs/estado-proyecto-auditoria`.
+Referencias de auditoría original y actualización actual:
+
+- Rama de trabajo actual: `feat/eventos-publicos-vista`.
+- HEAD local al actualizar este documento: `8f80ec04d5907e783900cd0a961ab88dc0b24ecc`.
+- Rama documental de la auditoría original: `docs/estado-proyecto-auditoria`.
 - Base de la rama documental: `origin/main` actualizado con `git fetch origin`.
 - `origin/main` auditado: `1d8b3f8fa539738070fd1cd32bcb07559eaa1df8`.
 - Commit base/documental actual: `1d8b3f8fa539738070fd1cd32bcb07559eaa1df8`.
@@ -12,7 +16,7 @@ Commit/main auditado:
 - HEAD de la rama auditada originalmente: `c7f035006d860b42455b45d63fbf563bb5eef41a`.
 - `main` local no fue fast-forwardeado manualmente: `3ca5b33468883663597943d058ff62726863ff62`.
 - Validación post-fetch: no hay diferencias de árbol entre `feat/jerarquia-visual-detalle-equipos` (`c7f0350`) y `origin/main` (`1d8b3f8`); la diferencia real es el merge commit de PR #15.
-- Nota: no se hizo `pull`, `merge` manual, deploy ni cambios remotos fuera de `git fetch`, `push` de la rama documental y creación del PR documental.
+- Nota histórica de la auditoría original: no se hizo `pull`, `merge` manual, deploy ni cambios remotos fuera de `git fetch`, `push` de la rama documental y creación del PR documental.
 
 Marcas usadas:
 
@@ -21,7 +25,39 @@ Marcas usadas:
 - 🔴 Problema
 - ⚪ Pendiente
 
-Alcance: auditoría estática del repositorio local, `git fetch origin`, lecturas remotas de solo consulta a GitHub y ejecución local segura de tests con mocks. No se consultó ni modificó Supabase remoto. No se verificó Netlify remoto ni producción.
+Alcance original: auditoría estática del repositorio local, `git fetch origin`, lecturas remotas de solo consulta a GitHub y ejecución local segura de tests con mocks. En ese momento no se consultó ni modificó Supabase remoto y no se verificó Netlify remoto ni producción.
+
+## 0. Estado vigente posterior al cierre de seguridad
+
+✅ La auditoría de seguridad quedó formalmente cerrada y validada en producción.
+
+✅ FASE A/B/C cerradas.
+
+✅ Default privileges y FASE D cerrados.
+
+✅ `eventos_partido` quedó corregido:
+
+- `anon` ya no puede leer `public.eventos_partido`.
+- `anon` sí puede leer `public.eventos_partido_publicos`.
+- `public.eventos_partido_publicos` sólo expone eventos confirmados y columnas públicas.
+- PR #17 fue mergeado.
+- Deploy Preview OK.
+- Producción OK.
+- Producción post-revoke OK.
+- Post-snapshot final con `all_checks_passed=true`.
+
+✅ Decisión operativa: no volver a auditar ACL, RLS, default privileges ni policies sin un motivo concreto. Motivos válidos: cambio real de schema/permisos/policies, nueva tabla o vista expuesta, nueva función con privilegios, incidente, alerta, evidencia de regresión o preparación de una migración sensible.
+
+Etapa actual del proyecto:
+
+1. Cierre técnico/documental definitivo.
+2. Operación y recuperación.
+3. Prueba completa de carga, edición, incidencias y publicación.
+4. Backup y restauración.
+5. Riesgos operativos pendientes.
+6. Validación durante el Clausura.
+7. SEO y preparación de lanzamiento.
+8. Conseguir usuarios reales.
 
 ## 1. Qué es Tres Palos
 
@@ -29,7 +65,7 @@ Alcance: auditoría estática del repositorio local, `git fetch origin`, lectura
 
 ✅ Confirmado: el stack es HTML, CSS y JavaScript vanilla, Supabase/Postgres por REST, funciones Netlify para operaciones con privilegios y Google Analytics/analítica propia.
 
-🟡 Parcial / verificar: el producto ya es multitorneo por `torneo_id`, pero todavía hay verificaciones remotas pendientes antes de afirmar que producción está aislada de punta a punta.
+✅ Confirmado: el producto ya es multitorneo por `torneo_id`; el foco pendiente es validar operación real durante Clausura y documentar recuperación, no reabrir la auditoría de permisos.
 
 ## 2. Arquitectura actual
 
@@ -71,8 +107,8 @@ Bloques principales:
 
 🟡 Parcial / verificar:
 
-- No se verificaron variables Netlify reales: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`.
-- No se verificó deploy actual, deploy preview, dominio Netlify ni redirección desde URL Netlify hacia `trespalos.com.ar`.
+- En la auditoría original no se verificaron variables Netlify reales: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`.
+- El flujo de PR #17 sí quedó validado en Deploy Preview y producción para la corrección de `eventos_partido`; quedan pendientes verificaciones operativas/SEO de dominio Netlify, redirección hacia `trespalos.com.ar`, headers efectivos y logs.
 - No hay headers globales de seguridad como CSP, HSTS, `X-Frame-Options` o `Referrer-Policy` en `netlify.toml`.
 
 ## 4. Modelo de datos
@@ -92,8 +128,8 @@ Bloques principales:
 🟡 Parcial / verificar:
 
 - No hay tabla versionada de participaciones de clubes por torneo. Las zonas aparecen en `partidos.zona` y también como `clubes.zona` global heredado.
-- `partidos` y `eventos_partido` tienen alteraciones, constraints y grants parciales versionados, pero no schema base completo en repo.
-- La documentación histórica dice que Apertura es `torneo_id = 1` y Clausura `torneo_id = 2`; esta auditoría no lo revalidó en Supabase remoto.
+- `partidos` y `eventos_partido` tienen alteraciones, constraints y grants parciales versionados, pero no schema base completo en repo. Esto queda como deuda documental/de reconstrucción, no como auditoría de seguridad pendiente.
+- La documentación histórica dice que Apertura es `torneo_id = 1` y Clausura `torneo_id = 2`; para tareas operativas nuevas conviene consultar/confirmar IDs antes de ejecutar cargas o ediciones.
 
 Datos locales relevantes:
 
@@ -117,7 +153,7 @@ Datos locales relevantes:
 | Detalle de equipo | IMPLEMENTADO | Cabecera, escudo/fallback, historial por campeonato, resumen, destacados y partidos por fase. |
 | Historial por campeonato | PARCIAL | Fuerte en detalle de equipo y playoffs; no hay selector global para Inicio/Partidos/Tabla. |
 | Últimos antecedentes | IMPLEMENTADO | PR #15 agrega antecedentes entre equipos en detalle de partido. |
-| Incidencias públicas | PARCIAL | Se muestran incidencias confirmadas; hay 308 eventos históricos documentados sin ID de inscripción. |
+| Incidencias públicas | IMPLEMENTADO | Se muestran desde `public.eventos_partido_publicos`, sólo con eventos confirmados y columnas públicas. Persisten eventos históricos sin ID de inscripción como deuda de datos, no como problema de exposición pública. |
 | Estados de partidos | PARCIAL | Funcionan en público/admin, pero la lógica está duplicada y con variantes. |
 | Footer/contacto | IMPLEMENTADO | Footer con contacto, enlaces y Acerca. |
 | Error 404 | IMPLEMENTADO | `404.html` con `noindex, follow`. |
@@ -138,8 +174,8 @@ Datos locales relevantes:
 
 🟡 Parcial / verificar:
 
-- El aislamiento por `torneo_id` está cubierto por tests locales con mocks, pero falta probarlo contra Netlify/Supabase reales.
-- La protección por etapas depende de que `etapas_estado` y RPCs existan en remoto; si faltan, algunas funciones toleran `42P01`/`PGRST205` y no bloquean por etapa cerrada.
+- El aislamiento por `torneo_id` está cubierto por tests locales con mocks. La próxima validación debe ser una prueba operativa completa de carga/edición/incidencias/publicación con datos reales controlados, no una reapertura genérica de ACL/RLS.
+- La protección por etapas debe incluirse en el ensayo operativo de cierre, reapertura y restauración.
 - Planteles muestra inscripciones conocidas por jugador como contexto global admin; las escrituras sí incluyen torneo, pero conviene revisar UX para evitar selección accidental.
 - No hay administración explícita de `goleadores_oficiales`; los goleadores públicos dependen de snapshot o eventos.
 
@@ -151,12 +187,14 @@ Datos locales relevantes:
 Posibilidad de modificar accidentalmente otro torneo:
 
 - ✅ Mitigada en código local para partidos, incidencias y etapas mediante `torneo_id`.
-- 🟡 Requiere verificación remota con requests manipulados y datos reales.
-- 🔴 Si las tablas/RPC de cierre no están aplicadas o Apertura no está cerrado, el histórico podría quedar editable desde operaciones válidas del torneo correspondiente.
+- 🟡 Debe validarse como parte de la prueba funcional completa del admin con datos reales controlados.
+- 🟡 El cierre de Apertura y la protección por etapas deben quedar cubiertos por el manual operativo y el ensayo de backup/restore.
 
 ## 7. Seguridad
 
-CONFIRMADO SEGURO por inspección local:
+Estado: CERRADO / VALIDADO EN PRODUCCIÓN.
+
+Confirmado por la auditoría cerrada:
 
 - ✅ No se encontró `SUPABASE_SERVICE_ROLE_KEY` hardcodeada en frontend.
 - ✅ `js/config.js` expone una clave Supabase con rol `anon`, esperable para lectura pública.
@@ -166,30 +204,30 @@ CONFIRMADO SEGURO por inspección local:
 - ✅ `goleadores-publicos.js` usa anon/public key y no service role.
 - ✅ `goleadores-publicos.js` limita CORS a métodos `GET, OPTIONS`.
 - ✅ `tp-admin-7c9f2026.html` y `robots.txt` declaran no indexación/bloqueo de rutas admin.
+- ✅ FASE A/B/C cerradas.
+- ✅ Default privileges y FASE D cerrados.
+- ✅ `anon` ya no puede leer `public.eventos_partido`.
+- ✅ `anon` sí puede leer `public.eventos_partido_publicos`.
+- ✅ `public.eventos_partido_publicos` sólo expone eventos confirmados y columnas públicas.
+- ✅ PR #17 mergeado, Deploy Preview OK, producción OK, producción post-revoke OK y post-snapshot final con `all_checks_passed=true`.
 
-REQUIERE VERIFICACIÓN REMOTA:
+Regla vigente:
 
-- 🟡 RLS, policies y grants reales de `partidos` y `eventos_partido`.
-- 🟡 Que `anon` conserve sólo SELECT en `partidos` y `eventos_partido` hoy.
-- 🟡 Estado del rol `authenticated`, documentado como pendiente de decisión.
-- 🟡 Variables reales de Netlify.
-- 🟡 Que las funciones deployadas correspondan al código auditado.
-- 🟡 Existencia de `etapas_estado`, `respaldos_etapa` y RPCs de cierre/restauración.
-- 🟡 Dominio, redirects, TLS, headers efectivos y logs Netlify.
+- ✅ No reabrir auditoría de ACL/RLS/default privileges/policies sin motivo concreto.
+- ✅ Mantener evidencia histórica, pero no convertir permisos ya cerrados en trabajo pendiente.
+- ✅ Si aparece un cambio sensible o incidente, abrir una tarea nueva con alcance específico, no repetir la auditoría completa.
 
-RIESGO REAL:
+Riesgos operativos que siguen vivos, fuera del cierre ACL/RLS:
 
 - 🔴 `ADMIN_PASSWORD` compartida enviada en cada request; sin rate limit ni trazabilidad por usuario.
 - 🔴 No hay CSP ni headers globales de endurecimiento.
 - 🔴 El endpoint público `analytics-event` inserta con service role y no tiene rate limit visible.
-- 🔴 `partidos` y `eventos_partido` no tienen schema base versionado, por lo que el repo no permite reconstruir ni auditar seguridad completa.
 - 🔴 Si falla la carga de `torneos`, el público conserva/fallback hacia todos los partidos en algunos caminos.
 - 🔴 Backups locales están ignorados por Git y no hay custodia externa documentada.
+- 🟡 `partidos` y `eventos_partido` no tienen schema base completo versionado; esto queda como deuda de reconstrucción/operación, no como bloqueo de seguridad ya auditada.
 
-MEJORA RECOMENDADA:
+Mejoras recomendadas, no bloqueantes del cierre:
 
-- ⚪ Versionar/verificar schema real mínimo de `partidos` y `eventos_partido`.
-- ⚪ Documentar una auditoría remota reproducible de RLS/grants.
 - ⚪ Agregar protección de acceso/rate limiting para admin.
 - ⚪ Agregar CSP y headers globales.
 - ⚪ Evitar fallback público a datos mezclados.
@@ -250,7 +288,7 @@ Comandos reales previstos si Node está disponible en PATH:
 - `node tests/netlify/admin-partidos.test.js`
 - Ejecutar cada archivo `.test.js` individualmente; no hay runner npm versionado.
 
-No cubierto:
+No cubierto por tests locales automatizados:
 
 - ⚪ QA visual real desktop/mobile.
 - ⚪ Netlify Functions deployadas.
@@ -261,7 +299,7 @@ No cubierto:
 
 Riesgo de falsos positivos:
 
-- 🟡 Muchos tests inspeccionan strings, mocks o helpers; pueden pasar aunque producción tenga schema/env/RLS distinto.
+- 🟡 Muchos tests inspeccionan strings, mocks o helpers; pueden pasar aunque el deploy, los datos reales o las variables operativas tengan diferencias.
 
 ## 10. SEO
 
@@ -340,7 +378,7 @@ Optimizaciones no urgentes:
 
 Respuesta explícita: ¿Podemos recuperar Tres Palos de un error grave de datos hoy?
 
-🔴 No con garantía operacional completa. Hay un backup local valioso del Apertura y SQL/RPCs diseñados para restaurar etapas, pero no hay procedimiento de restore probado y documentado de punta a punta, no hay confirmación de que los RPCs estén aplicados en Supabase remoto, no hay schema base completo versionado para reconstrucción total y no hay custodia externa documentada de `respaldos/`. Ante un error grave hoy, probablemente se podría intentar recuperar parte importante del Apertura desde el JSON local, pero dependería de trabajo manual y verificación remota.
+🔴 No con garantía operacional completa. Hay un backup local valioso del Apertura y SQL/RPCs diseñados para restaurar etapas, pero no hay procedimiento de restore probado y documentado de punta a punta, no hay ensayo reciente con datos controlados, no hay schema base completo versionado para reconstrucción total y no hay custodia externa documentada de `respaldos/`. Ante un error grave hoy, probablemente se podría intentar recuperar parte importante del Apertura desde el JSON local, pero dependería de trabajo manual y verificación cuidadosa.
 
 ⚪ Pendiente crítico: documentar y ensayar `BACKUP_RESTORE.md` antes de cargar o editar datos productivos nuevos.
 
@@ -364,12 +402,12 @@ Respuesta explícita: ¿Podemos recuperar Tres Palos de un error grave de datos 
 
 ✅ Confirmado local:
 
-- Working tree antes de crear este documento: limpio.
-- Cambios locales no commiteados relacionados con Inicio/Agenda: ninguno.
-- La rama documental `docs/estado-proyecto-auditoria` fue creada desde `origin/main` actualizado.
-- En la rama documental, el único cambio esperado es `docs/ESTADO_PROYECTO.md`.
+- Rama de trabajo al actualizar este documento: `feat/eventos-publicos-vista`.
+- HEAD local al actualizar este documento: `8f80ec04d5907e783900cd0a961ab88dc0b24ecc`.
+- Cambio local esperado en esta tarea: `docs/ESTADO_PROYECTO.md`.
+- No se tocaron archivos de código en esta actualización documental.
 
-✅ Confirmado Git/GitHub:
+✅ Confirmado Git/GitHub en la auditoría original:
 
 - Ramas remotas reales en GitHub: `main`, `feat/jerarquia-visual-detalle-equipos`, `footer/prelanzamiento`.
 - GitHub PRs: 15 totales, 0 abiertos, 0 drafts, 15 cerrados.
@@ -381,9 +419,16 @@ Respuesta explícita: ¿Podemos recuperar Tres Palos de un error grave de datos 
 - `fe35fb6`: `Mejorar jerarquía visual del detalle de equipos`; está en la rama actual y en PR #15 mergeado.
 - `a3e0d1a`: `Mostrar últimos antecedentes entre equipos`; está en la rama actual y en PR #15 mergeado.
 
+✅ Confirmado posterior a la auditoría original:
+
+- PR #17 fue mergeado.
+- La corrección de `eventos_partido` quedó validada en Deploy Preview, producción, producción post-revoke y post-snapshot final.
+- La auditoría de seguridad quedó formalmente cerrada.
+
 🟡 Parcial / verificar:
 
-- `origin/main` local ya está actualizado en `1d8b3f8`; la rama local `main` sigue en `3ca5b33` porque no se hizo fast-forward de `main`.
+- Los datos de conteo total de PRs y ramas remotas listados arriba pertenecen a la auditoría original y pueden estar desactualizados.
+- En la auditoría original, `origin/main` local estaba actualizado en `1d8b3f8`; la rama local `main` seguía en `3ca5b33` porque no se hizo fast-forward de `main`.
 - La rama auditada `feat/jerarquia-visual-detalle-equipos` contiene 4 commits sobre `main` local: `fe35fb6`, `a3e0d1a`, `73620cf`, `c7f0350`; GitHub ya los integró en `origin/main` vía merge commit `1d8b3f8`.
 - La comparación post-fetch no cambió conclusiones técnicas: `origin/main` y la rama auditada tienen el mismo árbol de código.
 
@@ -405,55 +450,55 @@ No se borró ninguna rama.
 
 ## 16. Problemas conocidos
 
-🔴 Schema base de `partidos` y `eventos_partido` no versionado.
-
-🔴 Seguridad remota de `partidos`/`eventos_partido` no verificable hoy desde repo.
-
 🔴 Recuperación ante error grave no garantizada operacionalmente.
 
 🔴 Admin con password compartida, sin rate limit ni usuarios.
 
-🔴 Falta verificación real de aislamiento admin en Netlify/Supabase.
+🔴 Falta prueba operativa completa de carga, edición, incidencias y publicación con datos reales controlados.
 
 🔴 Fallback público puede mostrar datos mezclados si no se determina `torneo_id`.
 
 🟡 Estados de partido duplicados y variantes ambiguas.
 
-🟡 Documentación existente está repartida, parcialmente obsoleta y con contradicciones.
+🟡 Schema base de `partidos` y `eventos_partido` no versionado de forma completa; deuda de reconstrucción/documentación, no auditoría de permisos pendiente.
+
+🟡 Documentación existente está repartida, parcialmente obsoleta y con contradicciones anteriores al cierre de seguridad.
 
 🟡 Assets y JS públicos son pesados para escala móvil.
 
-🟡 Producción/dominio/variables Netlify no verificados.
+🟡 SEO y preparación de lanzamiento todavía no tienen checklist validado.
+
+🟡 Todavía falta validar el comportamiento durante el Clausura con operación real y usuarios reales.
 
 ## 17. Deuda técnica priorizada
 
 ### CRÍTICA
 
-1. Problema: schema/RLS real de `partidos` y `eventos_partido` no está completo en repo.
-   Evidencia: no hay `CREATE TABLE public.partidos` ni `CREATE TABLE public.eventos_partido`; sólo alteraciones en `supabase/` y verificaciones en `sql/`.
-   Riesgo: no se puede reconstruir ni auditar seguridad e integridad central.
-   Acción recomendada: exportar/versionar schema mínimo real con constraints, RLS, policies, grants e índices.
-   Urgencia: antes de cualquier carga productiva nueva.
-
-2. Problema: recuperación no probada ni documentada.
+1. Problema: recuperación no probada ni documentada.
    Evidencia: backup local en `respaldos/`, RPCs en `supabase/cierre-etapas.sql`, pero no runbook probado.
    Riesgo: pérdida o corrupción de datos con recuperación manual incierta.
    Acción recomendada: crear y ensayar procedimiento `BACKUP_RESTORE.md`.
+   Urgencia: inmediata, antes de operación productiva regular.
+
+2. Problema: no hay manual operativo definitivo para cargar resultados, editar partidos, registrar incidencias, publicar cambios, cerrar/reabrir etapas y actuar ante incidentes.
+   Evidencia: los flujos existen en código/admin, pero no hay procedimiento único, probado y ejecutable por una persona operadora.
+   Riesgo: errores manuales, pasos omitidos, datos inconsistentes o publicación incompleta.
+   Acción recomendada: crear `MANUAL_OPERACION_TORNEO.md` y usarlo en una prueba completa.
    Urgencia: inmediata.
 
-3. Problema: seguridad admin basada en password compartida.
+3. Problema: falta prueba completa de carga/edición/incidencias/publicación.
+   Evidencia: hay tests locales y validaciones de seguridad cerradas, pero falta simular la operación real de una fecha/partido de punta a punta.
+   Riesgo: fallas funcionales recién detectadas durante el Clausura.
+   Acción recomendada: ejecutar un ensayo controlado con checklist, registrar hallazgos y corregir lo que bloquee operación.
+   Urgencia: inmediata.
+
+4. Problema: seguridad admin basada en password compartida.
    Evidencia: `js/admin-panel.js` usa `sessionStorage`; funciones validan `x-admin-password`.
    Riesgo: sin trazabilidad, bloqueo, rotación individual ni mitigación de fuerza bruta.
    Acción recomendada: agregar protección de acceso/rate limit o auth real.
-   Urgencia: antes de operación diaria activa.
+   Urgencia: antes de ampliar cantidad de operadores.
 
 ### ALTA
-
-4. Problema: aislamiento admin no probado en remoto.
-   Evidencia: tests locales con mocks pasan, pero README/ROADMAP lo marcan pendiente.
-   Riesgo: editar Apertura desde operación Clausura si deploy/schema difiere.
-   Acción recomendada: QA remoto con requests manipulados.
-   Urgencia: antes de tocar datos reales.
 
 5. Problema: fallback público a datos mezclados.
    Evidencia: `js/app.js` avisa "Se muestran todos los partidos" si falla `torneos`.
@@ -465,12 +510,12 @@ No se borró ninguna rama.
    Evidencia: `js/app.js`, `js/public-tournament.js`, `js/admin-panel.js`, `js/admin-match-flow.js`, `admin-partidos.js` y SQL tienen reglas propias.
    Riesgo: diferencias entre público, admin, cierre y tests.
    Acción recomendada: definir modelo/catálogo único y adaptar capas.
-   Urgencia: alta, pero después de la auditoría.
+   Urgencia: alta, durante estabilización operativa.
 
 7. Problema: refs locales desalineadas con GitHub.
-   Evidencia: `origin/main` local `3ca5b33`, remoto real `1d8b3f8`.
+   Evidencia: la auditoría original dejó referencias de ramas y PRs ya superadas por PR #17.
    Riesgo: confusión sobre qué está integrado.
-   Acción recomendada: hacer `fetch --prune` planificado y revisar ramas, sin borrar hasta decidir.
+   Acción recomendada: hacer limpieza documental/git planificada, sin borrar ramas hasta decidir.
    Urgencia: alta para coordinación, no para runtime.
 
 8. Problema: ausencia de headers globales de seguridad.
@@ -479,27 +524,39 @@ No se borró ninguna rama.
    Acción recomendada: agregar CSP y headers adecuados tras prueba.
    Urgencia: alta antes de exposición amplia.
 
+9. Problema: SEO y lanzamiento no tienen checklist operativo actualizado.
+   Evidencia: hay SEO base, `robots.txt` y `sitemap.xml`, pero falta validar producción, Search Console, indexación deseada, dominio y contenido previo al lanzamiento.
+   Riesgo: lanzamiento público con descubrimiento pobre o señales incorrectas.
+   Acción recomendada: actualizar `CHECKLIST_LANZAMIENTO.md` o crear checklist SEO/lanzamiento específico.
+   Urgencia: alta antes de buscar usuarios reales.
+
 ### MEDIA
 
-9. Problema: overfetch público.
+10. Problema: overfetch público.
    Evidencia: `obtenerPartidos()` carga todos los partidos históricos y todos los eventos.
    Riesgo: performance y exposición de más datos que los necesarios.
    Acción recomendada: endpoints/vistas filtradas por torneo y carga diferida de histórico.
    Urgencia: media; sube con crecimiento de datos.
 
-10. Problema: documentación dispersa/obsoleta.
+11. Problema: documentación dispersa/obsoleta.
     Evidencia: `docs/estado-proyecto.md` contradice backup final; README/ROADMAP son de 2026-07-21.
     Riesgo: decisiones basadas en estado viejo.
     Acción recomendada: usar este documento como fuente maestra y archivar/actualizar documentos viejos.
     Urgencia: media.
 
-11. Problema: assets/JS pesados y sin pipeline.
+12. Problema: schema base de `partidos` y `eventos_partido` no versionado de forma completa.
+    Evidencia: no hay `CREATE TABLE public.partidos` ni `CREATE TABLE public.eventos_partido`; sólo alteraciones en `supabase/` y verificaciones en `sql/`.
+    Riesgo: reconstrucción total más difícil ante desastre o migración futura.
+    Acción recomendada: exportar/versionar schema mínimo real con constraints, índices y contratos de datos relevantes.
+    Urgencia: media; tratar como recuperación/documentación, no como reapertura de permisos.
+
+13. Problema: assets/JS pesados y sin pipeline.
     Evidencia: PNG 4.76 MB, `app.js` 276 KB, `main.css` 144 KB.
     Riesgo: carga móvil lenta.
     Acción recomendada: optimizar imágenes, revisar caché y luego evaluar bundling.
     Urgencia: media.
 
-12. Problema: no hay runner de tests versionado.
+14. Problema: no hay runner de tests versionado.
     Evidencia: no existe `package.json`; `node` no está en PATH en esta máquina.
     Riesgo: ejecución inconsistente entre entornos.
     Acción recomendada: documentar comando mínimo o agregar script npm si se decide adoptar Node local.
@@ -507,19 +564,19 @@ No se borró ninguna rama.
 
 ### BAJA
 
-13. Problema: `js/api.js` y `js/router.js` vacíos se cargan en producción.
+15. Problema: `js/api.js` y `js/router.js` vacíos se cargan en producción.
     Evidencia: archivos 0 bytes y scripts en `index.html`.
     Riesgo: ruido y requests innecesarios menores.
     Acción recomendada: decidir si eliminarlos o llenarlos cuando haya refactor planificado.
     Urgencia: baja.
 
-14. Problema: cache busting manual.
+16. Problema: cache busting manual.
     Evidencia: query strings `?v=` en HTML.
     Riesgo: errores humanos al publicar cambios.
     Acción recomendada: mantener checklist o introducir pipeline cuando el proyecto lo justifique.
     Urgencia: baja.
 
-15. Problema: SEO de vistas dinámicas no indexable.
+17. Problema: SEO de vistas dinámicas no indexable.
     Evidencia: sitemap sólo `/` y `/acerca.html`; `/equipos/*` es SPA.
     Riesgo: menos descubrimiento orgánico de equipos.
     Acción recomendada: decidir si es objetivo de producto.
@@ -541,18 +598,18 @@ No se borró ninguna rama.
 
 ## 19. Próximos pasos
 
-Top 10 recomendado:
+Secuencia vigente, una cosa por vez:
 
-1. Verificar Supabase remoto: IDs de torneos, schema, RLS, policies y grants de `partidos`/`eventos_partido`.
-2. Verificar variables y deploy Netlify contra el commit esperado.
-3. Probar aislamiento admin real con requests manipulados: sin `torneo_id`, torneo inexistente y recurso de otro torneo.
-4. Documentar y ensayar backup/restore completo.
-5. Confirmar que Apertura histórico está cerrado/protegido contra edición accidental.
-6. Corregir el fallback público para no mezclar torneos si falla `torneos`.
-7. Normalizar modelo de estados de partido.
-8. Decidir custodia de `respaldos/`: Git privado, storage externo o política explícita.
-9. Actualizar/archivar docs viejos para que este documento sea la fuente maestra.
-10. Ejecutar QA visual y accesibilidad en desktop/mobile con datos reales.
+1. Cerrar documentación maestra: actualizar `docs/ESTADO_PROYECTO.md` con el cierre de seguridad y la nueva etapa.
+2. Crear/actualizar `BACKUP_RESTORE.md`: procedimiento de backup, custodia y restore.
+3. Ensayar recuperación con datos controlados y registrar resultado.
+4. Crear/actualizar `MANUAL_OPERACION_TORNEO.md`: carga de resultado, edición, incidencias, publicación, cierre/reapertura y manejo de errores.
+5. Ejecutar prueba completa de carga/edición/incidencias/publicación con checklist y evidencia.
+6. Corregir bloqueos detectados en la prueba operativa.
+7. Reducir riesgos operativos pendientes: fallback público de torneo, estados duplicados, admin con password compartida/rate limit y observabilidad básica.
+8. Validar operación durante el Clausura con casos reales, manteniendo registro de incidencias y aprendizajes.
+9. Preparar SEO/lanzamiento: producción, dominio, sitemap, Search Console, metadata, rendimiento mínimo y checklist público.
+10. Conseguir usuarios reales: difusión controlada, feedback de clubes/periodistas/hinchas y priorización de mejoras por uso real.
 
 Virtudes / no conviene reescribir:
 
@@ -574,6 +631,11 @@ Documentos complementarios propuestos, no creados todavía:
 - `BACKUP_RESTORE.md`: sí, crítico.
 - `DECISIONES_PRODUCTO.md`: sí, para selector global, historial, Datos/Estadísticas y alcance SEO.
 
+Regla de foco:
+
+- No reabrir ACL/RLS/default privileges/policies sin un motivo concreto.
+- Tratar seguridad cerrada como base; el foco inmediato es operación, recuperación, validación real y lanzamiento.
+
 ## 20. Ideas futuras / fuera de alcance actual
 
 ⚪ Pendiente / fuera de alcance de esta auditoría:
@@ -593,30 +655,39 @@ Documentos complementarios propuestos, no creados todavía:
 
 ⚪ Pendiente:
 
-- Auditoría remota de Supabase RLS/grants.
-- Verificación de variables Netlify.
-- Deploy/preview/revisión antes de publicar.
-- Backup completo manual y automático.
-- Restore completo desde backup local.
+- Backup completo manual y/o automático.
+- Custodia externa de respaldos.
+- Restore completo desde backup local/controlado.
+- Prueba de restauración y criterios para declararla exitosa.
+- Carga de resultado e incidencias de un partido.
+- Corrección/edición de un partido ya publicado.
+- Publicación y verificación pública posterior.
 - Cierre de fecha/zona/fase.
 - Reapertura de etapa.
-- Carga de resultado e incidencias de un partido.
 - Fin de torneo y archivado.
-- Rotación de `ADMIN_PASSWORD`.
 - Manejo de incidente de datos.
-- Política de custodia de respaldos.
+- Registro de operación durante el Clausura.
+- Deploy/preview/revisión antes de publicar.
+- Rotación de `ADMIN_PASSWORD`.
+- Revisión de logs/observabilidad básica.
+- Checklist SEO/lanzamiento.
+- Captura y priorización de feedback de usuarios reales.
 - Política para actualizar `main` local y limpiar ramas stale sin borrar accidentalmente trabajo útil.
+
+Procedimientos cerrados:
+
+- Auditoría remota de ACL/RLS/default privileges/policies, salvo motivo concreto para reabrir.
 
 ## 22. Preguntas abiertas
 
-- 🟡 ¿El `main` local debe fast-forwardearse desde `origin/main` ahora que GitHub ya tiene #15 mergeado?
-- 🟡 ¿Apertura y Clausura siguen siendo realmente `torneo_id = 1` y `torneo_id = 2` en Supabase producción?
-- 🟡 ¿Está aplicado `supabase/cierre-etapas.sql` en Supabase remoto?
-- 🟡 ¿Apertura está cerrado/protegido contra edición accidental?
-- 🟡 ¿`anon` y `authenticated` tienen hoy los grants mínimos esperados?
+- 🟡 ¿El `main` local debe fast-forwardearse desde `origin/main` y cuándo conviene limpiar ramas históricas?
+- 🟡 ¿Qué IDs de torneo deben usarse operativamente para Apertura y Clausura antes de ejecutar cargas/ediciones?
+- 🟡 ¿Cuál será el procedimiento oficial de backup, dónde se custodiará y quién lo ejecutará?
+- 🟡 ¿Cuál será el procedimiento oficial de restore y con qué frecuencia se ensayará?
+- 🟡 ¿Cómo se validará que Apertura queda protegido operacionalmente contra ediciones accidentales durante Clausura?
 - 🟡 ¿Qué URL de Netlify queda accesible además de `trespalos.com.ar`?
 - 🟡 ¿La vista Datos/Estadísticas se mantiene, se rediseña o se retira de la navegación/código?
 - 🟡 ¿El historial debe tener selector global o sólo vivir en detalle de equipo/playoffs?
-- 🟡 ¿Dónde se custodiarán los backups fuera de la máquina local?
 - 🟡 ¿Quién puede operar el admin y cómo se rota la contraseña?
 - 🟡 ¿Se debe indexar `/equipos/*` o mantenerlo como SPA no indexable explícita?
+- 🟡 ¿Qué clubes, periodistas, delegados o usuarios reales participarán en la primera validación pública?
