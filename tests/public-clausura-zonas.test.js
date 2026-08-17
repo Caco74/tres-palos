@@ -178,6 +178,204 @@ function extractSmallTexts(html) {
     .map(match => match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 }
 
+function mockJsonResponse(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body
+  };
+}
+
+function buildObtenerPartidosSandbox(appSource, overrides = {}) {
+  const calls = [];
+  const elements = {};
+  const rendered = [];
+  const warnings = [];
+  const errors = [];
+  const mensajeFailClosed =
+    "No se pudo determinar el torneo actual. Intentá nuevamente más tarde.";
+  const defaultTorneos = [
+    {
+      id: TORNEO_APERTURA,
+      nombre: "Apertura 2026",
+      anio: 2026,
+      tipo: "apertura",
+      activo: false
+    },
+    {
+      id: TORNEO_CLAUSURA,
+      nombre: "Clausura 2026",
+      anio: 2026,
+      tipo: "clausura",
+      activo: true
+    }
+  ];
+  const currentPartidos = overrides.currentPartidos || [
+    { id: 20, torneo_id: TORNEO_CLAUSURA, tipo: "regular", fecha: 1 }
+  ];
+  const partidosTodos = overrides.partidosTodos || [
+    { id: 10, torneo_id: TORNEO_APERTURA, tipo: "regular", fecha: 1 },
+    ...currentPartidos
+  ];
+  const torneosResponse = Object.prototype.hasOwnProperty.call(
+    overrides,
+    "torneosResponse"
+  )
+    ? overrides.torneosResponse
+    : defaultTorneos;
+
+  const sandbox = {
+    JSON,
+    Date,
+    encodeURIComponent,
+    SUPABASE_URL: "https://supabase.test",
+    SUPABASE_KEY: "anon",
+    EVENTOS_PUBLICOS_SELECT: "id,partido_id",
+    MENSAJE_TORNEO_PUBLICO_INVALIDO: mensajeFailClosed,
+    actualizandoDatos: false,
+    cargaPartidosFinalizada: false,
+    errorCargaDatos: false,
+    mensajeErrorCargaDatos: "",
+    ultimaCargaDatos: 0,
+    etapaActual: "fecha:1",
+    zonaActual: 1,
+    vistaActual: overrides.vistaActual || { id: "inicio", navId: "inicio" },
+    previewTorneoIdSolicitado: overrides.previewTorneoIdSolicitado || null,
+    state: {
+      torneos: overrides.initialTorneos || [],
+      torneoSeleccionadoId: overrides.torneoSeleccionadoId || null,
+      torneoPreview: null,
+      torneoVigente: null,
+      torneoActivo: null,
+      partidos: overrides.initialPartidos || [],
+      partidosTodos: [],
+      eventos: [],
+      eventosTodos: [],
+      goleadoresOficiales: [],
+      goleadoresOficialesTodos: [],
+      goleadoresTabla: null,
+      errorGoleadoresTabla: false
+    },
+    window: {
+      location: {
+        hostname: overrides.hostname || "trespalos.com.ar",
+        search: overrides.search || ""
+      },
+      TPPublicTournament: {
+        isNetlifyPreviewHost: () => Boolean(overrides.previewHost)
+      }
+    },
+    document: {
+      getElementById: id => {
+        if (!elements[id]) elements[id] = { innerHTML: "" };
+        return elements[id];
+      }
+    },
+    console: {
+      warn: (...args) => warnings.push(args.map(String).join(" ")),
+      error: (...args) => errors.push(args.map(String).join(" "))
+    },
+    escaparHtml: value => String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;"),
+    crearTablaGoleadoresVacia: () => ({
+      fuente: null,
+      mensaje_vacio: "",
+      tablas: { "1": [], "2": [], "3": [], general: [] }
+    }),
+    normalizarRespuestaGoleadoresTabla: data => data,
+    aplicarClubes: clubes => {
+      sandbox.clubesAplicados = clubes;
+    },
+    actualizarNavegacionEtapas: () => rendered.push("nav"),
+    renderMatches: () => rendered.push("partidos"),
+    renderTabla: zona => rendered.push(`tabla:${zona}`),
+    renderInicio: () => rendered.push("inicio"),
+    renderPlayoffs: () => rendered.push("playoffs"),
+    renderTeams: () => rendered.push("equipos"),
+    renderDetallePartido: id => rendered.push(`partido:${id}`),
+    renderDetalleEquipo: equipo => rendered.push(`equipo:${equipo}`),
+    fetch: async url => {
+      const text = String(url);
+      calls.push(text);
+
+      if (text.includes("/rest/v1/torneos?")) {
+        return mockJsonResponse(overrides.torneosStatus || 200, torneosResponse);
+      }
+      if (
+        text.includes("/rest/v1/partidos?select=*") &&
+        text.includes("torneo_id=eq.")
+      ) {
+        return mockJsonResponse(overrides.partidosStatus || 200, currentPartidos);
+      }
+      if (text.includes("/rest/v1/partidos?select=*&order=id.asc")) {
+        return mockJsonResponse(overrides.partidosTodosStatus || 200, partidosTodos);
+      }
+      if (text.includes("/rest/v1/eventos_partido_publicos?")) {
+        return mockJsonResponse(overrides.eventosStatus || 200, overrides.eventos || []);
+      }
+      if (text.includes("/rest/v1/clubes?")) {
+        return mockJsonResponse(overrides.clubesStatus || 200, overrides.clubes || []);
+      }
+      if (text.includes("/.netlify/functions/goleadores-publicos?")) {
+        return mockJsonResponse(
+          overrides.goleadoresStatus || 200,
+          overrides.goleadores || {
+            fuente: "eventos_identificados",
+            mensaje_vacio: "",
+            tablas: { "1": [], "2": [], "3": [], general: [] }
+          }
+        );
+      }
+
+      throw new Error(`Fetch inesperado: ${text}`);
+    }
+  };
+
+  sandbox.aplicarDatosTorneo = torneo => {
+    sandbox.appliedTournament = torneo || null;
+    sandbox.state.torneoActivo = torneo || null;
+    sandbox.state.partidos = torneo?.id
+      ? sandbox.state.partidosTodos.filter(
+          partido => String(partido.torneo_id) === String(torneo.id)
+        )
+      : [...sandbox.state.partidosTodos];
+    const partidosIds = new Set(sandbox.state.partidos.map(partido => String(partido.id)));
+    sandbox.state.eventos = sandbox.state.eventosTodos.filter(evento =>
+      partidosIds.has(String(evento.partido_id))
+    );
+  };
+
+  const obtenerPartidosSource = extractFunction(appSource, "obtenerPartidos")
+    .replace(/^function\s+obtenerPartidos/, "async function obtenerPartidos");
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "renderEstadoVista")}
+     ${extractFunction(appSource, "obtenerMensajeErrorCargaDatos")}
+     ${extractFunction(appSource, "obtenerTorneoActivo")}
+     ${extractFunction(appSource, "obtenerTorneoPreview")}
+     ${extractFunction(appSource, "obtenerTorneoSeleccionado")}
+     ${extractFunction(appSource, "crearErrorTorneoPublicoInvalido")}
+     ${extractFunction(appSource, "renderDatos")}
+     ${obtenerPartidosSource}
+     this.obtenerPartidos = obtenerPartidos;`,
+    sandbox
+  );
+
+  if (!overrides.usarRenderDatosReal) {
+    sandbox.renderDatos = () => rendered.push("datos");
+  }
+
+  return {
+    run: async () => {
+      await sandbox.obtenerPartidos();
+      return { calls, elements, rendered, warnings, errors, sandbox };
+    }
+  };
+}
+
 function buildRenderMiniPartido(appSource) {
   const sandbox = {
     JSON,
@@ -472,7 +670,7 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
   };
 }
 
-function runTests() {
+async function runTests() {
   const results = [];
   const torneos = [
     { id: TORNEO_APERTURA, nombre: "Apertura 2026", activo: true },
@@ -868,6 +1066,134 @@ function runTests() {
   assert.doesNotMatch(indexSource, /Tabla de posiciones/);
   assert.doesNotMatch(indexSource, />21 clubes</);
   assert.doesNotMatch(indexSource, /preview_torneo[\s\S]{0,160}<select/i);
+
+  assert.doesNotMatch(appSource, /Se muestran todos los partidos\./);
+  assert.match(
+    extractFunction(appSource, "obtenerPartidos"),
+    /throw crearErrorTorneoPublicoInvalido\(\)/
+  );
+
+  const cargaPublicaValida = await buildObtenerPartidosSandbox(appSource).run();
+  assert.equal(cargaPublicaValida.sandbox.errorCargaDatos, false);
+  assert.equal(cargaPublicaValida.sandbox.appliedTournament.id, TORNEO_CLAUSURA);
+  assert.deepEqual(
+    cargaPublicaValida.sandbox.state.partidos.map(partido => partido.id),
+    [20]
+  );
+  assert.equal(
+    cargaPublicaValida.sandbox.state.partidos.every(
+      partido => Number(partido.torneo_id) === TORNEO_CLAUSURA
+    ),
+    true
+  );
+  assert.equal(
+    cargaPublicaValida.calls.some(url =>
+      url.includes(`/rest/v1/partidos?select=*&torneo_id=eq.${TORNEO_CLAUSURA}&order=id.asc`)
+    ),
+    true
+  );
+  assert.equal(
+    cargaPublicaValida.calls.some(url =>
+      url.endsWith("/rest/v1/partidos?select=*&order=id.asc")
+    ),
+    true
+  );
+  assert.equal(
+    cargaPublicaValida.calls.some(url =>
+      url === `/.netlify/functions/goleadores-publicos?torneo_id=${TORNEO_CLAUSURA}`
+    ),
+    true
+  );
+  results.push("carga publica con torneo valido conserva filtro por torneo_id: ok");
+
+  const cargaSinTorneoValido = await buildObtenerPartidosSandbox(appSource, {
+    torneosResponse: [
+      {
+        id: TORNEO_APERTURA,
+        nombre: "Apertura 2026",
+        anio: 2026,
+        tipo: "apertura",
+        activo: false
+      },
+      {
+        id: TORNEO_CLAUSURA,
+        nombre: "Clausura 2026",
+        anio: 2026,
+        tipo: "clausura",
+        activo: false
+      }
+    ],
+    usarRenderDatosReal: true
+  }).run();
+  assert.equal(cargaSinTorneoValido.sandbox.errorCargaDatos, true);
+  assert.equal(cargaSinTorneoValido.sandbox.state.partidos.length, 0);
+  assert.equal(cargaSinTorneoValido.sandbox.state.partidosTodos.length, 0);
+  assert.equal(cargaSinTorneoValido.calls.length, 1);
+  assert.match(cargaSinTorneoValido.calls[0], /\/rest\/v1\/torneos\?/);
+  assert.equal(
+    cargaSinTorneoValido.calls.some(url => url.includes("/rest/v1/partidos?select=*")),
+    false
+  );
+  assert.equal(
+    cargaSinTorneoValido.calls.some(url => url.includes("goleadores-publicos")),
+    false
+  );
+  assert.equal(
+    cargaSinTorneoValido.calls.some(url => url.includes("eventos_partido_publicos")),
+    false
+  );
+  assert.match(
+    cargaSinTorneoValido.elements.datosContent.innerHTML,
+    /No se pudo determinar el torneo actual/
+  );
+  assert.doesNotMatch(
+    cargaSinTorneoValido.elements.datosContent.innerHTML,
+    /Se muestran todos los partidos/
+  );
+  results.push("carga publica sin torneo valido falla cerrada sin consultar partidos globales: ok");
+
+  const cargaTorneoSeleccionado = await buildObtenerPartidosSandbox(appSource, {
+    torneosResponse: [
+      {
+        id: TORNEO_APERTURA,
+        nombre: "Apertura 2026",
+        anio: 2026,
+        tipo: "apertura",
+        activo: false
+      },
+      {
+        id: TORNEO_CLAUSURA,
+        nombre: "Clausura 2026",
+        anio: 2026,
+        tipo: "clausura",
+        activo: false
+      }
+    ],
+    torneoSeleccionadoId: String(TORNEO_APERTURA),
+    currentPartidos: [
+      { id: 11, torneo_id: TORNEO_APERTURA, tipo: "regular", fecha: 1 }
+    ],
+    partidosTodos: [
+      { id: 11, torneo_id: TORNEO_APERTURA, tipo: "regular", fecha: 1 },
+      { id: 22, torneo_id: TORNEO_CLAUSURA, tipo: "regular", fecha: 1 }
+    ]
+  }).run();
+  assert.equal(cargaTorneoSeleccionado.sandbox.errorCargaDatos, false);
+  assert.equal(
+    cargaTorneoSeleccionado.sandbox.appliedTournament.id,
+    TORNEO_APERTURA
+  );
+  assert.deepEqual(
+    cargaTorneoSeleccionado.sandbox.state.partidos.map(partido => partido.id),
+    [11]
+  );
+  assert.equal(
+    cargaTorneoSeleccionado.calls.some(url =>
+      url.includes(`/rest/v1/partidos?select=*&torneo_id=eq.${TORNEO_APERTURA}&order=id.asc`)
+    ),
+    true
+  );
+  results.push("torneo historico seleccionado con id valido no queda bloqueado: ok");
 
   const renderResumenTablaEquipoPrueba = buildRenderResumenTablaEquipo(appSource);
   const resumenCampeon = renderResumenTablaEquipoPrueba(
@@ -1700,7 +2026,10 @@ function runTests() {
   assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-kicker">General/);
   assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /Tabla general de puntos/);
   assert.match(extractFunction(appSource, "aplicarDatosTorneo"), /filtrarPartidosPorTorneo/);
-  assert.match(extractFunction(appSource, "obtenerPartidos"), /torneo_id=eq\.\$\{encodeURIComponent/);
+  assert.match(
+    extractFunction(appSource, "obtenerPartidos"),
+    /torneoIdPublicoParam[\s\S]*torneo_id=eq\.\$\{torneoIdPublicoParam\}/
+  );
   assert.doesNotMatch(extractFunction(utilsSource, "aplicarClubes"), /\.zona\b/);
   assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*padding: 11px 12px 14px/);
@@ -1733,12 +2062,14 @@ function runTests() {
 }
 
 if (require.main === module) {
-  try {
-    runTests().forEach(result => console.log(result));
-  } catch (error) {
-    console.error(error);
-    process.exitCode = 1;
-  }
+  runTests()
+    .then(results => {
+      results.forEach(result => console.log(result));
+    })
+    .catch(error => {
+      console.error(error);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = { runTests };
