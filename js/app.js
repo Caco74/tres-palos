@@ -8,6 +8,7 @@ let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
 let cargaPartidosFinalizada = false;
 let errorCargaDatos = false;
+let mensajeErrorCargaDatos = "";
 let ultimaCargaDatos = 0;
 let alcanceDatosActual = null;
 let equiposComparadorDatos = {
@@ -142,6 +143,8 @@ const FASES_PLAYOFF = [
 
 const TORNEOS_SIN_CRONOLOGIA_CONFIABLE = new Set([1]);
 const LISTADO_NEUTRAL_INCIDENCIAS_PUBLICAS = true;
+const MENSAJE_TORNEO_PUBLICO_INVALIDO =
+  "No se pudo determinar el torneo actual. Intentá nuevamente más tarde.";
 
 const TIPOS_GOL_PARTIDO = new Set(["gol", "gol-penal", "gol-contra"]);
 const EVENTOS_PUBLICOS_SELECT = [
@@ -609,10 +612,15 @@ function renderEstadoVista(tipo, titulo, mensaje, reintentar = false) {
   `;
 }
 
+function obtenerMensajeErrorCargaDatos(fallback) {
+  return mensajeErrorCargaDatos || fallback;
+}
+
 function reintentarCargaDatos() {
   if (actualizandoDatos) return;
 
   errorCargaDatos = false;
+  mensajeErrorCargaDatos = "";
   cargaPartidosFinalizada = false;
   renderMatches();
   renderTabla(zonaActual);
@@ -630,7 +638,7 @@ function renderMatches() {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar los partidos",
-      "Revisá tu conexión e intentá nuevamente.",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
       true
     );
     return;
@@ -1380,9 +1388,11 @@ function crearEstadoTorneo(
 function obtenerTorneoActivo(torneos) {
   if (!Array.isArray(torneos) || torneos.length === 0) return null;
 
-  const ordenados = [...torneos].sort(
+  const activos = torneos.filter(torneo => torneo?.id && torneo.activo);
+  if (activos.length === 0) return null;
+
+  const ordenados = [...activos].sort(
     (a, b) =>
-      Number(Boolean(b.activo)) - Number(Boolean(a.activo)) ||
       Number(b.anio || 0) - Number(a.anio || 0) ||
       String(b.fecha_inicio || "").localeCompare(
         String(a.fecha_inicio || "")
@@ -2750,7 +2760,7 @@ function renderInicio() {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar la agenda",
-      "Revisá tu conexión e intentá nuevamente.",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
       true
     );
     if (contVivo) contVivo.innerHTML = "";
@@ -4776,7 +4786,7 @@ function renderPlayoffs() {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar los playoffs",
-      "Revisá tu conexión e intentá nuevamente.",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
       true
     );
     return;
@@ -5574,7 +5584,7 @@ function renderTablaPosiciones(cont) {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar la tabla",
-      "Revisá tu conexión e intentá nuevamente.",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
       true
     );
     return;
@@ -5704,7 +5714,7 @@ function renderTablaGoleadores(cont) {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar goleadores",
-      "Revisá tu conexión e intentá nuevamente.",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
       true
     );
     return;
@@ -6020,6 +6030,16 @@ function renderDetallePartido(id) {
   if (!partidoBase) {
     if (!cargaPartidosFinalizada) {
       cont.innerHTML = renderDetalleVacio("Cargando partido...");
+      return;
+    }
+
+    if (errorCargaDatos && state.partidos.length === 0) {
+      cont.innerHTML = renderEstadoVista(
+        "error",
+        "No pudimos cargar el partido",
+        obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
+        true
+      );
       return;
     }
 
@@ -8188,7 +8208,7 @@ function renderDetalleEquipo(equipo) {
       ${renderEstadoVista(
         "error",
         "No pudimos cargar el equipo",
-        "Revisa tu conexion e intenta nuevamente.",
+        obtenerMensajeErrorCargaDatos("Revisa tu conexion e intenta nuevamente."),
         true
       )}
     `;
@@ -9315,6 +9335,16 @@ function renderDatos() {
   const cont = document.getElementById("datosContent");
   if (!cont) return;
 
+  if (errorCargaDatos && state.partidos.length === 0) {
+    cont.innerHTML = renderEstadoVista(
+      "error",
+      "No pudimos calcular las estadísticas",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
+      true
+    );
+    return;
+  }
+
   if (!cargaPartidosFinalizada) {
     cont.innerHTML = `
       <div class="datos-loading">Calculando estadísticas...</div>
@@ -9393,7 +9423,7 @@ function renderTeams() {
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar los equipos",
-      "Revisá tu conexión e intentá nuevamente.",
+      obtenerMensajeErrorCargaDatos("Revisá tu conexión e intentá nuevamente."),
       true
     );
     return;
@@ -9502,6 +9532,12 @@ if (window.history.state?.tresPalos) {
   registrarVistaPestana(vistaActual.id, "carga");
 }
 
+function crearErrorTorneoPublicoInvalido() {
+  const error = new Error(MENSAJE_TORNEO_PUBLICO_INVALIDO);
+  error.code = "TORNEO_PUBLICO_INVALIDO";
+  return error;
+}
+
 async function obtenerPartidos() {
   if (actualizandoDatos) return;
   actualizandoDatos = true;
@@ -9523,12 +9559,15 @@ async function obtenerPartidos() {
       torneos,
       torneoVigente
     );
-    const filtroTorneoActual = torneoSeleccionado?.id
-      ? `&torneo_id=eq.${encodeURIComponent(torneoSeleccionado.id)}`
-      : "";
-    const urlGoleadores = torneoSeleccionado?.id
-      ? `/.netlify/functions/goleadores-publicos?torneo_id=${encodeURIComponent(torneoSeleccionado.id)}`
-      : null;
+    const torneoIdPublico = torneoSeleccionado?.id;
+    if (!torneoIdPublico) {
+      throw crearErrorTorneoPublicoInvalido();
+    }
+
+    const torneoIdPublicoParam = encodeURIComponent(torneoIdPublico);
+    const filtroTorneoActual = `&torneo_id=eq.${torneoIdPublicoParam}`;
+    const urlGoleadores =
+      `/.netlify/functions/goleadores-publicos?torneo_id=${torneoIdPublicoParam}`;
     const [
       res,
       resPartidosTodos,
@@ -9582,6 +9621,7 @@ async function obtenerPartidos() {
 
     cargaPartidosFinalizada = true;
     errorCargaDatos = false;
+    mensajeErrorCargaDatos = "";
     ultimaCargaDatos = Date.now();
     state.torneos = Array.isArray(torneos) ? torneos : state.torneos;
     state.torneoVigente = torneoVigente;
@@ -9615,7 +9655,7 @@ async function obtenerPartidos() {
     if (!resTorneos.ok) {
       console.warn(
         `No se pudieron cargar los torneos: ${resTorneos.status}. ` +
-        "Se muestran todos los partidos."
+        "Se conserva el torneo publico previamente determinado."
       );
     }
     if (resGoleadores && !resGoleadores.ok) {
@@ -9641,12 +9681,18 @@ async function obtenerPartidos() {
   } catch (error) {
     console.error("No se pudieron cargar los partidos:", error);
 
-    if (state.partidos.length > 0) {
+    if (
+      state.partidos.length > 0 &&
+      error.code !== "TORNEO_PUBLICO_INVALIDO"
+    ) {
       return;
     }
 
     cargaPartidosFinalizada = true;
     errorCargaDatos = true;
+    mensajeErrorCargaDatos = error.code === "TORNEO_PUBLICO_INVALIDO"
+      ? MENSAJE_TORNEO_PUBLICO_INVALIDO
+      : "";
     state.partidos = [];
     state.partidosTodos = [];
     state.eventos = [];
@@ -9661,12 +9707,8 @@ async function obtenerPartidos() {
     renderTabla(zonaActual);
     renderInicio();
     renderPlayoffs();
+    renderDatos();
     renderTeams();
-    document.getElementById("datosContent").innerHTML = `
-      <div class="datos-empty">
-        No se pudieron calcular las estadísticas
-      </div>
-    `;
   } finally {
     actualizandoDatos = false;
   }
