@@ -2,7 +2,7 @@
 
 Fecha de auditoría original: 2026-08-09, America/Buenos_Aires.
 
-Última actualización operativa: 2026-08-14, cierre de seguridad validado en producción y cambio de foco hacia operación/lanzamiento.
+Última actualización operativa: 2026-08-17, backup/restore end-to-end validado y cambio de foco hacia operación cotidiana.
 
 Referencias de auditoría original y actualización actual:
 
@@ -48,16 +48,16 @@ Alcance original: auditoría estática del repositorio local, `git fetch origin`
 
 ✅ Decisión operativa: no volver a auditar ACL, RLS, default privileges ni policies sin un motivo concreto. Motivos válidos: cambio real de schema/permisos/policies, nueva tabla o vista expuesta, nueva función con privilegios, incidente, alerta, evidencia de regresión o preparación de una migración sensible.
 
+✅ Backup/Restore end-to-end: VALIDADO en agosto de 2026. Procedimiento documentado en `docs/BACKUP_RESTORE.md`.
+
 Etapa actual del proyecto:
 
-1. Cierre técnico/documental definitivo.
-2. Operación y recuperación.
-3. Prueba completa de carga, edición, incidencias y publicación.
-4. Backup y restauración.
-5. Riesgos operativos pendientes.
-6. Validación durante el Clausura.
-7. SEO y preparación de lanzamiento.
-8. Conseguir usuarios reales.
+1. Operación cotidiana y recuperación ante error humano.
+2. Prueba completa de carga, edición, incidencias y publicación.
+3. Riesgos operativos pendientes.
+4. Validación durante el Clausura.
+5. SEO y preparación de lanzamiento.
+6. Conseguir usuarios reales.
 
 ## 1. Qué es Tres Palos
 
@@ -65,7 +65,7 @@ Etapa actual del proyecto:
 
 ✅ Confirmado: el stack es HTML, CSS y JavaScript vanilla, Supabase/Postgres por REST, funciones Netlify para operaciones con privilegios y Google Analytics/analítica propia.
 
-✅ Confirmado: el producto ya es multitorneo por `torneo_id`; el foco pendiente es validar operación real durante Clausura y documentar recuperación, no reabrir la auditoría de permisos.
+✅ Confirmado: el producto ya es multitorneo por `torneo_id`; el foco pendiente es validar operación real durante Clausura y preparar operación cotidiana, no reabrir la auditoría de permisos.
 
 ## 2. Arquitectura actual
 
@@ -188,7 +188,7 @@ Posibilidad de modificar accidentalmente otro torneo:
 
 - ✅ Mitigada en código local para partidos, incidencias y etapas mediante `torneo_id`.
 - 🟡 Debe validarse como parte de la prueba funcional completa del admin con datos reales controlados.
-- 🟡 El cierre de Apertura y la protección por etapas deben quedar cubiertos por el manual operativo y el ensayo de backup/restore.
+- 🟡 El cierre de Apertura y la protección por etapas deben quedar cubiertos por el manual operativo y la prueba funcional completa; backup/restore queda como soporte de recuperación ya validado.
 
 ## 7. Seguridad
 
@@ -231,7 +231,7 @@ Mejoras recomendadas, no bloqueantes del cierre:
 - ⚪ Agregar protección de acceso/rate limiting para admin.
 - ⚪ Agregar CSP y headers globales.
 - ⚪ Evitar fallback público a datos mezclados.
-- ⚪ Formalizar backup/restore y custodia.
+- ⚪ Formalizar custodia externa y frecuencia de ensayo de backups.
 
 ## 8. Calidad de datos
 
@@ -295,7 +295,7 @@ No cubierto por tests locales automatizados:
 - ⚪ Supabase remoto real.
 - ⚪ Pruebas E2E con navegador y datos productivos.
 - ⚪ Rate limit, fuerza bruta, CSP y headers efectivos.
-- ⚪ Restauración real desde backup.
+- ⚪ Restauración productiva no ejecutada, por decisión de seguridad; restore lógico validado en proyecto Supabase TEST separado; ver `docs/BACKUP_RESTORE.md`.
 
 Riesgo de falsos positivos:
 
@@ -370,6 +370,13 @@ Optimizaciones no urgentes:
 
 ✅ Confirmado:
 
+- Backup/restore end-to-end validado en agosto de 2026.
+- Procedimiento documentado en `docs/BACKUP_RESTORE.md`.
+- Backup lógico generado correctamente con `roles.sql`, `schema.sql` y `data.sql`.
+- Restore realizado en un proyecto Supabase TEST separado y descartable; producción no fue destino de restauración.
+- Conteos restaurados y validados: `public.eventos_partido = 447`, `public.eventos_partido_publicos = 440`, eventos no confirmados visibles en la vista pública = 0.
+- Validación final TEST: `anon` y `authenticated` sin SELECT sobre `public.eventos_partido`, `anon` con SELECT sobre `public.eventos_partido_publicos`, RLS activo, `force_rls = false` y policy `"public read eventos"` presente.
+- Se documentó el hardening post-restore obligatorio: revisar ACL y reaplicar revokes sobre `public.eventos_partido` en TEST si el dump restaura privilegios directos amplios.
 - Existe `respaldos/apertura-2026-respaldo-completo-20260715-165226.json`, ignorado por Git, con conteos completos del Apertura.
 - Existen tres respaldos locales pre-carga Clausura.
 - `supabase/cierre-etapas.sql` define tablas y RPCs de respaldo/cierre/restauración por `torneo_id`.
@@ -378,9 +385,9 @@ Optimizaciones no urgentes:
 
 Respuesta explícita: ¿Podemos recuperar Tres Palos de un error grave de datos hoy?
 
-🔴 No con garantía operacional completa. Hay un backup local valioso del Apertura y SQL/RPCs diseñados para restaurar etapas, pero no hay procedimiento de restore probado y documentado de punta a punta, no hay ensayo reciente con datos controlados, no hay schema base completo versionado para reconstrucción total y no hay custodia externa documentada de `respaldos/`. Ante un error grave hoy, probablemente se podría intentar recuperar parte importante del Apertura desde el JSON local, pero dependería de trabajo manual y verificación cuidadosa.
+✅ Sí, con un procedimiento operativo validado primero en un entorno aislado. La recuperación productiva no debe ejecutarse directamente: primero se restaura en TEST, se validan conteos, vista pública, RLS, policies y ACL, se aplica hardening post-restore si corresponde y recién después se considera una recuperación sobre producción.
 
-⚪ Pendiente crítico: documentar y ensayar `BACKUP_RESTORE.md` antes de cargar o editar datos productivos nuevos.
+🟡 Pendiente operativo: definir custodia externa regular de backups y frecuencia de ensayo.
 
 ## 14. Observabilidad
 
@@ -450,8 +457,6 @@ No se borró ninguna rama.
 
 ## 16. Problemas conocidos
 
-🔴 Recuperación ante error grave no garantizada operacionalmente.
-
 🔴 Admin con password compartida, sin rate limit ni usuarios.
 
 🔴 Falta prueba operativa completa de carga, edición, incidencias y publicación con datos reales controlados.
@@ -470,29 +475,25 @@ No se borró ninguna rama.
 
 🟡 Todavía falta validar el comportamiento durante el Clausura con operación real y usuarios reales.
 
+🟡 Custodia externa y frecuencia de ensayo de backups todavía deben formalizarse.
+
 ## 17. Deuda técnica priorizada
 
 ### CRÍTICA
 
-1. Problema: recuperación no probada ni documentada.
-   Evidencia: backup local en `respaldos/`, RPCs en `supabase/cierre-etapas.sql`, pero no runbook probado.
-   Riesgo: pérdida o corrupción de datos con recuperación manual incierta.
-   Acción recomendada: crear y ensayar procedimiento `BACKUP_RESTORE.md`.
-   Urgencia: inmediata, antes de operación productiva regular.
-
-2. Problema: no hay manual operativo definitivo para cargar resultados, editar partidos, registrar incidencias, publicar cambios, cerrar/reabrir etapas y actuar ante incidentes.
+1. Problema: no hay manual operativo definitivo para cargar resultados, editar partidos, registrar incidencias, publicar cambios, cerrar/reabrir etapas y actuar ante incidentes.
    Evidencia: los flujos existen en código/admin, pero no hay procedimiento único, probado y ejecutable por una persona operadora.
    Riesgo: errores manuales, pasos omitidos, datos inconsistentes o publicación incompleta.
    Acción recomendada: crear `MANUAL_OPERACION_TORNEO.md` y usarlo en una prueba completa.
    Urgencia: inmediata.
 
-3. Problema: falta prueba completa de carga/edición/incidencias/publicación.
+2. Problema: falta prueba completa de carga/edición/incidencias/publicación.
    Evidencia: hay tests locales y validaciones de seguridad cerradas, pero falta simular la operación real de una fecha/partido de punta a punta.
    Riesgo: fallas funcionales recién detectadas durante el Clausura.
    Acción recomendada: ejecutar un ensayo controlado con checklist, registrar hallazgos y corregir lo que bloquee operación.
    Urgencia: inmediata.
 
-4. Problema: seguridad admin basada en password compartida.
+3. Problema: seguridad admin basada en password compartida.
    Evidencia: `js/admin-panel.js` usa `sessionStorage`; funciones validan `x-admin-password`.
    Riesgo: sin trazabilidad, bloqueo, rotación individual ni mitigación de fuerza bruta.
    Acción recomendada: agregar protección de acceso/rate limit o auth real.
@@ -500,31 +501,31 @@ No se borró ninguna rama.
 
 ### ALTA
 
-5. Problema: fallback público a datos mezclados.
+4. Problema: fallback público a datos mezclados.
    Evidencia: `js/app.js` avisa "Se muestran todos los partidos" si falla `torneos`.
    Riesgo: tablas/fixture/historia combinados entre torneos.
    Acción recomendada: bloquear vistas deportivas si no hay torneo activo confiable o cargar por torneo explícito.
    Urgencia: antes de publicar Clausura.
 
-6. Problema: estados de partido duplicados.
+5. Problema: estados de partido duplicados.
    Evidencia: `js/app.js`, `js/public-tournament.js`, `js/admin-panel.js`, `js/admin-match-flow.js`, `admin-partidos.js` y SQL tienen reglas propias.
    Riesgo: diferencias entre público, admin, cierre y tests.
    Acción recomendada: definir modelo/catálogo único y adaptar capas.
    Urgencia: alta, durante estabilización operativa.
 
-7. Problema: refs locales desalineadas con GitHub.
+6. Problema: refs locales desalineadas con GitHub.
    Evidencia: la auditoría original dejó referencias de ramas y PRs ya superadas por PR #17.
    Riesgo: confusión sobre qué está integrado.
    Acción recomendada: hacer limpieza documental/git planificada, sin borrar ramas hasta decidir.
    Urgencia: alta para coordinación, no para runtime.
 
-8. Problema: ausencia de headers globales de seguridad.
+7. Problema: ausencia de headers globales de seguridad.
    Evidencia: `netlify.toml` sólo define headers admin/no-store.
    Riesgo: superficie innecesaria para XSS/clickjacking/referrer leaks.
    Acción recomendada: agregar CSP y headers adecuados tras prueba.
    Urgencia: alta antes de exposición amplia.
 
-9. Problema: SEO y lanzamiento no tienen checklist operativo actualizado.
+8. Problema: SEO y lanzamiento no tienen checklist operativo actualizado.
    Evidencia: hay SEO base, `robots.txt` y `sitemap.xml`, pero falta validar producción, Search Console, indexación deseada, dominio y contenido previo al lanzamiento.
    Riesgo: lanzamiento público con descubrimiento pobre o señales incorrectas.
    Acción recomendada: actualizar `CHECKLIST_LANZAMIENTO.md` o crear checklist SEO/lanzamiento específico.
@@ -532,23 +533,29 @@ No se borró ninguna rama.
 
 ### MEDIA
 
-10. Problema: overfetch público.
+9. Problema: overfetch público.
    Evidencia: `obtenerPartidos()` carga todos los partidos históricos y todos los eventos.
    Riesgo: performance y exposición de más datos que los necesarios.
    Acción recomendada: endpoints/vistas filtradas por torneo y carga diferida de histórico.
    Urgencia: media; sube con crecimiento de datos.
 
-11. Problema: documentación dispersa/obsoleta.
+10. Problema: documentación dispersa/obsoleta.
     Evidencia: `docs/estado-proyecto.md` contradice backup final; README/ROADMAP son de 2026-07-21.
     Riesgo: decisiones basadas en estado viejo.
     Acción recomendada: usar este documento como fuente maestra y archivar/actualizar documentos viejos.
     Urgencia: media.
 
-12. Problema: schema base de `partidos` y `eventos_partido` no versionado de forma completa.
+11. Problema: schema base de `partidos` y `eventos_partido` no versionado de forma completa.
     Evidencia: no hay `CREATE TABLE public.partidos` ni `CREATE TABLE public.eventos_partido`; sólo alteraciones en `supabase/` y verificaciones en `sql/`.
     Riesgo: reconstrucción total más difícil ante desastre o migración futura.
     Acción recomendada: exportar/versionar schema mínimo real con constraints, índices y contratos de datos relevantes.
     Urgencia: media; tratar como recuperación/documentación, no como reapertura de permisos.
+
+12. Problema: custodia y frecuencia de ensayo de backups no formalizadas.
+    Evidencia: backup/restore está validado, pero todavía falta política regular de copias y calendario de revalidación.
+    Riesgo: recuperación más lenta o dependencia de una sola ubicación.
+    Acción recomendada: definir custodios, ubicaciones y periodicidad.
+    Urgencia: media.
 
 13. Problema: assets/JS pesados y sin pipeline.
     Evidencia: PNG 4.76 MB, `app.js` 276 KB, `main.css` 144 KB.
@@ -600,16 +607,14 @@ No se borró ninguna rama.
 
 Secuencia vigente, una cosa por vez:
 
-1. Cerrar documentación maestra: actualizar `docs/ESTADO_PROYECTO.md` con el cierre de seguridad y la nueva etapa.
-2. Crear/actualizar `BACKUP_RESTORE.md`: procedimiento de backup, custodia y restore.
-3. Ensayar recuperación con datos controlados y registrar resultado.
-4. Crear/actualizar `MANUAL_OPERACION_TORNEO.md`: carga de resultado, edición, incidencias, publicación, cierre/reapertura y manejo de errores.
-5. Ejecutar prueba completa de carga/edición/incidencias/publicación con checklist y evidencia.
-6. Corregir bloqueos detectados en la prueba operativa.
-7. Reducir riesgos operativos pendientes: fallback público de torneo, estados duplicados, admin con password compartida/rate limit y observabilidad básica.
-8. Validar operación durante el Clausura con casos reales, manteniendo registro de incidencias y aprendizajes.
-9. Preparar SEO/lanzamiento: producción, dominio, sitemap, Search Console, metadata, rendimiento mínimo y checklist público.
-10. Conseguir usuarios reales: difusión controlada, feedback de clubes/periodistas/hinchas y priorización de mejoras por uso real.
+1. Crear/actualizar `MANUAL_OPERACION_TORNEO.md`: carga de resultado, edición, incidencias, publicación, cierre/reapertura y manejo de errores.
+2. Ejecutar prueba completa de carga/edición/incidencias/publicación con checklist y evidencia.
+3. Definir operación cotidiana y recuperación ante error humano: quién opera, cómo corrige, cuándo escala y cómo usa `docs/BACKUP_RESTORE.md`.
+4. Corregir bloqueos detectados en la prueba operativa.
+5. Reducir riesgos operativos pendientes: fallback público de torneo, estados duplicados, admin con password compartida/rate limit y observabilidad básica.
+6. Validar operación durante el Clausura con casos reales, manteniendo registro de incidencias y aprendizajes.
+7. Preparar SEO/lanzamiento: producción, dominio, sitemap, Search Console, metadata, rendimiento mínimo y checklist público.
+8. Conseguir usuarios reales: difusión controlada, feedback de clubes/periodistas/hinchas y priorización de mejoras por uso real.
 
 Virtudes / no conviene reescribir:
 
@@ -621,20 +626,19 @@ Virtudes / no conviene reescribir:
 - ✅ La suite local cubre muchos flujos críticos sin tocar remoto.
 - ✅ La experiencia pública ya tiene Inicio, Tabla, Partidos, Playoffs y Equipos con buen alcance funcional.
 - ✅ El modelo de jugadores/inscripciones es la dirección correcta y no conviene volver a nombres libres.
-- ✅ Hay backups locales y hashes; falta operación, no partir de cero.
+- ✅ Backup/restore end-to-end validado en TEST; falta rutina operativa, no partir de cero.
 
 Documentos complementarios propuestos, no creados todavía:
 
 - `BACKLOG.md`: sí, para convertir deuda y próximos pasos en tareas priorizadas.
 - `MANUAL_OPERACION_TORNEO.md`: sí, para carga diaria, estados, incidencias y cierre.
 - `CHECKLIST_PR.md`: sí, para evitar merges sin tests/seguridad/SEO/status.
-- `BACKUP_RESTORE.md`: sí, crítico.
 - `DECISIONES_PRODUCTO.md`: sí, para selector global, historial, Datos/Estadísticas y alcance SEO.
 
 Regla de foco:
 
 - No reabrir ACL/RLS/default privileges/policies sin un motivo concreto.
-- Tratar seguridad cerrada como base; el foco inmediato es operación, recuperación, validación real y lanzamiento.
+- Tratar seguridad y backup/restore como bases cerradas; el foco inmediato es operación cotidiana, recuperación ante error humano, validación real y lanzamiento.
 
 ## 20. Ideas futuras / fuera de alcance actual
 
@@ -655,10 +659,6 @@ Regla de foco:
 
 ⚪ Pendiente:
 
-- Backup completo manual y/o automático.
-- Custodia externa de respaldos.
-- Restore completo desde backup local/controlado.
-- Prueba de restauración y criterios para declararla exitosa.
 - Carga de resultado e incidencias de un partido.
 - Corrección/edición de un partido ya publicado.
 - Publicación y verificación pública posterior.
@@ -673,17 +673,18 @@ Regla de foco:
 - Checklist SEO/lanzamiento.
 - Captura y priorización de feedback de usuarios reales.
 - Política para actualizar `main` local y limpiar ramas stale sin borrar accidentalmente trabajo útil.
+- Custodia externa regular de backups y frecuencia de ensayo.
 
 Procedimientos cerrados:
 
 - Auditoría remota de ACL/RLS/default privileges/policies, salvo motivo concreto para reabrir.
+- Backup/restore end-to-end en proyecto Supabase TEST separado; ver `docs/BACKUP_RESTORE.md`.
 
 ## 22. Preguntas abiertas
 
 - 🟡 ¿El `main` local debe fast-forwardearse desde `origin/main` y cuándo conviene limpiar ramas históricas?
 - 🟡 ¿Qué IDs de torneo deben usarse operativamente para Apertura y Clausura antes de ejecutar cargas/ediciones?
-- 🟡 ¿Cuál será el procedimiento oficial de backup, dónde se custodiará y quién lo ejecutará?
-- 🟡 ¿Cuál será el procedimiento oficial de restore y con qué frecuencia se ensayará?
+- 🟡 ¿Dónde se custodiarán las copias externas de backup y con qué frecuencia se revalidará el procedimiento?
 - 🟡 ¿Cómo se validará que Apertura queda protegido operacionalmente contra ediciones accidentales durante Clausura?
 - 🟡 ¿Qué URL de Netlify queda accesible además de `trespalos.com.ar`?
 - 🟡 ¿La vista Datos/Estadísticas se mantiene, se rediseña o se retira de la navegación/código?
