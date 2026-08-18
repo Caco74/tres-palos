@@ -2805,8 +2805,6 @@ function renderInicio() {
     ? "Ver partidos"
     : "Ver fase completa";
   const claveAgenda = agenda.clave || `fase:${agenda.fase.valor}`;
-  const etiquetaCantidadAgenda =
-    `${agenda.partidos.length} ${agenda.partidos.length === 1 ? "PARTIDO" : "PARTIDOS"}`;
 
   cont.innerHTML = `
     <div class="next-card home-agenda">
@@ -2815,7 +2813,6 @@ function renderInicio() {
           ${estadoTorneo.animado ? `<span class="nc-pulse"></span>` : ""}
           ${estadoTorneo.agenda}
         </div>
-        <div class="nc-round">${etiquetaCantidadAgenda}</div>
       </div>
 
       <div class="home-match-list">
@@ -2825,10 +2822,6 @@ function renderInicio() {
       </div>
 
       <div class="nc-footer">
-        <div class="nc-footer-label">
-          ${agenda.partidos.length}
-          ${agenda.partidos.length === 1 ? "partido" : "partidos"}
-        </div>
         <button
           class="nc-footer-link"
           onclick="abrirEtapaPartidos('${claveAgenda}')"

@@ -720,6 +720,59 @@ function buildActualizarResumenTorneo(appSource) {
   };
 }
 
+function renderInicioAgendaDeApp(appSource, agenda) {
+  const elements = {
+    homeContent: { innerHTML: "" },
+    homeLiveContent: { innerHTML: "" }
+  };
+  const sandbox = {
+    document: {
+      getElementById: id => elements[id] || null
+    },
+    errorCargaDatos: false,
+    cargaPartidosFinalizada: true,
+    state: {
+      partidos: agenda.partidos
+    },
+    renderEstadoVista: () => "",
+    obtenerMensajeErrorCargaDatos: fallback => fallback,
+    renderSkeletonAgenda: () => "<skeleton></skeleton>",
+    obtenerAgendaInicio: () => agenda,
+    obtenerEstadoTorneo: () => ({
+      clase: "scheduled",
+      animado: false,
+      agenda: "PRÓXIMOS PARTIDOS",
+      etiqueta: "Fase regular",
+      tipo: "programado",
+      titulo: "Fase regular"
+    }),
+    obtenerResultadoSerieFinal: () => ({ ganador: null }),
+    actualizarResumenTorneo: agendaRenderizada => {
+      sandbox.agendaRenderizada = agendaRenderizada;
+    },
+    renderCampeonInicio: () => "",
+    renderPulsoInicio: () => {},
+    renderPartidoInicio: partido => `
+      <article class="home-match-card-test" data-match-id="${partido.id}">
+        <span>Fecha ${partido.fecha}</span>
+        <strong>${partido.local} - ${partido.visitante}</strong>
+      </article>
+    `
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "renderInicio")}
+     this.renderInicio = renderInicio;`,
+    sandbox
+  );
+
+  sandbox.renderInicio();
+  return {
+    html: elements.homeContent.innerHTML,
+    agendaRenderizada: sandbox.agendaRenderizada
+  };
+}
+
 function obtenerAgendaRegularInicioDeApp(appSource, partidos) {
   const sandbox = {
     state: {
@@ -1227,6 +1280,23 @@ async function runTests() {
   assert.equal(agendaConFechas.partidos.some(partido => Number(partido.zona) === 1), true);
   assert.equal(agendaConFechas.partidos.some(partido => Number(partido.zona) === 3), true);
 
+  const inicioAgendaConFechas = renderInicioAgendaDeApp(appSource, agendaConFechas);
+  assert.equal(inicioAgendaConFechas.agendaRenderizada, agendaConFechas);
+  assert.equal(
+    (inicioAgendaConFechas.html.match(/home-match-card-test/g) || []).length,
+    4
+  );
+  agendaConFechas.partidos.forEach(partido => {
+    assert.match(
+      inicioAgendaConFechas.html,
+      new RegExp(`data-match-id="${partido.id}"`)
+    );
+  });
+  assert.match(inicioAgendaConFechas.html, /PRÓXIMOS PARTIDOS/);
+  assert.match(inicioAgendaConFechas.html, /Ver partidos\s*→/);
+  assert.doesNotMatch(inicioAgendaConFechas.html, /\b\d+\s+partidos?\b/i);
+  assert.doesNotMatch(inicioAgendaConFechas.html, /nc-round|nc-footer-label/);
+
   const agendaRegularSource = extractFunction(appSource, "obtenerAgendaRegularInicio");
   assert.match(agendaRegularSource, /getUpcomingCalendarMatches/);
   assert.match(agendaRegularSource, /limit:\s*4/);
@@ -1237,8 +1307,10 @@ async function runTests() {
     renderInicioSource,
     /const textoLinkAgenda = agenda\.tipo === "regular"\s*\?\s*"Ver partidos"\s*:\s*"Ver fase completa";/
   );
+  assert.doesNotMatch(renderInicioSource, /etiquetaCantidadAgenda/);
+  assert.doesNotMatch(renderInicioSource, /nc-round|nc-footer-label/);
   assert.doesNotMatch(renderInicioSource, /Ver fecha completa/);
-  results.push("Inicio: agenda conserva seleccion, limite y CTA de partidos: ok");
+  results.push("Inicio: agenda conserva seleccion, limite y CTA sin contador: ok");
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
   assert.match(indexSource, /\/js\/app\.js\?v=79/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
