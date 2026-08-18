@@ -670,6 +670,122 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
   };
 }
 
+function buildActualizarResumenTorneo(appSource) {
+  const elements = new Map();
+  const sandbox = {
+    vistaActual: { id: "inicio" },
+    document: {
+      getElementById: id => {
+        if (!elements.has(id)) {
+          elements.set(id, { textContent: "", innerHTML: "" });
+        }
+        return elements.get(id);
+      }
+    },
+    obtenerAnioTorneo: () => 2026,
+    obtenerEstadoTorneo: () => ({
+      tipo: "sin-programar",
+      etiqueta: "Programacion pendiente",
+      titulo: "Programacion pendiente"
+    }),
+    obtenerResultadoSerieFinal: () => ({ ganador: null }),
+    obtenerNombreTorneoActivo: () => "Clausura 2026",
+    obtenerTituloHeroInicio: fase => ({
+      octavos: "Empieza el<br><em>camino final</em>",
+      cuartos: "Ocho equipos,<br><em>cuatro lugares</em>",
+      semifinal: "Cuatro equipos,<br><em>dos lugares</em>",
+      final: "El titulo,<br><em>en juego</em>"
+    }[fase] || "El torneo<br><em>en datos</em>"),
+    actualizarPieTorneo: (etiqueta, anio) => {
+      sandbox.footer = { etiqueta, anio };
+    },
+    nombre: value => value,
+    escaparHtml: value => String(value)
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "actualizarResumenTorneo")}
+     this.actualizarResumenTorneo = actualizarResumenTorneo;`,
+    sandbox
+  );
+
+  return agenda => {
+    sandbox.actualizarResumenTorneo(agenda);
+    return {
+      heroLabel: elements.get("heroLabel")?.textContent || "",
+      heroTitle: elements.get("heroTitle")?.innerHTML || "",
+      sidebarTitle: elements.get("sidebarTitle")?.textContent || "",
+      footer: sandbox.footer
+    };
+  };
+}
+
+function obtenerAgendaRegularInicioDeApp(appSource, partidos) {
+  const sandbox = {
+    state: {
+      torneoActivo: { id: TORNEO_CLAUSURA },
+      partidos
+    },
+    window: {
+      TPPublicTournament: PublicTournament
+    },
+    compararPartidosParaListado: (a, b) =>
+      PublicTournament.compareMatchesByCalendar(a, b) ||
+      Number(a.id || 0) - Number(b.id || 0),
+    partidoPendienteParaVista: partido =>
+      !PublicTournament.isMatchResolved(partido)
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "obtenerAgendaRegularInicio")}
+     this.obtenerAgendaRegularInicio = obtenerAgendaRegularInicio;`,
+    sandbox
+  );
+
+  return sandbox.obtenerAgendaRegularInicio();
+}
+
+function construirEscenarioAgendaDesfasada() {
+  return cargar.buildContext().records
+    .filter(record => record.tipo === "regular")
+    .map((record, index) => {
+      const fecha = Number(record.fecha);
+      const zona = Number(record.zona);
+      const jugado =
+        (zona === 1 && fecha <= 4) ||
+        (zona === 3 && fecha <= 4) ||
+        (zona === 2 && fecha <= 3);
+
+      return {
+        ...record,
+        id: 5000 + index,
+        torneo_id: TORNEO_CLAUSURA,
+        fecha_partido: null,
+        hora: null,
+        estado: jugado ? "finalizado" : "programado",
+        goles_local: jugado ? 1 : null,
+        goles_visitante: jugado ? 0 : null
+      };
+    });
+}
+
+function cargarFechasRealesDesfasadas(partidos) {
+  return partidos.map(partido => {
+    const fecha = Number(partido.fecha);
+    const zona = Number(partido.zona);
+
+    if (fecha === 5 && (zona === 1 || zona === 3)) {
+      return { ...partido, fecha_partido: "2026-08-23", hora: "16:00" };
+    }
+
+    if (fecha === 4 && zona === 2) {
+      return { ...partido, fecha_partido: "2026-08-30", hora: "16:00" };
+    }
+
+    return partido;
+  });
+}
+
 async function runTests() {
   const results = [];
   const torneos = [
@@ -1057,6 +1173,72 @@ async function runTests() {
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   assert.match(indexSource, /\/styles\/main\.css\?v=70/);
+
+  const renderResumenInicio = buildActualizarResumenTorneo(appSource);
+  const resumenRegular = renderResumenInicio({
+    tipo: "regular",
+    fase: { valor: "regular", etiqueta: "Fecha 4" },
+    partidos: [
+      { local: "Belgrano A.C.", visitante: "C.A. Union C.S.D." },
+      { local: "C.A. America", visitante: "C.A. N.O. Boys" }
+    ]
+  });
+  assert.match(resumenRegular.heroLabel.toUpperCase(), /FASE REGULAR/);
+  assert.doesNotMatch(resumenRegular.heroLabel.toUpperCase(), /FECHA 4|FECHA 5/);
+
+  const resumenPlayoff = renderResumenInicio({
+    tipo: "playoff",
+    fase: { valor: "cuartos", etiqueta: "Cuartos de Final" },
+    partidos: [
+      { local: "Equipo A", visitante: "Equipo B" }
+    ]
+  });
+  assert.match(resumenPlayoff.heroLabel, /Cuartos de Final/);
+  results.push("Inicio: hero regular usa fase regular y playoffs conservan fase: ok");
+
+  const agendaSinFechas = obtenerAgendaRegularInicioDeApp(
+    appSource,
+    construirEscenarioAgendaDesfasada()
+  );
+  assert.equal(agendaSinFechas.fase.etiqueta, "Fecha 4");
+  assert.equal(agendaSinFechas.partidos.length, 3);
+  assert.deepEqual(
+    [...new Set(agendaSinFechas.partidos.map(partido => Number(partido.zona)))],
+    [2]
+  );
+  assert.equal(agendaSinFechas.pendientes, true);
+
+  const agendaConFechas = obtenerAgendaRegularInicioDeApp(
+    appSource,
+    cargarFechasRealesDesfasadas(construirEscenarioAgendaDesfasada())
+  );
+  assert.equal(agendaConFechas.fase.etiqueta, "Fecha 5");
+  assert.equal(agendaConFechas.partidos.length, 4);
+  assert.equal(
+    agendaConFechas.partidos.every(
+      partido => partido.fecha_partido === "2026-08-23"
+    ),
+    true
+  );
+  assert.deepEqual(
+    [...new Set(agendaConFechas.partidos.map(partido => Number(partido.fecha)))],
+    [5]
+  );
+  assert.equal(agendaConFechas.partidos.some(partido => Number(partido.zona) === 1), true);
+  assert.equal(agendaConFechas.partidos.some(partido => Number(partido.zona) === 3), true);
+
+  const agendaRegularSource = extractFunction(appSource, "obtenerAgendaRegularInicio");
+  assert.match(agendaRegularSource, /getUpcomingCalendarMatches/);
+  assert.match(agendaRegularSource, /limit:\s*4/);
+  assert.match(agendaRegularSource, /Math\.min\(\.\.\.fechas\)/);
+
+  const renderInicioSource = extractFunction(appSource, "renderInicio");
+  assert.match(
+    renderInicioSource,
+    /const textoLinkAgenda = agenda\.tipo === "regular"\s*\?\s*"Ver partidos"\s*:\s*"Ver fase completa";/
+  );
+  assert.doesNotMatch(renderInicioSource, /Ver fecha completa/);
+  results.push("Inicio: agenda conserva seleccion, limite y CTA de partidos: ok");
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
   assert.match(indexSource, /\/js\/app\.js\?v=79/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);

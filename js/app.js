@@ -2802,9 +2802,7 @@ function renderInicio() {
   }
 
   const textoLinkAgenda = agenda.tipo === "regular"
-    ? agenda.mezclaFechas
-      ? "Ver partidos"
-      : "Ver fecha completa"
+    ? "Ver partidos"
     : "Ver fase completa";
   const claveAgenda = agenda.clave || `fase:${agenda.fase.valor}`;
   const etiquetaCantidadAgenda =
@@ -2914,6 +2912,9 @@ function renderCampeonInicio(serieFinal) {
 
 function actualizarResumenTorneo(agenda) {
   const etiquetaFase = agenda.fase?.etiqueta || "Fase eliminatoria";
+  const etiquetaHero = agenda.tipo === "regular"
+    ? "Fase regular"
+    : etiquetaFase;
   const anio = obtenerAnioTorneo();
   const estadoTorneo = obtenerEstadoTorneo();
   const campeon = obtenerResultadoSerieFinal().ganador;
@@ -2924,7 +2925,7 @@ function actualizarResumenTorneo(agenda) {
   if (vistaActual.id === "inicio") {
     document.getElementById("heroLabel").textContent = campeon
     ? `${obtenerNombreTorneoActivo()} · Torneo finalizado`
-    : `${obtenerNombreTorneoActivo()} · ${etiquetaFase} · ${anio}`;
+    : `${obtenerNombreTorneoActivo()} · ${etiquetaHero} · ${anio}`;
   const heroTitle = document.getElementById("heroTitle");
   if (heroTitle) {
     heroTitle.innerHTML = campeon
