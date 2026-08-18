@@ -11,7 +11,9 @@ const ALLOWED_FIELDS = new Set([
   "penales_local",
   "penales_visitante",
   "source_local",
-  "source_visitante"
+  "source_visitante",
+  "destacado_inicio",
+  "destacado_titulo"
 ]);
 
 const NUMBER_FIELDS = new Set([
@@ -291,6 +293,7 @@ async function updateMatch(event) {
     filtered,
     await resolveClubIdentityPatch(existing, filtered, columns)
   );
+  normalizeFeaturedPatch(existing, filtered, columns);
 
   if (Object.keys(filtered).length === 0) {
     return json(400, {
@@ -301,6 +304,10 @@ async function updateMatch(event) {
 
   if (columns.has("actualizado_en")) {
     filtered.actualizado_en = new Date().toISOString();
+  }
+
+  if (filtered.destacado_inicio === true) {
+    await clearOtherFeaturedMatches(torneoId, id, columns);
   }
 
   const response = await supabaseFetch(
@@ -329,6 +336,55 @@ async function updateMatch(event) {
     torneo,
     ignoredFields,
     savedFields: Object.keys(filtered)
+  });
+}
+
+function normalizeFeaturedPatch(existing, patch, columns) {
+  const hasFeaturedFlag = columns.has("destacado_inicio");
+  const hasFeaturedTitle = columns.has("destacado_titulo");
+  if (!hasFeaturedFlag && !hasFeaturedTitle) return;
+
+  const flagProvided = Object.hasOwn(patch, "destacado_inicio");
+  const titleProvided = Object.hasOwn(patch, "destacado_titulo");
+  const isFeaturedAfterSave = flagProvided
+    ? patch.destacado_inicio === true
+    : existing.destacado_inicio === true;
+
+  if (
+    hasFeaturedTitle &&
+    !isFeaturedAfterSave &&
+    (flagProvided || titleProvided)
+  ) {
+    patch.destacado_titulo = null;
+  }
+}
+
+async function clearOtherFeaturedMatches(torneoId, currentMatchId, columns) {
+  if (!columns.has("destacado_inicio")) return;
+
+  const patch = { destacado_inicio: false };
+  if (columns.has("destacado_titulo")) {
+    patch.destacado_titulo = null;
+  }
+
+  const response = await supabaseFetch(
+    "/rest/v1/partidos" +
+      `?torneo_id=eq.${encodeURIComponent(torneoId)}` +
+      "&destacado_inicio=eq.true" +
+      `&id=neq.${encodeURIComponent(currentMatchId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify(patch)
+    }
+  );
+
+  await parseSupabaseResponse(response, {
+    operation: "updateMatch",
+    stage: "clear_previous_featured",
+    publicCode: "DESTACADO_PREVIOUS_UPDATE_FAILED"
   });
 }
 
@@ -414,6 +470,11 @@ function sanitizePatch(patch) {
   Object.entries(patch).forEach(([key, raw]) => {
     if (!ALLOWED_FIELDS.has(key)) return;
 
+    if (key === "destacado_inicio") {
+      output[key] = parseBooleanField(raw, key);
+      return;
+    }
+
     if (raw === "" || raw === undefined) {
       output[key] = null;
       return;
@@ -464,6 +525,16 @@ function sanitizePatch(patch) {
   });
 
   return output;
+}
+
+function parseBooleanField(raw, key) {
+  if (typeof raw === "boolean") return raw;
+
+  const value = String(raw).trim().toLowerCase();
+  if (["true", "1", "si"].includes(value)) return true;
+  if (["false", "0", "no"].includes(value)) return false;
+
+  throw validationError(`Valor booleano invalido para ${key}.`);
 }
 
 async function getExistingMatch(id) {

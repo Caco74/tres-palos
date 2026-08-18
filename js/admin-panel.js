@@ -147,6 +147,9 @@ const fields = {
   golesVisitante: document.getElementById("golesVisitanteInput"),
   penalesLocal: document.getElementById("penalesLocalInput"),
   penalesVisitante: document.getElementById("penalesVisitanteInput"),
+  destacadoInicio: document.getElementById("destacadoInicioInput"),
+  destacadoTitulo: document.getElementById("destacadoTituloInput"),
+  destacadoTituloLabel: document.getElementById("destacadoTituloLabel"),
   sourceInfo: document.getElementById("sourceInfo")
 };
 
@@ -534,6 +537,7 @@ function limpiarContextoTorneo(message) {
 
   cerrarSelectorModo();
   matchForm.reset();
+  actualizarCamposDestacadoInicio();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
   renderResumenPartidoSeleccionado();
@@ -891,6 +895,7 @@ function limpiarSeleccionPartido(message) {
   liveSelectedPlayerId = null;
   liveRosterReturnContext = null;
   matchForm.reset();
+  actualizarCamposDestacadoInicio();
   matchForm.classList.add("hidden");
   emptyEditor.classList.remove("hidden");
   renderResumenPartidoSeleccionado();
@@ -1366,6 +1371,12 @@ function actualizarBloqueoEditor(partido) {
   });
   clearScoreBtn.disabled = bloqueado;
   saveBtn.disabled = bloqueado;
+  if (bloqueado) {
+    fields.destacadoInicio.disabled = true;
+    fields.destacadoTitulo.disabled = true;
+  } else {
+    actualizarCamposDestacadoInicio();
+  }
 
   if (fueraDeTorneo) {
     setSaveFeedback(
@@ -5258,6 +5269,10 @@ function seleccionarPartido(id, options = {}) {
   fields.golesVisitante.value = valorInput(partido.goles_visitante);
   fields.penalesLocal.value = valorInput(partido.penales_local);
   fields.penalesVisitante.value = valorInput(partido.penales_visitante);
+  fields.destacadoInicio.checked = partido.destacado_inicio === true;
+  fields.destacadoTitulo.value = partido.destacado_inicio === true
+    ? partido.destacado_titulo || ""
+    : "";
   const datosSecundarios = [
     `Origen: ${partido.source_local || "-"} / ${partido.source_visitante || "-"}`,
     tieneEquiposSugeridos
@@ -5273,6 +5288,7 @@ function seleccionarPartido(id, options = {}) {
     ${datosSecundarios ? `<small>${escapeHtml(datosSecundarios)}</small>` : ""}
   `;
   partidoOriginal = { ...partido };
+  actualizarCamposDestacadoInicio();
   renderResumenPartidoSeleccionado(partido);
   setSaveFeedback(
     estadioSugerido
@@ -5513,6 +5529,22 @@ function valorNumero(input) {
   return valor === "" ? null : Number(valor);
 }
 
+function columnaDestacadoDisponible(partido) {
+  return Object.hasOwn(partido || {}, "destacado_inicio");
+}
+
+function actualizarCamposDestacadoInicio() {
+  const disponible = columnaDestacadoDisponible(partidoOriginal);
+  const activo = disponible && fields.destacadoInicio.checked;
+
+  fields.destacadoInicio.disabled = !disponible;
+  fields.destacadoTitulo.disabled = !activo;
+  fields.destacadoTituloLabel.classList.toggle(
+    "is-disabled",
+    !activo
+  );
+}
+
 function tieneResultado(partido) {
   return partido.goles_local !== null && partido.goles_visitante !== null;
 }
@@ -5627,6 +5659,12 @@ async function guardarPartido(event) {
     penales_local: valorNumero(fields.penalesLocal),
     penales_visitante: valorNumero(fields.penalesVisitante)
   };
+  if (columnaDestacadoDisponible(partidoOriginal)) {
+    valores.destacado_inicio = fields.destacadoInicio.checked;
+    valores.destacado_titulo = fields.destacadoInicio.checked
+      ? valorTexto(fields.destacadoTitulo)
+      : null;
+  }
   validarCargaPartido(valores);
   ajustarEstadoPorResultado(valores);
 
@@ -5779,6 +5817,8 @@ function etiquetaCampoAdmin(campo) {
     goles_visitante: "goles visitante",
     penales_local: "penales local",
     penales_visitante: "penales visitante",
+    destacado_inicio: "destacado de Inicio",
+    destacado_titulo: "título destacado",
     local_id: "vínculo del local",
     visitante_id: "vínculo del visitante"
   }[campo] || campo;
@@ -5857,6 +5897,10 @@ logoutBtn.addEventListener("click", () => {
   showAuth();
 });
 clearScoreBtn.addEventListener("click", limpiarResultado);
+fields.destacadoInicio.addEventListener(
+  "change",
+  actualizarCamposDestacadoInicio
+);
 stageAdminSelect.addEventListener("change", renderEtapaSeleccionada);
 closeStageBtn.addEventListener("click", () => {
   cerrarEtapaSeleccionada().catch(error => {

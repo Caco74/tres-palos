@@ -268,6 +268,12 @@ function runTests() {
     assert.match(html, /id="refreshBtn" class="ghost"[\s\S]*?Recargar datos/);
     assert.ok(indexOfId("matchList") < indexOfId("selectedMatchSummary"));
     assert.ok(indexOfId("selectedMatchSummary") < indexOfId("matchForm"));
+    assert.ok(indexOfId("arbitroInput") < indexOfId("destacadoInicioInput"));
+    assert.ok(indexOfId("destacadoInicioInput") < indexOfId("destacadoTituloInput"));
+    assert.ok(indexOfId("destacadoTituloInput") < indexOfId("golesLocalInput"));
+    assert.match(html, /id="destacadoInicioInput" type="checkbox"/);
+    assert.match(html, /Destacar en Inicio/);
+    assert.match(html, /id="destacadoTituloInput"[\s\S]*?Clásico de Las Parejas/);
     assert.ok(indexOfId("matchForm") < indexOfId("liveMatch"));
     assert.ok(indexOfId("liveLocalName") < indexOfId("liveTeamPickerTitle"));
     assert.match(html, /id="liveTeamPickerTitle"[\s\S]*?¿PARA QUÉ EQUIPO\?/);
@@ -319,6 +325,10 @@ function runTests() {
     const recargaBody = js.slice(recargaStart, recargaEnd);
 
     assert.match(js, /adminApp\.classList\.toggle\("has-match-selection", valido\)/);
+    assert.match(js, /destacado_inicio/);
+    assert.match(js, /columnaDestacadoDisponible\(partidoOriginal\)/);
+    assert.match(js, /fields\.destacadoInicio\.checked/);
+    assert.match(js, /fields\.destacadoTitulo\.disabled = !activo/);
     assert.match(js, /selectedMatchSummary\.innerHTML = `/);
     assert.match(js, /scrollIntoView\(\{\s*behavior: "smooth"/);
     assert.match(js, /<option value="">Elegí un partido<\/option>/);
@@ -394,6 +404,8 @@ function runTests() {
     assert.equal(css.includes("overflow-x: hidden;"), true);
     assert.match(css, /\.status\s*\{[\s\S]*?position:\s*static;/);
     assert.equal(css.includes("overflow-wrap: anywhere;"), true);
+    assert.match(css, /\.featured-admin-box\s*\{/);
+    assert.match(css, /\.featured-toggle input\s*\{[\s\S]*?accent-color:\s*var\(--red\)/);
     assert.match(css, /\.match-workflow\s*\{[\s\S]*?order:\s*40;/);
     assert.match(css, /\.events-panel\s*\{[\s\S]*?order:\s*60;/);
     assert.match(css, /\.roster-panel\s*\{[\s\S]*?order:\s*70;/);

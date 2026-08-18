@@ -62,6 +62,17 @@ function matchesEvent(torneoId = 2) {
   };
 }
 
+function patchEvent(body) {
+  return {
+    httpMethod: "PATCH",
+    headers: {
+      "x-admin-password": DEFAULT_ENV.ADMIN_PASSWORD
+    },
+    queryStringParameters: {},
+    body: JSON.stringify(body)
+  };
+}
+
 function mockResponse(status, body, statusText = "") {
   return {
     ok: status >= 200 && status < 300,
@@ -189,6 +200,231 @@ async function runAdminPartidosTests() {
         "&order=torneo_id.asc,fecha.asc,zona.asc," +
         "fecha_partido.asc.nullslast,hora.asc.nullslast,local.asc,id.asc"
     );
+  }));
+
+  results.push(await runCase("PATCH marca destacado y limpia anterior del torneo", async () => {
+    setEnv();
+    const calls = [];
+    global.fetch = async (url, options = {}) => {
+      calls.push({
+        url: String(url),
+        method: options.method || "GET",
+        body: options.body ? JSON.parse(options.body) : null
+      });
+
+      const text = String(url);
+      if (text.includes("/rest/v1/torneos")) {
+        return mockResponse(200, [
+          {
+            id: 2,
+            anio: 2026,
+            tipo: "clausura",
+            nombre: "Clausura 2026",
+            activo: true
+          }
+        ]);
+      }
+      if (text.includes("/rest/v1/partidos?select=*&id=eq.301&limit=1")) {
+        return mockResponse(200, [
+          {
+            id: 301,
+            torneo_id: 2,
+            tipo: "regular",
+            fecha: 5,
+            zona: 3,
+            local: "Sportivo A. Club",
+            visitante: "Argentino A. Club",
+            local_id: 20,
+            visitante_id: 21,
+            estado: "programado",
+            destacado_inicio: false,
+            destacado_titulo: null
+          }
+        ]);
+      }
+      if (text.includes("/rest/v1/etapas_estado")) {
+        return mockResponse(200, []);
+      }
+      if (
+        text.includes("/rest/v1/partidos?torneo_id=eq.2") &&
+        text.includes("&destacado_inicio=eq.true") &&
+        text.includes("&id=neq.301")
+      ) {
+        return mockResponse(204, "");
+      }
+      if (
+        text.includes("/rest/v1/partidos?id=eq.301") &&
+        text.includes("&torneo_id=eq.2&select=*")
+      ) {
+        return mockResponse(200, [
+          {
+            id: 301,
+            torneo_id: 2,
+            destacado_inicio: true,
+            destacado_titulo: "Clasico de Las Parejas"
+          }
+        ]);
+      }
+
+      throw new Error(`URL inesperada: ${text}`);
+    };
+
+    const result = await handler(patchEvent({
+      id: 301,
+      torneo_id: 2,
+      patch: {
+        destacado_inicio: true,
+        destacado_titulo: "Clasico de Las Parejas"
+      }
+    }));
+    const body = bodyOf(result);
+    const clearCall = calls.find(call =>
+      call.method === "PATCH" &&
+      call.url.includes("destacado_inicio=eq.true")
+    );
+    const updateCall = calls.find(call =>
+      call.method === "PATCH" &&
+      call.url.includes("id=eq.301")
+    );
+
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(clearCall.body, {
+      destacado_inicio: false,
+      destacado_titulo: null
+    });
+    assert.match(clearCall.url, /torneo_id=eq\.2/);
+    assert.doesNotMatch(clearCall.url, /torneo_id=eq\.1/);
+    assert.deepEqual(updateCall.body, {
+      destacado_inicio: true,
+      destacado_titulo: "Clasico de Las Parejas"
+    });
+    assert.deepEqual(body.savedFields, [
+      "destacado_inicio",
+      "destacado_titulo"
+    ]);
+  }));
+
+  results.push(await runCase("PATCH desmarca destacado y permite torneo sin destacado", async () => {
+    setEnv();
+    const calls = [];
+    global.fetch = async (url, options = {}) => {
+      calls.push({
+        url: String(url),
+        method: options.method || "GET",
+        body: options.body ? JSON.parse(options.body) : null
+      });
+
+      const text = String(url);
+      if (text.includes("/rest/v1/torneos")) {
+        return mockResponse(200, [
+          { id: 2, anio: 2026, tipo: "clausura", nombre: "Clausura 2026" }
+        ]);
+      }
+      if (text.includes("/rest/v1/partidos?select=*&id=eq.301&limit=1")) {
+        return mockResponse(200, [
+          {
+            id: 301,
+            torneo_id: 2,
+            tipo: "regular",
+            fecha: 5,
+            zona: 3,
+            local_id: 20,
+            visitante_id: 21,
+            estado: "programado",
+            destacado_inicio: true,
+            destacado_titulo: "Clasico de Las Parejas"
+          }
+        ]);
+      }
+      if (text.includes("/rest/v1/etapas_estado")) {
+        return mockResponse(200, []);
+      }
+      if (
+        text.includes("/rest/v1/partidos?id=eq.301") &&
+        text.includes("&torneo_id=eq.2&select=*")
+      ) {
+        return mockResponse(200, [
+          {
+            id: 301,
+            torneo_id: 2,
+            destacado_inicio: false,
+            destacado_titulo: null
+          }
+        ]);
+      }
+
+      throw new Error(`URL inesperada: ${text}`);
+    };
+
+    const result = await handler(patchEvent({
+      id: 301,
+      torneo_id: 2,
+      patch: {
+        destacado_inicio: false
+      }
+    }));
+    const updateCalls = calls.filter(call => call.method === "PATCH");
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(
+      calls.some(call => call.url.includes("destacado_inicio=eq.true")),
+      false
+    );
+    assert.equal(updateCalls.length, 1);
+    assert.deepEqual(updateCalls[0].body, {
+      destacado_inicio: false,
+      destacado_titulo: null
+    });
+  }));
+
+  results.push(await runCase("PATCH rechaza destacado de partido de otro torneo", async () => {
+    setEnv();
+    const calls = [];
+    global.fetch = async (url, options = {}) => {
+      calls.push({
+        url: String(url),
+        method: options.method || "GET"
+      });
+
+      const text = String(url);
+      if (text.includes("/rest/v1/torneos")) {
+        return mockResponse(200, [
+          { id: 2, anio: 2026, tipo: "clausura", nombre: "Clausura 2026" }
+        ]);
+      }
+      if (text.includes("/rest/v1/partidos?select=*&id=eq.301&limit=1")) {
+        return mockResponse(200, [
+          {
+            id: 301,
+            torneo_id: 1,
+            tipo: "regular",
+            fecha: 5,
+            zona: 3,
+            local_id: 20,
+            visitante_id: 21,
+            estado: "programado",
+            destacado_inicio: false,
+            destacado_titulo: null
+          }
+        ]);
+      }
+
+      throw new Error(`URL inesperada: ${text}`);
+    };
+
+    const { result, logs } = await captureLogs(() => handler(patchEvent({
+      id: 301,
+      torneo_id: 2,
+      patch: {
+        destacado_inicio: true,
+        destacado_titulo: "No corresponde"
+      }
+    })));
+
+    assert.equal(result.statusCode, 403);
+    assert.equal(bodyOf(result).code, "FORBIDDEN");
+    assert.equal(calls.some(call => call.method === "PATCH"), false);
+    assertNoSecretInLogs(logs);
   }));
 
   for (const [status, statusText] of [

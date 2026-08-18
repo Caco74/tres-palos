@@ -722,6 +722,7 @@ function buildActualizarResumenTorneo(appSource) {
 
 function renderInicioAgendaDeApp(appSource, agenda) {
   const elements = {
+    homeFeaturedContent: { innerHTML: "" },
     homeContent: { innerHTML: "" },
     homeLiveContent: { innerHTML: "" }
   };
@@ -738,6 +739,8 @@ function renderInicioAgendaDeApp(appSource, agenda) {
     obtenerMensajeErrorCargaDatos: fallback => fallback,
     renderSkeletonAgenda: () => "<skeleton></skeleton>",
     obtenerAgendaInicio: () => agenda,
+    obtenerPartidoDestacadoInicio: () => null,
+    renderBloquePartidoDestacadoInicio: () => "",
     obtenerEstadoTorneo: () => ({
       clase: "scheduled",
       animado: false,
@@ -768,8 +771,76 @@ function renderInicioAgendaDeApp(appSource, agenda) {
 
   sandbox.renderInicio();
   return {
+    featuredHtml: elements.homeFeaturedContent.innerHTML,
     html: elements.homeContent.innerHTML,
     agendaRenderizada: sandbox.agendaRenderizada
+  };
+}
+
+function buildDestacadoInicio(appSource, overrides = {}) {
+  const sandbox = {
+    state: {
+      torneoActivo: Object.prototype.hasOwnProperty.call(
+        overrides,
+        "torneoActivo"
+      )
+        ? overrides.torneoActivo
+        : { id: TORNEO_CLAUSURA },
+      partidos: overrides.partidos || []
+    },
+    resolverPartidoPlayoff: partido => partido,
+    compararPartidosParaListado: (a, b) =>
+      Number(a.id || 0) - Number(b.id || 0),
+    obtenerEstadoTemporalPartido: partido =>
+      overrides.estados?.[partido.id] || {
+        tipo: "programado",
+        clase: "scheduled",
+        texto: "23/08 · 16:00",
+        detalle: "23/08 · 16:00"
+      },
+    obtenerNombreOficialEquipo: value => value || null,
+    nombre: value => value || "",
+    obtenerEstadioPartido: partido => partido.estadio || "A confirmar",
+    obtenerHoraPartido: partido => partido.hora || "A confirmar",
+    obtenerEtiquetaDiaPartido: fecha =>
+      fecha === "2026-08-23" ? "23 ago" : "Fecha",
+    etiquetaFase: fase => ({
+      octavos: "Octavos",
+      cuartos: "Cuartos",
+      semifinal: "Semifinal",
+      final: "Final"
+    }[fase] || "Playoffs"),
+    etiquetaInstanciaPartido: partido =>
+      partido.tipo === "regular"
+        ? `Fecha ${partido.fecha || ""}`.trim()
+        : `Llave ${partido.numero_playoff || 1}`,
+    renderEscudoInicio: (equipo, clubId) =>
+      `<span class="home-shield" data-club-id="${clubId || ""}">${String(equipo || "").slice(0, 2)}</span>`,
+    renderMomentoPartido: (partido, estado, clase) =>
+      `<div class="${clase} ${estado.clase}">${estado.texto}<small>${estado.detalle}</small></div>`,
+    obtenerPartidoIdaSerie: () => null,
+    escaparHtml: value => String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "obtenerPartidoDestacadoInicio")}
+     ${extractFunction(appSource, "obtenerTituloPartidoDestacadoInicio")}
+     ${extractFunction(appSource, "renderBloquePartidoDestacadoInicio")}
+     ${extractFunction(appSource, "renderPartidoDestacadoInicio")}
+     ${extractFunction(appSource, "renderCentroPartidoDestacado")}
+     this.obtenerPartidoDestacadoInicio = obtenerPartidoDestacadoInicio;
+     this.renderBloquePartidoDestacadoInicio = renderBloquePartidoDestacadoInicio;`,
+    sandbox
+  );
+
+  return {
+    obtener: () => sandbox.obtenerPartidoDestacadoInicio(),
+    render: partido => sandbox.renderBloquePartidoDestacadoInicio(partido),
+    sandbox
   };
 }
 
@@ -1225,7 +1296,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=70/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=71/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1282,6 +1353,8 @@ async function runTests() {
 
   const inicioAgendaConFechas = renderInicioAgendaDeApp(appSource, agendaConFechas);
   assert.equal(inicioAgendaConFechas.agendaRenderizada, agendaConFechas);
+  assert.equal(inicioAgendaConFechas.featuredHtml, "");
+  assert.doesNotMatch(inicioAgendaConFechas.html, /home-highlight-card/);
   assert.equal(
     (inicioAgendaConFechas.html.match(/home-match-card-test/g) || []).length,
     4
@@ -1311,8 +1384,82 @@ async function runTests() {
   assert.doesNotMatch(renderInicioSource, /nc-round|nc-footer-label/);
   assert.doesNotMatch(renderInicioSource, /Ver fecha completa/);
   results.push("Inicio: agenda conserva seleccion, limite y CTA sin contador: ok");
+
+  const destacadoBase = {
+    id: 880,
+    torneo_id: TORNEO_CLAUSURA,
+    tipo: "regular",
+    fecha: 5,
+    zona: 3,
+    local: "Sportivo A. Club",
+    visitante: "Argentino A. Club",
+    local_id: 20,
+    visitante_id: 21,
+    fecha_partido: "2026-08-23",
+    hora: "16:00",
+    estadio: "Estadio Las Parejas",
+    estado: "programado",
+    goles_local: null,
+    goles_visitante: null,
+    penales_local: null,
+    penales_visitante: null,
+    destacado_inicio: true,
+    destacado_titulo: "Clasico de Las Parejas"
+  };
+  const destacadoInicio = buildDestacadoInicio(appSource, {
+    partidos: [
+      { ...destacadoBase, destacado_inicio: false },
+      { ...destacadoBase, id: 881, destacado_inicio: true }
+    ]
+  });
+  const partidoDestacado = destacadoInicio.obtener();
+  const htmlDestacado = destacadoInicio.render(partidoDestacado);
+
+  assert.equal(partidoDestacado.id, 881);
+  assert.match(htmlDestacado, /home-highlight-card/);
+  assert.match(htmlDestacado, /Partido destacado/);
+  assert.match(htmlDestacado, /Clasico de Las Parejas/);
+  assert.match(htmlDestacado, /Sportivo A\. Club/);
+  assert.match(htmlDestacado, /Argentino A\. Club/);
+  assert.match(htmlDestacado, /23 ago/);
+  assert.match(htmlDestacado, /16:00/);
+  assert.match(htmlDestacado, /Estadio Las Parejas/);
+  assert.match(htmlDestacado, /abrirPartido\(881\)/);
+  assert.match(htmlDestacado, /Ver partido\s*→/);
+
+  const destacadoOtroTorneo = buildDestacadoInicio(appSource, {
+    partidos: [
+      {
+        ...destacadoBase,
+        id: 990,
+        torneo_id: TORNEO_APERTURA,
+        destacado_inicio: true
+      }
+    ]
+  });
+  assert.equal(destacadoOtroTorneo.obtener(), null);
+
+  const destacadoSinTorneo = buildDestacadoInicio(appSource, {
+    torneoActivo: null,
+    partidos: [destacadoBase]
+  });
+  assert.equal(destacadoSinTorneo.obtener(), null);
+  assert.doesNotMatch(
+    extractFunction(appSource, "obtenerPartidos"),
+    /destacado_inicio=eq\.true/
+  );
+  assert.doesNotMatch(
+    extractFunction(appSource, "obtenerPartidoDestacadoInicio"),
+    /partidosTodos/
+  );
+  assert.match(
+    extractFunction(appSource, "obtenerPartidoDestacadoInicio"),
+    /state\.torneoActivo\?\.id/
+  );
+  results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
+
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=79/);
+  assert.match(indexSource, /\/js\/app\.js\?v=80/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);

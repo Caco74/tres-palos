@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
   <title>Panel de carga · Tres Palos</title>
-  <link rel="stylesheet" href="styles/admin.css?v=16">
+  <link rel="stylesheet" href="styles/admin.css?v=17">
 </head>
 <body>
   <main class="admin-shell">
@@ -184,6 +184,27 @@
                 <label>
                   Árbitro principal
                   <input id="arbitroInput" type="text" placeholder="Vacío = A confirmar">
+                </label>
+              </div>
+
+              <div class="form-section-title">Inicio</div>
+              <div class="featured-admin-box">
+                <label class="featured-toggle">
+                  <input id="destacadoInicioInput" type="checkbox">
+                  <span>
+                    <strong>Destacar en Inicio</strong>
+                    <small>Al guardar, reemplaza al destacado actual de este torneo.</small>
+                  </span>
+                </label>
+
+                <label id="destacadoTituloLabel">
+                  Título destacado
+                  <input
+                    id="destacadoTituloInput"
+                    type="text"
+                    maxlength="120"
+                    placeholder="Clásico de Las Parejas"
+                  >
                 </label>
               </div>
 
@@ -1151,6 +1172,6 @@
   </main>
 
   <script src="js/admin-match-flow.js?v=2"></script>
-  <script src="js/admin-panel.js?v=27"></script>
+  <script src="js/admin-panel.js?v=28"></script>
 </body>
 </html>
