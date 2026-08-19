@@ -2751,12 +2751,80 @@ function prioridadPartidoListado(partido) {
   }[obtenerEstadoTemporalPartido(partido).tipo] ?? 5;
 }
 
+function obtenerPartidoDestacadoInicio() {
+  const torneoId = state.torneoActivo?.id;
+  if (!torneoId) return null;
+
+  return state.partidos
+    .filter(
+      partido =>
+        partido?.destacado_inicio === true &&
+        String(partido.torneo_id) === String(torneoId)
+    )
+    .map(partido =>
+      partido.tipo === "playoff" ? resolverPartidoPlayoff(partido) : partido
+    )
+    .filter(
+      partido =>
+        partido.local &&
+        partido.visitante &&
+        String(partido.torneo_id) === String(torneoId)
+    )
+    .sort(compararPartidosParaListado)[0] || null;
+}
+
+function obtenerTituloPartidoDestacadoInicio(
+  partido,
+  nombreLocal,
+  nombreVisitante
+) {
+  const titulo = String(partido.destacado_titulo || "").trim();
+  return titulo || `${nombreLocal} vs ${nombreVisitante}`;
+}
+
+function renderBloquePartidoDestacadoInicio(partido) {
+  const estado = obtenerEstadoTemporalPartido(partido);
+  const jugado =
+    partido.goles_local !== null &&
+    partido.goles_visitante !== null;
+  const nombreLocal =
+    obtenerNombreOficialEquipo(partido.local, partido.local_id) ||
+    nombre(partido.local, partido.local_id);
+  const nombreVisitante =
+    obtenerNombreOficialEquipo(partido.visitante, partido.visitante_id) ||
+    nombre(partido.visitante, partido.visitante_id);
+  const titulo = obtenerTituloPartidoDestacadoInicio(
+    partido,
+    nombreLocal,
+    nombreVisitante
+  );
+
+  return `
+    <section class="next-card home-highlight-card" aria-label="Partido destacado">
+      <div class="home-highlight-heading">
+        <span>Partido destacado</span>
+        <strong>${escaparHtml(titulo)}</strong>
+      </div>
+      ${renderPartidoDestacadoInicio(
+        partido,
+        estado,
+        nombreLocal,
+        nombreVisitante,
+        jugado,
+        { callToAction: "Ver partido" }
+      )}
+    </section>
+  `;
+}
+
 function renderInicio() {
   const cont = document.getElementById("homeContent");
   const contVivo = document.getElementById("homeLiveContent");
+  const contDestacado = document.getElementById("homeFeaturedContent");
   if (!cont) return;
 
   if (errorCargaDatos && state.partidos.length === 0) {
+    if (contDestacado) contDestacado.innerHTML = "";
     cont.innerHTML = renderEstadoVista(
       "error",
       "No pudimos cargar la agenda",
@@ -2768,6 +2836,7 @@ function renderInicio() {
   }
 
   if (!cargaPartidosFinalizada) {
+    if (contDestacado) contDestacado.innerHTML = "";
     cont.innerHTML = renderSkeletonAgenda();
     if (contVivo) contVivo.innerHTML = "";
     return;
@@ -2776,6 +2845,12 @@ function renderInicio() {
   const agenda = obtenerAgendaInicio();
   const estadoTorneo = obtenerEstadoTorneo();
   const serieFinal = obtenerResultadoSerieFinal();
+  const partidoDestacado = obtenerPartidoDestacadoInicio();
+  if (contDestacado) {
+    contDestacado.innerHTML = partidoDestacado
+      ? renderBloquePartidoDestacadoInicio(partidoDestacado)
+      : "";
+  }
   actualizarResumenTorneo(agenda);
 
   if (serieFinal.ganador) {
@@ -3075,8 +3150,10 @@ function renderPartidoDestacadoInicio(
   estado,
   nombreLocal,
   nombreVisitante,
-  jugado
+  jugado,
+  options
 ) {
+  const opciones = options || {};
   const instancia = partido.tipo === "regular"
     ? [
         `Fecha ${partido.fecha || ""}`.trim(),
@@ -3096,26 +3173,32 @@ function renderPartidoDestacadoInicio(
   const estadio = escaparHtml(obtenerEstadioPartido(partido));
   const etiquetaDia = obtenerEtiquetaDiaPartido(partido.fecha_partido);
   const hora = escaparHtml(obtenerHoraPartido(partido));
+  const callToAction = String(opciones.callToAction || "").trim();
+  const actionMarkup = callToAction
+    ? `<span class="home-featured-cta">${escaparHtml(callToAction)} →</span>`
+    : `<span class="home-featured-chevron" aria-hidden="true">›</span>`;
+  const nombreLocalHtml = escaparHtml(nombreLocal);
+  const nombreVisitanteHtml = escaparHtml(nombreVisitante);
 
   return `
     <button
       type="button"
       class="home-featured-match ${estado.clase}"
       onclick="abrirPartido(${JSON.stringify(partido.id)})"
-      aria-label="Ver ${nombreLocal} contra ${nombreVisitante}"
+      aria-label="Ver ${nombreLocalHtml} contra ${nombreVisitanteHtml}"
     >
       <span class="home-featured-context">
         <span class="home-featured-context-label">
           <span class="home-featured-dot" aria-hidden="true"></span>
-          ${instancia}
+          ${escaparHtml(instancia)}
         </span>
-        <span class="home-featured-chevron" aria-hidden="true">›</span>
+        ${actionMarkup}
       </span>
 
       <span class="home-featured-matchup">
         <span class="home-featured-team">
           ${renderEscudoInicio(partido.local, partido.local_id)}
-          <strong>${nombreLocal}</strong>
+          <strong>${nombreLocalHtml}</strong>
         </span>
 
         <span class="home-featured-center">
@@ -3124,7 +3207,7 @@ function renderPartidoDestacadoInicio(
 
         <span class="home-featured-team">
           ${renderEscudoInicio(partido.visitante, partido.visitante_id)}
-          <strong>${nombreVisitante}</strong>
+          <strong>${nombreVisitanteHtml}</strong>
         </span>
       </span>
 
@@ -3142,7 +3225,12 @@ function renderPartidoDestacadoInicio(
   `;
 }
 
-function renderCentroPartidoDestacado(partido, jugado, tienePenales) {
+function renderCentroPartidoDestacado(
+  partido,
+  jugado,
+  tienePenales,
+  estado = null
+) {
   if (jugado) {
     return `
       <strong class="home-featured-score">
@@ -3152,8 +3240,19 @@ function renderCentroPartidoDestacado(partido, jugado, tienePenales) {
         ? `<span class="home-featured-penalties">
             Pen. ${partido.penales_local} - ${partido.penales_visitante}
           </span>`
+        : estado?.tipo === "penales"
+        ? `<span class="home-featured-penalties">Penales</span>`
         : ""}
     `;
+  }
+
+  if (
+    estado &&
+    ["en-juego", "esperando", "suspendido", "postergado"].includes(
+      estado.tipo
+    )
+  ) {
+    return renderMomentoPartido(partido, estado, "home-featured-status");
   }
 
   const partidoIda = obtenerPartidoIdaSerie(partido);
@@ -6097,7 +6196,8 @@ function renderDetallePartido(id) {
   const centro = renderCentroPartidoDestacado(
     partido,
     jugado,
-    tienePenales
+    tienePenales,
+    estado
   );
 
   cont.innerHTML = `

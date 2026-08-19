@@ -7270,6 +7270,46 @@ button.team-match-row:focus-visible {
 
 /* HOME: FEATURED MATCH */
 
+.home-highlight-card {
+  background:
+    linear-gradient(135deg, rgba(243, 25, 43, .18), transparent 46%),
+    var(--card);
+  border-color: rgba(243, 25, 43, .36);
+}
+
+.home-highlight-heading {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px 0;
+}
+
+.home-highlight-heading span {
+  color: var(--red);
+  font-family: 'DM Mono', monospace;
+  font-size: .56rem;
+  letter-spacing: .12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.home-highlight-heading strong {
+  min-width: 0;
+  color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(1.45rem, 7vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: .98;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.home-highlight-card .home-featured-matchup {
+  min-height: 154px;
+  padding-top: 14px;
+  padding-bottom: 18px;
+}
+
 .home-featured-match {
   width: 100%;
   display: block;
@@ -7329,6 +7369,18 @@ button.team-match-row:focus-visible {
   line-height: 1;
 }
 
+.home-featured-cta {
+  flex: 0 0 auto;
+  color: var(--red);
+  font-family: 'DM Mono', monospace;
+  font-size: .56rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .home-featured-matchup {
   min-height: 174px;
   display: grid;
@@ -7386,7 +7438,8 @@ button.team-match-row:focus-visible {
 }
 
 .home-featured-vs,
-.home-featured-score {
+.home-featured-score,
+.home-featured-status {
   color: var(--red);
   font-family: 'Bebas Neue', sans-serif;
   font-size: 2rem;
@@ -7394,6 +7447,30 @@ button.team-match-row:focus-visible {
   letter-spacing: 0;
   line-height: 1;
   white-space: nowrap;
+}
+
+.home-featured-status {
+  display: block;
+  color: var(--draw);
+  font-family: 'DM Mono', monospace;
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.home-featured-status.live {
+  color: var(--red);
+}
+
+.home-featured-status small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .58rem;
+  font-weight: 500;
 }
 
 .home-featured-first-leg {
@@ -7530,6 +7607,10 @@ button.team-match-row:focus-visible {
   .home-featured-vs,
   .home-featured-score {
     font-size: 1.75rem;
+  }
+
+  .home-featured-status {
+    font-size: .7rem;
   }
 
   .home-featured-time {
