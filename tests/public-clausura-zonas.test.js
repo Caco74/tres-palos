@@ -1488,7 +1488,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=79/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=80/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1651,7 +1651,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=87/);
+  assert.match(indexSource, /\/js\/app\.js\?v=88/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -3081,7 +3081,8 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /obtenerEscudoTablaEquipo/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /renderImagenEscudoTabla/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /<th>Zona<\/th>[\s\S]*<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
+  assert.match(extractFunction(appSource, "renderTablaGeneral"), /<th aria-label="Zona">Z<\/th>[\s\S]*<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
+  assert.match(extractFunction(appSource, "renderFilaTablaGeneral"), /class="t-zone"[\s\S]*class="t-zone-pill"[\s\S]*aria-label="Zona \$\{t\.zona\}"[\s\S]*>Z\$\{t\.zona\}<\/span>/);
   assert.match(extractFunction(appSource, "renderTablaGeneral"), /tabla-referencias--general/);
   assert.match(extractFunction(appSource, "renderTablaGeneral"), /tabla-ref-general/);
   assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-head|<h3>Tabla general<\/h3>/);
@@ -3108,6 +3109,9 @@ async function runTests() {
   assert.match(styleSource, /\.tabla-ref[\s\S]*border-radius: 999px/);
   assert.match(styleSource, /\.tabla-ref-general[\s\S]*min-height: 30px/);
   assert.match(styleSource, /\.tabla th:first-child,[\s\S]*\.tabla td:first-child[\s\S]*width: 60px/);
+  assert.match(styleSource, /\.tabla-general-table th:nth-child\(3\),[\s\S]*\.tabla-general-table td:nth-child\(3\)[\s\S]*width: 66px/);
+  assert.match(styleSource, /\.t-zone-pill[\s\S]*border-radius: 999px/);
+  assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla-general-table th:nth-child\(3\),[\s\S]*\.tabla-general-table td:nth-child\(3\)[\s\S]*width: 34px/);
   assert.match(styleSource, /\.t-pos-cuartos::before[\s\S]*\.t-pos-octavos::before/);
   assert.match(styleSource, /\.t-pos-cuartos::before[\s\S]*var\(--classify-cuartos\)/);
   assert.match(styleSource, /\.t-pos-octavos::before[\s\S]*var\(--classify-octavos\)/);

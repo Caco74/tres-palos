@@ -5868,7 +5868,7 @@ function renderTablaGeneral(standalone = false) {
             <tr>
               <th>#</th>
               <th>Equipo</th>
-              <th>Zona</th>
+              <th aria-label="Zona">Z</th>
               <th>PTS</th>
               <th>PJ</th>
               <th>PG</th>
@@ -5908,7 +5908,9 @@ function renderFilaTablaGeneral(t, indice) {
           ${nombreEquipo}
         </div>
       </td>
-      <td class="t-zone">Zona ${t.zona}</td>
+      <td class="t-zone">
+        <span class="t-zone-pill" aria-label="Zona ${t.zona}" title="Zona ${t.zona}">Z${t.zona}</span>
+      </td>
       <td class="t-pts">${t.pts}</td>
       <td>${t.pj}</td>
       <td>${t.pg}</td>
