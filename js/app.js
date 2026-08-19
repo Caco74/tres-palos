@@ -5730,14 +5730,12 @@ function renderTablaPosiciones(cont) {
             <th>PE</th>
             <th>PP</th>
             <th>DG</th>
-            <th>Forma</th>
           </tr>
         </thead>
         <tbody>
   `;
 
   data.forEach((t, i) => {
-    const dots = renderIndicadoresFormaTabla(t);
     const nombreEquipo = nombre(t.equipo);
     const escudo = obtenerEscudoEquipo(t.equipo);
     const escudoEquipo = escudo
@@ -5764,7 +5762,6 @@ function renderTablaPosiciones(cont) {
         <td>${t.pe}</td>
         <td>${t.pp}</td>
         <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-        <td>${dots ? `<div class="form-row">${dots}</div>` : ""}</td>
       </tr>
     `;
   });
@@ -5772,31 +5769,6 @@ function renderTablaPosiciones(cont) {
   html += `</tbody></table></div>`;
   cont.innerHTML = html;
   activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
-}
-
-function obtenerEtiquetaFormaTabla(resultado) {
-  return {
-    w: "victoria",
-    e: "empate",
-    l: "derrota"
-  }[resultado] || "resultado";
-}
-
-function renderIndicadoresFormaTabla(fila) {
-  if (!fila || Number(fila.pj) === 0) return "";
-
-  return (fila.forma || [])
-    .map(resultado => {
-      const etiqueta = obtenerEtiquetaFormaTabla(resultado);
-      return `
-        <span
-          class="fd f${resultado}"
-          aria-label="&Uacute;ltimo resultado: ${etiqueta}"
-          title="&Uacute;ltimo resultado: ${etiqueta}"
-        ></span>
-      `;
-    })
-    .join("");
 }
 
 function renderTablaGoleadores(cont) {
@@ -5888,7 +5860,6 @@ function renderTablaGeneral(standalone = false) {
               <th>PE</th>
               <th>PP</th>
               <th>DG</th>
-              <th>Forma</th>
             </tr>
           </thead>
           <tbody>
@@ -5901,7 +5872,6 @@ function renderTablaGeneral(standalone = false) {
 }
 
 function renderFilaTablaGeneral(t, indice) {
-  const dots = renderIndicadoresFormaTabla(t);
   const nombreEquipo = nombre(t.equipo);
   const escudo = obtenerEscudoEquipo(t.equipo);
   const escudoEquipo = escudo
@@ -5925,7 +5895,6 @@ function renderFilaTablaGeneral(t, indice) {
       <td>${t.pe}</td>
       <td>${t.pp}</td>
       <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-      <td>${dots ? `<div class="form-row">${dots}</div>` : ""}</td>
     </tr>
   `;
 }
@@ -6182,6 +6151,7 @@ function renderDetallePartido(id) {
     programado: "Programado",
     "sin-fecha": "A confirmar"
   }[estado.tipo] || estado.texto;
+  const formaReciente = renderFormaRecienteDetallePartido(partido);
   const antecedentes = renderAntecedentesDetallePartido(partido);
   const incidencias = renderIncidenciasDetallePartido(
     partido,
@@ -6255,6 +6225,7 @@ function renderDetallePartido(id) {
       </div>
     </article>
 
+    ${formaReciente}
     ${priorizarIncidencias
       ? `${incidencias}${antecedentes}`
       : `${antecedentes}${incidencias}`}
@@ -6601,6 +6572,144 @@ function renderValorDetalle(etiqueta, valor) {
         ${valor}
       </strong>
     </div>
+  `;
+}
+
+function obtenerReferenciaEquipoFormaPartido(partido, lado) {
+  const equipo = partido?.[lado];
+  const clubId = partido?.[`${lado}_id`];
+  const club = obtenerClub(equipo, clubId);
+
+  return club?.nombre_oficial || equipo || "";
+}
+
+function partidoEsAnteriorAReferenciaForma(antecedente, partidoActual) {
+  const fechaActual = obtenerFechaCalendarioPartido(partidoActual);
+  const fechaAntecedente = obtenerFechaCalendarioPartido(antecedente);
+
+  if (!fechaActual || !fechaAntecedente) return false;
+  if (fechaAntecedente < fechaActual) return true;
+  if (fechaAntecedente > fechaActual) return false;
+
+  const momentoActual = crearFechaHoraPartido(partidoActual);
+  const momentoAntecedente = crearFechaHoraPartido(antecedente);
+
+  return Boolean(
+    momentoActual &&
+    momentoAntecedente &&
+    momentoAntecedente.getTime() < momentoActual.getTime()
+  );
+}
+
+function obtenerResultadoFormaEquipoPartido(partido, equipo) {
+  return {
+    win: "G",
+    draw: "E",
+    loss: "P"
+  }[clasificarResultadoEquipoPartido(partido, equipo)] || "";
+}
+
+function obtenerFormaRecienteEquipoAntesPartido(
+  partidoActual,
+  equipo,
+  limite = 5
+) {
+  if (!partidoActual?.torneo_id || !equipo) return [];
+
+  const torneo = state.torneos.find(
+    item => String(item.id) === String(partidoActual.torneo_id)
+  ) || { id: partidoActual.torneo_id };
+  const maximo = Math.max(0, Number(limite) || 0);
+
+  return obtenerPartidosEquipoTorneo(equipo, torneo)
+    .filter(
+      partido =>
+        partido.tipoActividad !== "libre" &&
+        String(partido.id) !== String(partidoActual.id) &&
+        partidoTieneResultadoVisualConfirmado(partido) &&
+        partidoEsAnteriorAReferenciaForma(partido, partidoActual)
+    )
+    .sort(ordenarPartidosRecientes)
+    .slice(0, maximo)
+    .reverse()
+    .map(partido => ({
+      partido,
+      resultado: obtenerResultadoFormaEquipoPartido(partido, equipo)
+    }))
+    .filter(item => item.resultado);
+}
+
+function renderResultadoFormaRecienteDetallePartido(item) {
+  const etiqueta = {
+    G: "Ganado",
+    E: "Empatado",
+    P: "Perdido"
+  }[item.resultado] || "Resultado";
+
+  return `
+    <span
+      class="match-form-result team-form-${item.resultado.toLowerCase()}"
+      title="${etiqueta}"
+      aria-label="${etiqueta}"
+    >
+      ${item.resultado}
+    </span>
+  `;
+}
+
+function renderEquipoFormaRecienteDetallePartido(partido, lado) {
+  const equipo = partido?.[lado];
+  if (!equipo) return "";
+
+  const clubId = partido?.[`${lado}_id`];
+  const referenciaEquipo = obtenerReferenciaEquipoFormaPartido(partido, lado);
+  const nombreEquipo = nombre(equipo, clubId);
+  const escudo = obtenerEscudoEquipo(equipo, clubId);
+  const escudoEquipo = escudo
+    ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreEquipo)}" width="32" height="32" loading="lazy" decoding="async">`
+    : `<span aria-hidden="true">${escaparHtml(
+        (nombreEquipo || "?").trim().slice(0, 2).toUpperCase()
+      )}</span>`;
+  const forma = obtenerFormaRecienteEquipoAntesPartido(
+    partido,
+    referenciaEquipo,
+    5
+  );
+
+  return `
+    <div class="match-form-team">
+      <div class="match-form-team-head">
+        <span class="match-form-shield${escudo ? "" : " is-missing"}">
+          ${escudoEquipo}
+        </span>
+        <strong>${escaparHtml(nombreEquipo)}</strong>
+      </div>
+      <div
+        class="match-form-results"
+        aria-label="Forma reciente de ${escaparHtml(nombreEquipo)}"
+      >
+        ${forma.length > 0
+          ? forma.map(renderResultadoFormaRecienteDetallePartido).join("")
+          : `<span class="match-form-empty">Sin antecedentes recientes</span>`}
+      </div>
+    </div>
+  `;
+}
+
+function renderFormaRecienteDetallePartido(partido) {
+  if (!partido?.local || !partido?.visitante) return "";
+
+  return `
+    <section class="detail-section detail-match-form">
+      <div class="detail-section-head">
+        <h2>Forma reciente</h2>
+        <span>Previa</span>
+      </div>
+      <div class="match-form-grid">
+        ${renderEquipoFormaRecienteDetallePartido(partido, "local")}
+        ${renderEquipoFormaRecienteDetallePartido(partido, "visitante")}
+      </div>
+    </section>
   `;
 }
 
@@ -8134,174 +8243,6 @@ function renderResumenTorneoEquipo(stats, datosTabla, estadoTorneoEquipo) {
   `;
 }
 
-function obtenerUltimosPartidosFinalizadosEquipo(
-  partidosEquipo,
-  equipo,
-  limite = 5
-) {
-  return partidosEquipo
-    .filter(
-      partido =>
-        partido.tipoActividad !== "libre" &&
-        equipoParticipaEnPartido(partido, equipo) &&
-        partidoFinalizadoRecorridoEquipo(partido)
-    )
-    .sort(ordenarPartidosRecientes)
-    .slice(0, limite);
-}
-
-function obtenerDatosPartidoRecienteEquipo(partido, equipo) {
-  const lado = obtenerLadoEquipoPartido(partido, equipo);
-  if (!lado) return null;
-
-  const esLocal = lado === "local";
-  const rivalLado = esLocal ? "visitante" : "local";
-  const favor = Number(esLocal
-    ? partido.goles_local
-    : partido.goles_visitante);
-  const contra = Number(esLocal
-    ? partido.goles_visitante
-    : partido.goles_local);
-  const resultado = favor > contra ? "G" : favor < contra ? "P" : "E";
-  const claseResultado = {
-    G: "win",
-    E: "draw",
-    P: "loss"
-  }[resultado];
-  const rival = obtenerNombreLadoPartido(partido, rivalLado);
-  const contexto = obtenerEtiquetaInstanciaAntecedente(partido);
-  const fecha = formatearFechaAntecedente(
-    obtenerFechaCalendarioPartido(partido)
-  );
-
-  return {
-    lado,
-    rival,
-    favor,
-    contra,
-    resultado,
-    claseResultado,
-    condicion: esLocal ? "Local" : "Visitante",
-    contexto,
-    fecha
-  };
-}
-
-function calcularResumenUltimosPartidosEquipo(partidos, equipo) {
-  return partidos.reduce((resumen, partido) => {
-    const datos = obtenerDatosPartidoRecienteEquipo(partido, equipo);
-    if (!datos) return resumen;
-
-    resumen.pj++;
-    resumen.gf += datos.favor;
-    resumen.gc += datos.contra;
-
-    if (datos.resultado === "G") resumen.g++;
-    else if (datos.resultado === "P") resumen.p++;
-    else resumen.e++;
-
-    return resumen;
-  }, { pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 });
-}
-
-function renderResumenUltimosPartidosEquipo(resumen) {
-  const items = [
-    ["PJ", resumen.pj],
-    ["G", resumen.g],
-    ["E", resumen.e],
-    ["P", resumen.p],
-    ["GF", resumen.gf],
-    ["GC", resumen.gc]
-  ];
-
-  return `
-    <div class="team-recent-summary" aria-label="Resumen de ultimos partidos">
-      ${items.map(([etiqueta, valor]) => `
-        <span>
-          <small>${etiqueta}</small>
-          <strong>${valor}</strong>
-        </span>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderPartidoRecienteEquipo(partido, equipo) {
-  const datos = obtenerDatosPartidoRecienteEquipo(partido, equipo);
-  if (!datos) return "";
-
-  const rival = escaparHtml(datos.rival);
-  const detalle = [
-    datos.contexto,
-    datos.condicion,
-    datos.fecha
-  ].filter(Boolean).join(" · ");
-  const marcador = `${datos.favor} - ${datos.contra}`;
-  const etiquetaResultado = {
-    G: "Ganado",
-    E: "Empatado",
-    P: "Perdido"
-  }[datos.resultado];
-
-  return `
-    <button
-      type="button"
-      class="team-recent-match team-match--${datos.claseResultado}"
-      onclick="abrirPartido(${JSON.stringify(partido.id)})"
-      aria-label="${escaparHtml(
-        `${etiquetaResultado}: ${marcador} vs ${datos.rival}. ${detalle}`
-      )}"
-    >
-      <span
-        class="team-recent-result team-form-${datos.resultado.toLowerCase()}"
-        aria-hidden="true"
-      >
-        ${datos.resultado}
-      </span>
-      <span class="team-recent-copy">
-        <strong>vs ${rival}</strong>
-        <small>${escaparHtml(detalle)}</small>
-      </span>
-      <strong class="team-recent-score">${marcador}</strong>
-    </button>
-  `;
-}
-
-function renderUltimosPartidosEquipo(partidosEquipo, equipo) {
-  const ultimos = obtenerUltimosPartidosFinalizadosEquipo(
-    partidosEquipo,
-    equipo,
-    5
-  );
-  const resumen = calcularResumenUltimosPartidosEquipo(ultimos, equipo);
-
-  return `
-    <section class="team-season-block team-season-recent">
-      <div class="team-season-block-head team-recent-head">
-        <div>
-          <h2>&Uacute;ltimos 5</h2>
-          <span>Forma reciente</span>
-        </div>
-        ${renderFormaEquipo(ultimos, equipo)}
-      </div>
-      ${ultimos.length === 0
-        ? `
-          <div class="team-recent-empty">
-            No hay partidos finalizados para este equipo en el campeonato seleccionado.
-          </div>
-        `
-        : `
-          ${renderResumenUltimosPartidosEquipo(resumen)}
-          <div class="team-recent-list">
-            ${ultimos.map(partido =>
-              renderPartidoRecienteEquipo(partido, equipo)
-            ).join("")}
-          </div>
-        `}
-    </section>
-  `;
-}
-
 function agruparPartidosEquipoPorFase(partidosEquipo) {
   const grupos = new Map();
   const orden = [
@@ -8506,6 +8447,12 @@ function renderDetalleEquipo(equipo) {
         .filter(partido => equipoParticipaEnPartido(partido, equipo))
         .sort(ordenarPartidosCronologicamente)
     : [];
+  const libresEquipo = torneoSeleccionado
+    ? obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneoSeleccionado)
+    : [];
+  const actividadesEquipo = partidosEquipo
+    .concat(libresEquipo)
+    .sort(ordenarPartidosCronologicamente);
   const stats = calcularRendimientoEquipoTorneo(partidosEquipo, equipo);
   const datosTabla = obtenerDatosTablaEquipoTorneo(equipo, partidosTorneo);
   const eventosEquipo = obtenerEventosPartidosHistorial(partidosEquipo);
@@ -8573,10 +8520,6 @@ function renderDetalleEquipo(equipo) {
       </section>
       ${renderSelectorTorneosDetalleEquipo(torneosEquipo, torneoSeleccionado)}
       ${renderResumenTorneoEquipo(stats, datosTabla, estadoTorneoEquipo)}
-      ${torneosEquipo.length === 0 ? "" : renderUltimosPartidosEquipo(
-        partidosEquipo,
-        equipo
-      )}
       ${renderDestacadosEquipoTorneo(destacados, equipo)}
     </article>
 
@@ -8588,7 +8531,13 @@ function renderDetalleEquipo(equipo) {
           </div>
         </section>
       `
-      : ""}
+      : `
+        ${renderPartidosEquipoPorFase(
+          actividadesEquipo,
+          equipo,
+          torneoSeleccionado
+        )}
+      `}
   `;
   return;
 }
@@ -8607,12 +8556,9 @@ function renderFormaEquipo(partidos, equipo) {
 }
 
 function resultadoEquipoDetalle(partido, equipo) {
-  const lado = obtenerLadoEquipoPartido(partido, equipo);
-  if (!lado) return "E";
-
-  const esLocal = lado === "local";
-  const favor = Number(esLocal ? partido.goles_local : partido.goles_visitante);
-  const contra = Number(esLocal ? partido.goles_visitante : partido.goles_local);
+  const esLocal = partido.local === equipo;
+  const favor = esLocal ? partido.goles_local : partido.goles_visitante;
+  const contra = esLocal ? partido.goles_visitante : partido.goles_local;
 
   if (favor > contra) return "G";
   if (favor < contra) return "P";
