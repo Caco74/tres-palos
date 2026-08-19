@@ -1651,7 +1651,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=88/);
+  assert.match(indexSource, /\/js\/app\.js\?v=89/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -3064,6 +3064,9 @@ async function runTests() {
   assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /<span>Campeonato<\/span>|<span>Estado<\/span>/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /renderResumenTorneoEquipo/);
   assert.match(extractFunction(appSource, "renderResumenTorneoEquipo"), /Resumen del torneo/);
+  assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /<span>Puntos<\/span>[\s\S]*<strong>\$\{stats\.pts\}<\/strong>/);
+  assert.doesNotMatch(extractFunction(appSource, "renderCampaniaEquipo"), /Partidos jugados/);
+  assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /<span>Campa&ntilde;a<\/span>[\s\S]*\$\{stats\.pg\}G &middot; \$\{stats\.pe\}E &middot; \$\{stats\.pp\}P/);
   assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /Goles a favor/);
   assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /Goles en contra/);
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /Destacados/);
