@@ -1488,7 +1488,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=77/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=79/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1651,7 +1651,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=86/);
+  assert.match(indexSource, /\/js\/app\.js\?v=87/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -3082,7 +3082,10 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /obtenerEscudoTablaEquipo/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /renderImagenEscudoTabla/);
   assert.match(extractFunction(appSource, "renderTablaGeneral"), /<th>Zona<\/th>[\s\S]*<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /<h3>Tabla general<\/h3>/);
+  assert.match(extractFunction(appSource, "renderTablaGeneral"), /tabla-referencias--general/);
+  assert.match(extractFunction(appSource, "renderTablaGeneral"), /tabla-ref-general/);
+  assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-head|<h3>Tabla general<\/h3>/);
+  assert.match(extractFunction(appSource, "renderTablaGeneral"), /Tabla general &middot;/);
   assert.match(extractFunction(appSource, "renderTablaGeneral"), /\$\{data\.length\} equipos/);
   assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-kicker">General/);
   assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /Tabla general de puntos/);
@@ -3103,6 +3106,8 @@ async function runTests() {
   assert.match(styleSource, /--classify-cuartos: #2bd67f/);
   assert.match(styleSource, /--classify-octavos: #f2c94c/);
   assert.match(styleSource, /\.tabla-ref[\s\S]*border-radius: 999px/);
+  assert.match(styleSource, /\.tabla-ref-general[\s\S]*min-height: 30px/);
+  assert.match(styleSource, /\.tabla th:first-child,[\s\S]*\.tabla td:first-child[\s\S]*width: 60px/);
   assert.match(styleSource, /\.t-pos-cuartos::before[\s\S]*\.t-pos-octavos::before/);
   assert.match(styleSource, /\.t-pos-cuartos::before[\s\S]*var\(--classify-cuartos\)/);
   assert.match(styleSource, /\.t-pos-octavos::before[\s\S]*var\(--classify-octavos\)/);

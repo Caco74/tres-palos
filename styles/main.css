@@ -2072,6 +2072,11 @@ button {
   text-transform: uppercase;
 }
 
+.tabla-ref-general {
+  color: var(--muted);
+  min-height: 30px;
+}
+
 .tabla-ref-color {
   width: 4px;
   height: 16px;
@@ -2120,6 +2125,11 @@ button {
 
 .tabla td:first-child {
   text-align: center;
+}
+
+.tabla th:first-child,
+.tabla td:first-child {
+  width: 60px;
 }
 
 .tabla td:nth-child(2) {

@@ -5857,11 +5857,10 @@ function renderTablaGeneral(standalone = false) {
 
   return `
     <div class="${clases}">
-      <div class="tabla-general-head">
-        <div>
-          <h3>Tabla general</h3>
+      <div class="tabla-referencias tabla-referencias--general">
+        <div class="tabla-ref tabla-ref-general">
+          Tabla general &middot; ${data.length} equipos
         </div>
-        <span>${data.length} equipos</span>
       </div>
       <div class="tabla-wrap tabla-wrap-general">
         <table class="tabla tabla-general-table">
