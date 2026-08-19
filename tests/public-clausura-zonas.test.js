@@ -610,9 +610,176 @@ function buildAntecedentesDetallePartido(appSource, overrides = {}) {
   };
 }
 
+function buildFormaRecienteDetallePartido(appSource, overrides = {}) {
+  const clubes = overrides.clubes || [
+    {
+      id: 101,
+      nombre_oficial: "Equipo Central",
+      nombre_corto: "Central",
+      escudo_url: "central.svg"
+    },
+    {
+      id: 202,
+      nombre_oficial: "Club Norte",
+      nombre_corto: "Norte",
+      escudo_url: "norte.svg"
+    }
+  ];
+  const sandbox = {
+    window: {
+      TPPublicTournament: PublicTournament
+    },
+    state: {
+      torneos: overrides.torneos || [
+        { id: TORNEO_APERTURA, nombre: "Apertura 2026" },
+        { id: TORNEO_CLAUSURA, nombre: "Clausura 2026" }
+      ],
+      partidosTodos: overrides.partidosTodos || []
+    },
+    ESTADOS_PARTIDO_FINALIZADO_OFICIAL: new Set([
+      "finalizado",
+      "finalizada",
+      "resuelto",
+      "resuelta",
+      "cerrado",
+      "cerrada",
+      "terminado",
+      "terminada",
+      "completado",
+      "completada",
+      "homologado",
+      "homologada"
+    ]),
+    obtenerClub: (equipo, clubId = null) => {
+      if (clubId !== null && clubId !== undefined && clubId !== "") {
+        return clubes.find(club => String(club.id) === String(clubId)) || null;
+      }
+      const normalizado = String(equipo || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      return clubes.find(club =>
+        [club.nombre_oficial, club.nombre_corto]
+          .filter(Boolean)
+          .map(nombreClub => String(nombreClub)
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase())
+          .includes(normalizado)
+      ) || null;
+    },
+    nombre: (equipo, clubId = null) => {
+      const club = sandbox.obtenerClub(equipo, clubId);
+      return club?.nombre_corto || equipo;
+    },
+    obtenerEscudoEquipo: (equipo, clubId = null) =>
+      sandbox.obtenerClub(equipo, clubId)?.escudo_url || "",
+    obtenerLadoEquipoPartido: (partido, equipo) => {
+      const clubEquipo = sandbox.obtenerClub(equipo);
+      if (
+        partido.local === equipo ||
+        String(partido.local_id) === String(equipo) ||
+        (
+          clubEquipo?.id &&
+          String(partido.local_id) === String(clubEquipo.id)
+        )
+      ) {
+        return "local";
+      }
+      if (
+        partido.visitante === equipo ||
+        String(partido.visitante_id) === String(equipo) ||
+        (
+          clubEquipo?.id &&
+          String(partido.visitante_id) === String(clubEquipo.id)
+        )
+      ) {
+        return "visitante";
+      }
+      return null;
+    },
+    obtenerPartidosEquipoTorneo: (equipo, torneo) =>
+      sandbox.state.partidosTodos
+        .filter(partido =>
+          String(partido.torneo_id) === String(torneo.id) &&
+          sandbox.obtenerLadoEquipoPartido(partido, equipo)
+        )
+        .sort(sandbox.ordenarPartidosCronologicamente),
+    ordenarPartidosCronologicamente: (a, b) => {
+      const fechaA = `${a.fecha_partido || "9999-12-31"} ${a.hora || "23:59"}`;
+      const fechaB = `${b.fecha_partido || "9999-12-31"} ${b.hora || "23:59"}`;
+      return fechaA.localeCompare(fechaB) || Number(a.id || 0) - Number(b.id || 0);
+    },
+    escaparHtml: value => String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;")
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "normalizarEstadoPartidoValor")}
+     ${extractFunction(appSource, "partidoTieneResultado")}
+     ${extractFunction(appSource, "obtenerEstadoManualPartido")}
+     ${extractFunction(appSource, "crearFechaHoraPartido")}
+     ${extractFunction(appSource, "partidoTieneEstadoFinalizadoOficial")}
+     ${extractFunction(appSource, "partidoTieneResultadoVisualConfirmado")}
+     ${extractFunction(appSource, "clasificarResultadoEquipoPartido")}
+     ${extractFunction(appSource, "ordenarPartidosRecientes")}
+     ${extractFunction(appSource, "ordenarPartidosCronologicamente")}
+     ${extractFunction(appSource, "obtenerFechaCalendarioPartido")}
+     ${extractFunction(appSource, "obtenerReferenciaEquipoFormaPartido")}
+     ${extractFunction(appSource, "partidoEsAnteriorAReferenciaForma")}
+     ${extractFunction(appSource, "obtenerNumeroFechaFormaPartido")}
+     ${extractFunction(appSource, "partidoEsAnteriorPorFechaTorneoForma")}
+     ${extractFunction(appSource, "partidoEsProximoSinFechaConfiableForma")}
+     ${extractFunction(appSource, "partidoCuentaComoAntecedenteForma")}
+     ${extractFunction(appSource, "obtenerResultadoFormaEquipoPartido")}
+     ${extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido")}
+     ${extractFunction(appSource, "renderResultadoFormaRecienteDetallePartido")}
+     ${extractFunction(appSource, "renderFormaRecienteCabeceraPartido")}
+     ${extractFunction(appSource, "renderEquipoDetallePartido")}
+     this.obtenerFormaRecienteEquipoAntesPartido = obtenerFormaRecienteEquipoAntesPartido;
+     this.renderCabeceraFormaDetallePartido = partido =>
+       '<div class="match-detail-scoreboard">' +
+       renderEquipoDetallePartido(partido.local, partido.local_id, partido, "local") +
+       '<div class="match-detail-result">VS</div>' +
+       renderEquipoDetallePartido(
+         partido.visitante,
+         partido.visitante_id,
+         partido,
+         "visitante"
+       ) +
+      '<span class="match-form-label">ÚLTIMOS RESULTADOS</span>' +
+       '</div>';`,
+    sandbox
+  );
+
+  return {
+    obtener: (partido, equipo, limite) =>
+      sandbox.obtenerFormaRecienteEquipoAntesPartido(partido, equipo, limite),
+    render: partido => sandbox.renderCabeceraFormaDetallePartido(partido),
+    sandbox
+  };
+}
+
 function buildRenderDetalleEquipo(appSource, overrides = {}) {
   const container = { innerHTML: "" };
-  const torneo = { id: 901, nombre: "Torneo de prueba", activo: true };
+  const torneo = overrides.torneo ||
+    { id: 901, nombre: "Torneo de prueba", activo: true };
+  const torneosEquipo = Object.prototype.hasOwnProperty.call(
+    overrides,
+    "torneosEquipo"
+  )
+    ? overrides.torneosEquipo
+    : [torneo];
+  const torneoSeleccionado = Object.prototype.hasOwnProperty.call(
+    overrides,
+    "torneoSeleccionado"
+  )
+    ? overrides.torneoSeleccionado
+    : torneosEquipo[0] || null;
   const stats = { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0 };
   const sandbox = {
     document: {
@@ -627,16 +794,25 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
     renderEstadoVista: () => "",
     volverDetalle: () => {},
     obtenerClub: () => overrides.club || null,
-    obtenerTorneosDisponiblesEquipo: () => [torneo],
+    obtenerTorneosDisponiblesEquipo: () => torneosEquipo,
     resolverSeleccionTorneoDetalleEquipo: () => ({
-      torneo,
+      torneo: torneoSeleccionado,
       fallbackAplicado: false,
       desdeUrl: false
     }),
-    obtenerPartidosResueltosTorneoHistorial: () => [],
-    equipoParticipaEnPartido: () => false,
-    ordenarPartidosCronologicamente: () => 0,
-    obtenerFechasLibresEquipoTorneo: () => [],
+    obtenerPartidosResueltosTorneoHistorial: item =>
+      overrides.partidosPorTorneo?.[String(item?.id)] ||
+      overrides.partidosTorneo ||
+      [],
+    equipoParticipaEnPartido: (partido, nombreEquipo) =>
+      partido.local === nombreEquipo ||
+      partido.visitante === nombreEquipo ||
+      String(partido.local_id) === String(nombreEquipo) ||
+      String(partido.visitante_id) === String(nombreEquipo),
+    ordenarPartidosCronologicamente: (a, b) =>
+      Number(a.fecha || 0) - Number(b.fecha || 0) ||
+      Number(a.id || 0) - Number(b.id || 0),
+    obtenerFechasLibresEquipoTorneo: () => overrides.libresEquipo || [],
     calcularRendimientoEquipoTorneo: () => stats,
     obtenerDatosTablaEquipoTorneo: () => ({ zona: overrides.zona || null }),
     obtenerEventosPartidosHistorial: () => [],
@@ -653,7 +829,22 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
     renderSelectorTorneosDetalleEquipo: () => "",
     renderResumenTorneoEquipo: () => "",
     renderDestacadosEquipoTorneo: () => "",
-    renderPartidosEquipoPorFase: () => ""
+    renderPartidosEquipoPorFase: (partidos, nombreEquipo, torneoRender) => {
+      sandbox.partidosPorFaseRecibidos = {
+        partidos,
+        nombreEquipo,
+        torneo: torneoRender
+      };
+      return `
+        <section class="team-season-matches">
+          ${partidos.map(partido =>
+            partido.tipoActividad === "libre"
+              ? `<div class="team-activity-free">Fecha ${partido.fecha} libre</div>`
+              : `<button type="button" onclick="abrirPartido(${JSON.stringify(partido.id)})">${partido.id}</button>`
+          ).join("")}
+        </section>
+      `;
+    }
   };
 
   vm.runInNewContext(
@@ -666,7 +857,8 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
     render: equipo => {
       sandbox.renderDetalleEquipo(equipo);
       return container.innerHTML;
-    }
+    },
+    sandbox
   };
 }
 
@@ -1296,7 +1488,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=71/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=76/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1459,7 +1651,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=80/);
+  assert.match(indexSource, /\/js\/app\.js\?v=85/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -1903,6 +2095,442 @@ async function runTests() {
   }, equipoBase), "neutral");
   results.push("detalle equipo: clases resultado local/visitante y neutrales: ok");
 
+  const detalleEquipoTorneoSeleccionado = buildRenderDetalleEquipo(appSource, {
+    equipo: equipoBase,
+    torneosEquipo: [
+      { id: TORNEO_APERTURA, nombre: "Apertura 2026", activo: false },
+      { id: TORNEO_CLAUSURA, nombre: "Clausura 2026", activo: true }
+    ],
+    torneoSeleccionado: {
+      id: TORNEO_APERTURA,
+      nombre: "Apertura 2026",
+      activo: false
+    },
+    partidosPorTorneo: {
+      [TORNEO_APERTURA]: Array.from({ length: 6 }, (_, index) => ({
+        id: 730 + index,
+        torneo_id: TORNEO_APERTURA,
+        tipo: "regular",
+        fecha: index + 1,
+        local: index % 2 === 0 ? equipoBase : `Rival Apertura ${index}`,
+        visitante: index % 2 === 0 ? `Rival Apertura ${index}` : equipoBase
+      })),
+      [TORNEO_CLAUSURA]: [
+        {
+          id: 799,
+          torneo_id: TORNEO_CLAUSURA,
+          tipo: "regular",
+          fecha: 1,
+          local: equipoBase,
+          visitante: "Historial Clausura"
+        }
+      ]
+    },
+    libresEquipo: [
+      { tipoActividad: "libre", fecha: 7 }
+    ]
+  });
+  const htmlDetalleEquipoTorneoSeleccionado =
+    detalleEquipoTorneoSeleccionado.render(equipoBase);
+  const partidosRenderizados =
+    detalleEquipoTorneoSeleccionado.sandbox.partidosPorFaseRecibidos.partidos;
+  assert.equal(partidosRenderizados.filter(partido => !partido.tipoActividad).length, 6);
+  assert.equal(partidosRenderizados.some(partido => partido.tipoActividad === "libre"), true);
+  assert.equal(
+    detalleEquipoTorneoSeleccionado.sandbox.partidosPorFaseRecibidos.torneo.id,
+    TORNEO_APERTURA
+  );
+  assert.match(htmlDetalleEquipoTorneoSeleccionado, /team-season-matches/);
+  assert.equal(
+    (htmlDetalleEquipoTorneoSeleccionado.match(/abrirPartido\(/g) || []).length,
+    6
+  );
+  [730, 731, 732, 733, 734, 735].forEach(id => {
+    assert.match(htmlDetalleEquipoTorneoSeleccionado, new RegExp(`abrirPartido\\(${id}\\)`));
+  });
+  assert.doesNotMatch(htmlDetalleEquipoTorneoSeleccionado, /799/);
+  assert.doesNotMatch(
+    htmlDetalleEquipoTorneoSeleccionado,
+    /team-season-recent|&Uacute;ltimos 5|<small>PJ<\/small>/
+  );
+  results.push("detalle equipo: listado completo restaurado por campeonato: ok");
+
+  const partidoActualForma = {
+    id: 900,
+    torneo_id: TORNEO_CLAUSURA,
+    tipo: "regular",
+    fecha: 6,
+    estado: "programado",
+    local: "Equipo Central",
+    visitante: "Club Norte",
+    local_id: 101,
+    visitante_id: 202,
+    goles_local: null,
+    goles_visitante: null,
+    fecha_partido: "2026-08-06",
+    hora: "16:00"
+  };
+  const partidosForma = [
+    {
+      id: 790,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 0,
+      estado: "finalizado",
+      local: "Rival Viejo",
+      visitante: "Equipo Central",
+      local_id: 301,
+      visitante_id: 101,
+      goles_local: 2,
+      goles_visitante: 0,
+      fecha_partido: "2026-07-31"
+    },
+    {
+      id: 801,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 1,
+      estado: "finalizado",
+      local: "Equipo Central",
+      visitante: "Rival Uno",
+      local_id: 101,
+      visitante_id: 301,
+      goles_local: 2,
+      goles_visitante: 1,
+      fecha_partido: "2026-08-01"
+    },
+    {
+      id: 802,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 2,
+      estado: "finalizado",
+      local: "Rival Dos",
+      visitante: "Equipo Central",
+      local_id: 302,
+      visitante_id: 101,
+      goles_local: 0,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-02"
+    },
+    {
+      id: 803,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 3,
+      estado: "finalizado",
+      local: "Rival Tres",
+      visitante: "Equipo Central",
+      local_id: 303,
+      visitante_id: 101,
+      goles_local: 3,
+      goles_visitante: 1,
+      fecha_partido: "2026-08-03"
+    },
+    {
+      id: 804,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 4,
+      estado: "finalizado",
+      local: "Equipo Central",
+      visitante: "Rival Cuatro",
+      local_id: 101,
+      visitante_id: 304,
+      goles_local: 1,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-04"
+    },
+    {
+      id: 805,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 5,
+      estado: "finalizado",
+      local: "Rival Cinco",
+      visitante: "Equipo Central",
+      local_id: 305,
+      visitante_id: 101,
+      goles_local: 0,
+      goles_visitante: 2,
+      fecha_partido: "2026-08-05"
+    },
+    {
+      ...partidoActualForma,
+      estado: "finalizado",
+      goles_local: 4,
+      goles_visitante: 0
+    },
+    {
+      id: 806,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 7,
+      estado: "finalizado",
+      local: "Equipo Central",
+      visitante: "Rival Futuro",
+      local_id: 101,
+      visitante_id: 306,
+      goles_local: 5,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-07"
+    },
+    {
+      id: 807,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 2,
+      estado: "programado",
+      local: "Equipo Central",
+      visitante: "Rival Pendiente",
+      local_id: 101,
+      visitante_id: 307,
+      goles_local: 9,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-02"
+    },
+    {
+      id: 808,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 3,
+      estado: "suspendido",
+      local: "Equipo Central",
+      visitante: "Rival Suspendido",
+      local_id: 101,
+      visitante_id: 308,
+      goles_local: 3,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-03"
+    },
+    {
+      id: 809,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 4,
+      estado: "postergado",
+      local: "Rival Postergado",
+      visitante: "Equipo Central",
+      local_id: 309,
+      visitante_id: 101,
+      goles_local: 0,
+      goles_visitante: 3,
+      fecha_partido: "2026-08-04"
+    },
+    {
+      id: 810,
+      torneo_id: TORNEO_APERTURA,
+      tipo: "regular",
+      fecha: 5,
+      estado: "finalizado",
+      local: "Equipo Central",
+      visitante: "Rival Apertura",
+      local_id: 101,
+      visitante_id: 310,
+      goles_local: 7,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-05"
+    },
+    {
+      id: 821,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 1,
+      estado: "finalizado",
+      local: "Club Norte",
+      visitante: "Rival A",
+      local_id: 202,
+      visitante_id: 401,
+      goles_local: 0,
+      goles_visitante: 2,
+      fecha_partido: "2026-08-01"
+    },
+    {
+      id: 822,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 2,
+      estado: "finalizado",
+      local: "Rival B",
+      visitante: "Club Norte",
+      local_id: 402,
+      visitante_id: 202,
+      goles_local: 0,
+      goles_visitante: 1,
+      fecha_partido: "2026-08-02"
+    },
+    {
+      id: 823,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 3,
+      estado: "finalizado",
+      local: "Club Norte",
+      visitante: "Rival C",
+      local_id: 202,
+      visitante_id: 403,
+      goles_local: 2,
+      goles_visitante: 1,
+      fecha_partido: "2026-08-03"
+    },
+    {
+      id: 824,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 4,
+      estado: "finalizado",
+      local: "Rival D",
+      visitante: "Club Norte",
+      local_id: 404,
+      visitante_id: 202,
+      goles_local: 1,
+      goles_visitante: 1,
+      fecha_partido: "2026-08-04"
+    },
+    {
+      id: 825,
+      torneo_id: TORNEO_CLAUSURA,
+      tipo: "regular",
+      fecha: 5,
+      estado: "finalizado",
+      local: "Club Norte",
+      visitante: "Rival E",
+      local_id: 202,
+      visitante_id: 405,
+      goles_local: 4,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-05"
+    }
+  ];
+  const formaPartidoPrueba = buildFormaRecienteDetallePartido(appSource, {
+    partidosTodos: partidosForma
+  });
+  const formaEquipoCentral = formaPartidoPrueba.obtener(
+    partidoActualForma,
+    "Equipo Central",
+    5
+  );
+  assert.deepEqual(
+    formaEquipoCentral.map(item => [item.partido.id, item.resultado]),
+    [[801, "G"], [802, "E"], [803, "P"], [804, "G"], [805, "G"]]
+  );
+  const formaClubNorte = formaPartidoPrueba.obtener(
+    partidoActualForma,
+    "Club Norte",
+    5
+  );
+  assert.deepEqual(
+    formaClubNorte.map(item => [item.partido.id, item.resultado]),
+    [[821, "P"], [822, "G"], [823, "G"], [824, "E"], [825, "G"]]
+  );
+
+  const htmlFormaRecientePartido =
+    formaPartidoPrueba.render(partidoActualForma);
+  const extraerResultadosForma = (html, equipo) => {
+    const inicio = html.indexOf(`<strong>${equipo}</strong>`);
+    assert.ok(inicio >= 0, `${equipo} debe renderizarse`);
+    const bloque = html.slice(inicio, html.indexOf("</div>", html.indexOf("match-form-results", inicio)));
+    return [...bloque.matchAll(/class="match-form-result[^"]*"[^>]*>\s*([GEP])\s*<\/span>/g)]
+      .map(match => match[1]);
+  };
+  assert.match(htmlFormaRecientePartido, /match-detail-scoreboard/);
+  assert.doesNotMatch(htmlFormaRecientePartido, /detail-match-form|match-form-grid|match-form-team|Previa/);
+  assert.match(htmlFormaRecientePartido, /match-form-label">ÚLTIMOS RESULTADOS<\/span>/);
+  assert.equal((htmlFormaRecientePartido.match(/ÚLTIMOS RESULTADOS/g) || []).length, 1);
+  assert.match(htmlFormaRecientePartido, /central\.svg/);
+  assert.match(htmlFormaRecientePartido, /norte\.svg/);
+  assert.equal((htmlFormaRecientePartido.match(/class="match-detail-shield"/g) || []).length, 2);
+  assert.equal((htmlFormaRecientePartido.match(/class="match-form-shield/g) || []).length, 0);
+  assert.equal((htmlFormaRecientePartido.match(/<strong>Central<\/strong>/g) || []).length, 1);
+  assert.equal((htmlFormaRecientePartido.match(/<strong>Norte<\/strong>/g) || []).length, 1);
+  assert.equal(
+    (htmlFormaRecientePartido.match(/class="match-form-result team-form-/g) || []).length,
+    10
+  );
+  assert.deepEqual(extraerResultadosForma(htmlFormaRecientePartido, "Central"), ["G", "E", "P", "G", "G"]);
+  assert.deepEqual(extraerResultadosForma(htmlFormaRecientePartido, "Norte"), ["P", "G", "G", "E", "G"]);
+  assert.doesNotMatch(htmlFormaRecientePartido, /PJ|GF|GC|PTS|7 - 0|5 - 0/);
+
+  const partidoHistoricoForma = {
+    ...partidoActualForma,
+    id: 904,
+    fecha: 4,
+    fecha_partido: "2026-08-04"
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(partidoHistoricoForma, "Equipo Central", 5)
+      .map(item => item.partido.id),
+    [790, 801, 802, 803]
+  );
+  const partidoProximoSinFechaForma = {
+    ...partidoActualForma,
+    fecha_partido: null,
+    hora: null
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(partidoProximoSinFechaForma, "Equipo Central", 5)
+      .map(item => [item.partido.id, item.resultado]),
+    [[801, "G"], [802, "E"], [803, "P"], [804, "G"], [805, "G"]]
+  );
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(partidoProximoSinFechaForma, "Club Norte", 5)
+      .map(item => [item.partido.id, item.resultado]),
+    [[821, "P"], [822, "G"], [823, "G"], [824, "E"], [825, "G"]]
+  );
+  const partidoProximoFechaCincoSinFecha = {
+    ...partidoActualForma,
+    id: 907,
+    fecha: 5,
+    fecha_partido: null,
+    hora: null
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(
+      partidoProximoFechaCincoSinFecha,
+      "Equipo Central",
+      5
+    ).map(item => [item.partido.id, item.resultado]),
+    [[801, "G"], [802, "E"], [803, "P"], [804, "G"]]
+  );
+
+  const partidoHistoricoSinCronologiaForma = {
+    ...partidoActualForma,
+    id: 905,
+    estado: "finalizado",
+    goles_local: 1,
+    goles_visitante: 1,
+    fecha_partido: null,
+    hora: null
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(
+      partidoHistoricoSinCronologiaForma,
+      "Equipo Central",
+      5
+    ),
+    []
+  );
+  const partidoConDosPrevios = {
+    ...partidoActualForma,
+    id: 906,
+    fecha: 3,
+    fecha_partido: "2026-08-03"
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(partidoConDosPrevios, "Equipo Central", 5)
+      .map(item => item.partido.id),
+    [790, 801, 802]
+  );
+
+  const htmlSinForma = buildFormaRecienteDetallePartido(appSource, {
+    partidosTodos: partidosForma.filter(partido =>
+      Number(partido.id) >= 806 && Number(partido.id) <= 810
+    )
+  }).render(partidoActualForma);
+  assert.match(htmlSinForma, /Sin antecedentes recientes/);
+  assert.doesNotMatch(htmlSinForma, /class="match-form-result team-form-/);
+  results.push("detalle partido: forma reciente previa sin informacion futura: ok");
+
   const renderActividadLibrePrueba = buildRenderActividadLibre(appSource);
   const libre = renderActividadLibrePrueba({
     tipoActividad: "libre",
@@ -2345,7 +2973,16 @@ async function runTests() {
   assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /torneoEquipoManual = true/);
   assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /renderDetalleEquipo\(vistaActual\.equipo\)/);
   assert.match(extractFunction(appSource, "renderSelectorTorneosDetalleEquipo"), /esTorneoVigente\(torneo\)/);
-  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /actividadesEquipo/);
+  assert.doesNotMatch(
+    appSource,
+    /function renderUltimosPartidosEquipo|function obtenerUltimosPartidosFinalizadosEquipo/
+  );
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /const libresEquipo/);
+  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /const actividadesEquipo/);
+  assert.match(
+    extractFunction(appSource, "renderDetalleEquipo"),
+    /renderPartidosEquipoPorFase\(\s*actividadesEquipo,\s*equipo,\s*torneoSeleccionado\s*\)/
+  );
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /calcularRendimientoEquipoTorneo\(partidosEquipo/);
   assert.match(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /getFreeParticipants/);
   assert.doesNotMatch(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /state\.partidos/);
@@ -2371,6 +3008,20 @@ async function runTests() {
   assert.match(extractFunction(appSource, "actualizarEncabezadoPartidos"), /etapaVisible\.etiqueta/);
   assert.match(extractFunction(appSource, "renderDetallePartido"), /home-featured-venue[\s\S]*obtenerEstadioPartido\(partido\)/);
   assert.match(extractFunction(appSource, "renderDetallePartido"), /home-featured-time[\s\S]*obtenerHoraPartido\(partido\)/);
+  assert.match(extractFunction(appSource, "renderDetallePartido"), /renderEquipoDetallePartido\([\s\S]*partido,[\s\S]*"local"/);
+  assert.match(extractFunction(appSource, "renderDetallePartido"), /renderEquipoDetallePartido\([\s\S]*partido,[\s\S]*"visitante"/);
+  assert.match(extractFunction(appSource, "renderDetallePartido"), /match-form-label">ÚLTIMOS RESULTADOS<\/span>/);
+  assert.doesNotMatch(appSource, /function renderFormaRecienteDetallePartido|detail-match-form|match-form-grid|match-form-shield/);
+  assert.match(extractFunction(appSource, "renderEquipoDetallePartido"), /renderFormaRecienteCabeceraPartido\(partido, lado, nombreEquipo\)/);
+  assert.match(extractFunction(appSource, "renderFormaRecienteCabeceraPartido"), /class="match-form-results"/);
+  assert.match(extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido"), /obtenerPartidosEquipoTorneo\(equipo, torneo\)/);
+  assert.match(extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido"), /partidoCuentaComoAntecedenteForma\(partido, partidoActual\)/);
+  assert.match(extractFunction(appSource, "partidoEsAnteriorAReferenciaForma"), /if \(!fechaActual \|\| !fechaAntecedente\) return false/);
+  assert.match(extractFunction(appSource, "partidoEsAnteriorAReferenciaForma"), /fechaAntecedente < fechaActual/);
+  assert.match(extractFunction(appSource, "partidoEsProximoSinFechaConfiableForma"), /if \(partidoTieneResultado\(partido\)\) return false/);
+  assert.match(extractFunction(appSource, "partidoCuentaComoAntecedenteForma"), /partidoEsAnteriorPorFechaTorneoForma\(antecedente, partidoActual\)/);
+  assert.match(extractFunction(appSource, "partidoCuentaComoAntecedenteForma"), /return true/);
+  assert.match(extractFunction(appSource, "obtenerResultadoFormaEquipoPartido"), /win: "G"/);
   assert.match(extractFunction(appSource, "torneoPermiteProximoEquipo"), /esTorneoVigente\(torneo\)/);
   assert.match(extractFunction(appSource, "torneoPermiteProximoEquipo"), /state\.torneoPreview\?\.id/);
   assert.match(extractFunction(appSource, "obtenerProximoPartidoEquipo"), /torneoPermiteProximoEquipo\(torneo\)/);
@@ -2419,9 +3070,12 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /Goleadores/);
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /team-season-note--scorers/);
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /team-season-note--big-win/);
-  assert.match(extractFunction(appSource, "renderIndicadoresFormaTabla"), /Number\(fila\.pj\) === 0/);
-  assert.match(extractFunction(appSource, "renderIndicadoresFormaTabla"), /aria-label="&Uacute;ltimo resultado: \$\{etiqueta\}"/);
-  assert.match(extractFunction(appSource, "renderTablaPosiciones"), /dots \? `<div class="form-row">\$\{dots\}<\/div>` : ""/);
+  assert.doesNotMatch(appSource, /function renderIndicadoresFormaTabla|function obtenerEtiquetaFormaTabla/);
+  assert.doesNotMatch(extractFunction(appSource, "renderTablaPosiciones"), /<th>Forma<\/th>|form-row|renderIndicadoresFormaTabla/);
+  assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /<th>Forma<\/th>/);
+  assert.doesNotMatch(extractFunction(appSource, "renderFilaTablaGeneral"), /form-row|renderIndicadoresFormaTabla/);
+  assert.match(extractFunction(appSource, "renderTablaPosiciones"), /<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
+  assert.match(extractFunction(appSource, "renderTablaGeneral"), /<th>Zona<\/th>[\s\S]*<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
   assert.match(extractFunction(appSource, "renderTablaGeneral"), /<h3>Tabla general<\/h3>/);
   assert.match(extractFunction(appSource, "renderTablaGeneral"), /\$\{data\.length\} equipos/);
   assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-kicker">General/);
@@ -2433,6 +3087,21 @@ async function runTests() {
   );
   assert.doesNotMatch(extractFunction(utilsSource, "aplicarClubes"), /\.zona\b/);
   assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
+  assert.doesNotMatch(styleSource, /team-recent|\.form-row|\.fd\b|\.fw\b|\.fe\b|\.fl\b/);
+  assert.match(styleSource, /\.tabla \{[\s\S]*min-width: 320px/);
+  assert.match(styleSource, /\.tabla-general-table \{[\s\S]*min-width: 460px/);
+  assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla,[\s\S]*\.tabla-general-table[\s\S]*table-layout: fixed/);
+  assert.doesNotMatch(styleSource, /detail-match-form|match-form-grid|match-form-team|match-form-shield/);
+  assert.match(styleSource, /\.match-detail-team \.match-form-results[\s\S]*margin-top: -1px/);
+  assert.match(styleSource, /\.match-detail-scoreboard \{[\s\S]*position: relative/);
+  assert.match(styleSource, /\.match-form-label \{[\s\S]*position: absolute/);
+  assert.match(styleSource, /\.match-form-label \{[\s\S]*bottom: 7px/);
+  assert.match(styleSource, /\.match-form-label \{[\s\S]*font-size: \.52rem/);
+  assert.match(styleSource, /\.match-form-results[\s\S]*justify-content: center/);
+  assert.match(styleSource, /\.match-form-result[\s\S]*clamp\(23px, 6\.4vw, 25px\)/);
+  assert.match(styleSource, /\.match-form-result[\s\S]*border-radius: 6px/);
+  assert.match(styleSource, /\.match-form-result[\s\S]*font-family: 'DM Mono'/);
+  assert.match(styleSource, /\.match-form-empty[\s\S]*Sin antecedentes recientes|\.match-form-empty[\s\S]*text-transform: uppercase/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*padding: 11px 12px 14px/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*border-bottom: 1px solid rgba\(255, 255, 255, \.09\)/);
   assert.match(styleSource, /\.team-match--win[\s\S]*--team-result-win/);

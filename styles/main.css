@@ -2084,7 +2084,7 @@ button {
 .tabla {
   width: 100%;
   border-collapse: collapse;
-  min-width: 360px;
+  min-width: 320px;
 }
 
 .tabla th {
@@ -2191,7 +2191,7 @@ button {
 }
 
 .tabla-general-table {
-  min-width: 510px;
+  min-width: 460px;
 }
 
 .tabla-general-table th:nth-child(3) {
@@ -2200,6 +2200,65 @@ button {
 
 .tabla-general-table th:nth-child(4) {
   color: rgba(255, 101, 117, .82);
+}
+
+@media (max-width: 420px) {
+  .tabla,
+  .tabla-general-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .tabla th,
+  .tabla td {
+    overflow: hidden;
+    padding-right: 3px;
+    padding-left: 3px;
+    text-overflow: ellipsis;
+  }
+
+  .tabla th {
+    font-size: .46rem;
+    letter-spacing: .04em;
+  }
+
+  .tabla td {
+    font-size: .68rem;
+  }
+
+  .tabla th:first-child,
+  .tabla td:first-child {
+    width: 22px;
+  }
+
+  .tabla th:nth-child(2),
+  .tabla td:nth-child(2) {
+    width: 96px;
+  }
+
+  .tabla-general-table th:nth-child(3),
+  .tabla-general-table td:nth-child(3) {
+    width: 42px;
+  }
+
+  .t-name {
+    min-width: 0;
+    gap: 4px;
+    overflow: hidden;
+    line-height: 1.1;
+  }
+
+  .sm-badge {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    font-size: .48rem;
+  }
+
+  .t-zone {
+    font-size: .46rem;
+    letter-spacing: 0;
+  }
 }
 
 .tabla-scorers {
@@ -2455,22 +2514,6 @@ button {
   object-fit: contain;
   display: block;
 }
-
-.form-row {
-  display: flex;
-  gap: 3px;
-  justify-content: flex-end;
-}
-
-.fd {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
-
-.fw { background: var(--win); }
-.fe { background: var(--draw); }
-.fl { background: var(--loss); }
 
 /* SCORERS */
 
@@ -3503,6 +3546,7 @@ body.detail-mode .app-main {
 }
 
 .match-detail-scoreboard {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
@@ -3646,6 +3690,63 @@ body.detail-mode .app-main {
   color: var(--muted);
   font-size: 0.86rem;
   text-align: center;
+}
+
+.match-form-results {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.match-detail-team .match-form-results {
+  margin-top: -1px;
+}
+
+.match-form-label {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .52rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.match-form-result {
+  width: clamp(23px, 6.4vw, 25px);
+  height: clamp(23px, 6.4vw, 25px);
+  flex: 0 0 clamp(23px, 6.4vw, 25px);
+  border-radius: 6px;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: 'DM Mono', monospace;
+  font-size: .62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.match-form-empty {
+  max-width: 112px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .58rem;
+  letter-spacing: .02em;
+  line-height: 1.25;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .incident-groups {
@@ -6915,7 +7016,7 @@ button.team-match-row:focus-visible {
 }
 
 .tabla {
-  min-width: 440px;
+  min-width: 320px;
 }
 
 .tabla th {
@@ -6932,9 +7033,11 @@ button.team-match-row:focus-visible {
   font-size: 1.22rem;
 }
 
-.fd {
-  width: 7px;
-  height: 7px;
+@media (max-width: 420px) {
+  .tabla,
+  .tabla-general-table {
+    min-width: 0;
+  }
 }
 
 .po-match-hd {

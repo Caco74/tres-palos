@@ -5730,14 +5730,12 @@ function renderTablaPosiciones(cont) {
             <th>PE</th>
             <th>PP</th>
             <th>DG</th>
-            <th>Forma</th>
           </tr>
         </thead>
         <tbody>
   `;
 
   data.forEach((t, i) => {
-    const dots = renderIndicadoresFormaTabla(t);
     const nombreEquipo = nombre(t.equipo);
     const escudo = obtenerEscudoEquipo(t.equipo);
     const escudoEquipo = escudo
@@ -5764,7 +5762,6 @@ function renderTablaPosiciones(cont) {
         <td>${t.pe}</td>
         <td>${t.pp}</td>
         <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-        <td>${dots ? `<div class="form-row">${dots}</div>` : ""}</td>
       </tr>
     `;
   });
@@ -5772,31 +5769,6 @@ function renderTablaPosiciones(cont) {
   html += `</tbody></table></div>`;
   cont.innerHTML = html;
   activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
-}
-
-function obtenerEtiquetaFormaTabla(resultado) {
-  return {
-    w: "victoria",
-    e: "empate",
-    l: "derrota"
-  }[resultado] || "resultado";
-}
-
-function renderIndicadoresFormaTabla(fila) {
-  if (!fila || Number(fila.pj) === 0) return "";
-
-  return (fila.forma || [])
-    .map(resultado => {
-      const etiqueta = obtenerEtiquetaFormaTabla(resultado);
-      return `
-        <span
-          class="fd f${resultado}"
-          aria-label="&Uacute;ltimo resultado: ${etiqueta}"
-          title="&Uacute;ltimo resultado: ${etiqueta}"
-        ></span>
-      `;
-    })
-    .join("");
 }
 
 function renderTablaGoleadores(cont) {
@@ -5888,7 +5860,6 @@ function renderTablaGeneral(standalone = false) {
               <th>PE</th>
               <th>PP</th>
               <th>DG</th>
-              <th>Forma</th>
             </tr>
           </thead>
           <tbody>
@@ -5901,7 +5872,6 @@ function renderTablaGeneral(standalone = false) {
 }
 
 function renderFilaTablaGeneral(t, indice) {
-  const dots = renderIndicadoresFormaTabla(t);
   const nombreEquipo = nombre(t.equipo);
   const escudo = obtenerEscudoEquipo(t.equipo);
   const escudoEquipo = escudo
@@ -5925,7 +5895,6 @@ function renderFilaTablaGeneral(t, indice) {
       <td>${t.pe}</td>
       <td>${t.pp}</td>
       <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-      <td>${dots ? `<div class="form-row">${dots}</div>` : ""}</td>
     </tr>
   `;
 }
@@ -6220,7 +6189,12 @@ function renderDetallePartido(id) {
       </div>
 
       <div class="match-detail-scoreboard">
-        ${renderEquipoDetallePartido(partido.local, partido.local_id)}
+        ${renderEquipoDetallePartido(
+          partido.local,
+          partido.local_id,
+          partido,
+          "local"
+        )}
 
         <div class="match-detail-result home-featured-center">
           ${centro}
@@ -6228,8 +6202,11 @@ function renderDetallePartido(id) {
 
         ${renderEquipoDetallePartido(
           partido.visitante,
-          partido.visitante_id
+          partido.visitante_id,
+          partido,
+          "visitante"
         )}
+        <span class="match-form-label">ÚLTIMOS RESULTADOS</span>
       </div>
 
       <div class="home-featured-meta match-detail-featured-meta">
@@ -6604,6 +6581,150 @@ function renderValorDetalle(etiqueta, valor) {
   `;
 }
 
+function obtenerReferenciaEquipoFormaPartido(partido, lado) {
+  const equipo = partido?.[lado];
+  const clubId = partido?.[`${lado}_id`];
+  const club = obtenerClub(equipo, clubId);
+
+  return club?.nombre_oficial || equipo || "";
+}
+
+function partidoEsAnteriorAReferenciaForma(antecedente, partidoActual) {
+  const fechaActual = obtenerFechaCalendarioPartido(partidoActual);
+  const fechaAntecedente = obtenerFechaCalendarioPartido(antecedente);
+
+  if (!fechaActual || !fechaAntecedente) return false;
+  if (fechaAntecedente < fechaActual) return true;
+  if (fechaAntecedente > fechaActual) return false;
+
+  const momentoActual = crearFechaHoraPartido(partidoActual);
+  const momentoAntecedente = crearFechaHoraPartido(antecedente);
+
+  return Boolean(
+    momentoActual &&
+    momentoAntecedente &&
+    momentoAntecedente.getTime() < momentoActual.getTime()
+  );
+}
+
+function obtenerNumeroFechaFormaPartido(partido) {
+  const fecha = Number(partido?.fecha);
+  return Number.isFinite(fecha) && fecha > 0 ? fecha : null;
+}
+
+function partidoEsAnteriorPorFechaTorneoForma(antecedente, partidoActual) {
+  const fechaActual = obtenerNumeroFechaFormaPartido(partidoActual);
+  const fechaAntecedente = obtenerNumeroFechaFormaPartido(antecedente);
+
+  return fechaActual !== null &&
+    fechaAntecedente !== null &&
+    fechaAntecedente < fechaActual;
+}
+
+function partidoEsProximoSinFechaConfiableForma(partido) {
+  if (obtenerFechaCalendarioPartido(partido)) return false;
+  if (partidoTieneResultado(partido)) return false;
+  if (partidoTieneEstadoFinalizadoOficial(partido)) return false;
+
+  return !obtenerEstadoManualPartido(partido);
+}
+
+function partidoCuentaComoAntecedenteForma(antecedente, partidoActual) {
+  if (partidoEsAnteriorAReferenciaForma(antecedente, partidoActual)) {
+    return true;
+  }
+
+  if (!partidoEsProximoSinFechaConfiableForma(partidoActual)) {
+    return false;
+  }
+
+  const fechaActual = obtenerNumeroFechaFormaPartido(partidoActual);
+  if (fechaActual !== null) {
+    return partidoEsAnteriorPorFechaTorneoForma(antecedente, partidoActual);
+  }
+
+  return true;
+}
+
+function obtenerResultadoFormaEquipoPartido(partido, equipo) {
+  return {
+    win: "G",
+    draw: "E",
+    loss: "P"
+  }[clasificarResultadoEquipoPartido(partido, equipo)] || "";
+}
+
+function obtenerFormaRecienteEquipoAntesPartido(
+  partidoActual,
+  equipo,
+  limite = 5
+) {
+  if (!partidoActual?.torneo_id || !equipo) return [];
+
+  const torneo = state.torneos.find(
+    item => String(item.id) === String(partidoActual.torneo_id)
+  ) || { id: partidoActual.torneo_id };
+  const maximo = Math.max(0, Number(limite) || 0);
+  if (maximo === 0) return [];
+
+  return obtenerPartidosEquipoTorneo(equipo, torneo)
+    .filter(
+      partido =>
+        partido.tipoActividad !== "libre" &&
+        String(partido.id) !== String(partidoActual.id) &&
+        partidoTieneResultadoVisualConfirmado(partido) &&
+        partidoCuentaComoAntecedenteForma(partido, partidoActual)
+    )
+    .sort(ordenarPartidosCronologicamente)
+    .slice(-maximo)
+    .map(partido => ({
+      partido,
+      resultado: obtenerResultadoFormaEquipoPartido(partido, equipo)
+    }))
+    .filter(item => item.resultado);
+}
+
+function renderResultadoFormaRecienteDetallePartido(item) {
+  const etiqueta = {
+    G: "Ganado",
+    E: "Empatado",
+    P: "Perdido"
+  }[item.resultado] || "Resultado";
+
+  return `
+    <span
+      class="match-form-result team-form-${item.resultado.toLowerCase()}"
+      title="${etiqueta}"
+      aria-label="${etiqueta}"
+    >
+      ${item.resultado}
+    </span>
+  `;
+}
+
+function renderFormaRecienteCabeceraPartido(partido, lado, nombreEquipo) {
+  const equipo = partido?.[lado];
+  if (!equipo) return "";
+
+  const referenciaEquipo = obtenerReferenciaEquipoFormaPartido(partido, lado);
+  const forma = obtenerFormaRecienteEquipoAntesPartido(
+    partido,
+    referenciaEquipo,
+    5
+  );
+
+  return `
+    <span
+      class="match-form-results"
+      aria-label="Forma reciente de ${escaparHtml(nombreEquipo)}"
+    >
+      ${forma.length > 0
+        ? forma.map(renderResultadoFormaRecienteDetallePartido).join("")
+        : `<span class="match-form-empty">Sin antecedentes recientes</span>`}
+    </span>
+  `;
+}
+
 function renderAntecedentesDetallePartido(partido) {
   if (!partido.local || !partido.visitante) return "";
 
@@ -6850,12 +6971,20 @@ function renderAntecedenteDetallePartido(item) {
   `;
 }
 
-function renderEquipoDetallePartido(equipo, clubId = null) {
+function renderEquipoDetallePartido(
+  equipo,
+  clubId = null,
+  partido = null,
+  lado = null
+) {
   const nombreEquipo = equipo ? nombre(equipo, clubId) : "Por definir";
   const escudo = obtenerEscudoEquipo(equipo, clubId);
   const escudoEquipo = equipo && escudo
     ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="72" height="72" decoding="async">`
     : `<span>${equipo ? nombreEquipo.slice(0, 2).toUpperCase() : "?"}</span>`;
+  const formaReciente = partido && lado
+    ? renderFormaRecienteCabeceraPartido(partido, lado, nombreEquipo)
+    : "";
 
   return `
     <button
@@ -6865,6 +6994,7 @@ function renderEquipoDetallePartido(equipo, clubId = null) {
     >
       <span class="match-detail-shield">${escudoEquipo}</span>
       <strong>${nombreEquipo}</strong>
+      ${formaReciente}
     </button>
   `;
 }
