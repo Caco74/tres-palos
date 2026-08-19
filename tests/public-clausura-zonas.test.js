@@ -1477,7 +1477,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=73/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=74/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -3071,6 +3071,8 @@ async function runTests() {
   assert.match(styleSource, /\.tabla-general-table \{[\s\S]*min-width: 460px/);
   assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla,[\s\S]*\.tabla-general-table[\s\S]*table-layout: fixed/);
   assert.match(styleSource, /\.match-form-grid[\s\S]*display: grid/);
+  assert.match(styleSource, /\.match-form-results[\s\S]*justify-content: center/);
+  assert.match(styleSource, /\.match-form-result[\s\S]*border-radius: 6px/);
   assert.match(styleSource, /\.match-form-result[\s\S]*font-family: 'DM Mono'/);
   assert.match(styleSource, /\.match-form-empty[\s\S]*Sin antecedentes recientes|\.match-form-empty[\s\S]*text-transform: uppercase/);
   assert.match(styleSource, /@media \(min-width: 700px\)[\s\S]*\.match-form-grid[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);

@@ -3759,14 +3759,15 @@ body.detail-mode .app-main {
   min-height: 24px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
 }
 
 .match-form-result {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 6px;
   color: #fff;
   display: grid;
   place-items: center;
