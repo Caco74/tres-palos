@@ -355,7 +355,7 @@ function assertScorersCompatibility() {
 
   assert.deepEqual(filterOrder, ["1", "2", "3", "general"]);
   assert.match(appSource, /let tablaPosicionesActual = "1";/);
-  assert.match(appSource, /renderFilaGoleadorTabla\(goleador, esLider = false\)/);
+    assert.match(appSource, /renderFilaGoleadorTabla\(goleador, esLider = false, indice = 0\)/);
   assert.doesNotMatch(appSource, /indice\s*===\s*0/);
   assert.equal(
     _private.getScorerSource({ anio: 2026, tipo: "clausura" }),
