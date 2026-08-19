@@ -6206,6 +6206,7 @@ function renderDetallePartido(id) {
           partido,
           "visitante"
         )}
+        <span class="match-form-label">ÚLTIMOS RESULTADOS</span>
       </div>
 
       <div class="home-featured-meta match-detail-featured-meta">

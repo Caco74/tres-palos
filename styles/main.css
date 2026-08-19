@@ -3546,6 +3546,7 @@ body.detail-mode .app-main {
 }
 
 .match-detail-scoreboard {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
@@ -3704,6 +3705,23 @@ body.detail-mode .app-main {
 
 .match-detail-team .match-form-results {
   margin-top: -1px;
+}
+
+.match-form-label {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: .52rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .match-form-result {

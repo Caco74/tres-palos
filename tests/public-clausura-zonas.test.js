@@ -751,6 +751,7 @@ function buildFormaRecienteDetallePartido(appSource, overrides = {}) {
          partido,
          "visitante"
        ) +
+      '<span class="match-form-label">ÚLTIMOS RESULTADOS</span>' +
        '</div>';`,
     sandbox
   );
@@ -1487,7 +1488,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=75/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=76/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1650,7 +1651,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=84/);
+  assert.match(indexSource, /\/js\/app\.js\?v=85/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -2434,6 +2435,8 @@ async function runTests() {
   };
   assert.match(htmlFormaRecientePartido, /match-detail-scoreboard/);
   assert.doesNotMatch(htmlFormaRecientePartido, /detail-match-form|match-form-grid|match-form-team|Previa/);
+  assert.match(htmlFormaRecientePartido, /match-form-label">ÚLTIMOS RESULTADOS<\/span>/);
+  assert.equal((htmlFormaRecientePartido.match(/ÚLTIMOS RESULTADOS/g) || []).length, 1);
   assert.match(htmlFormaRecientePartido, /central\.svg/);
   assert.match(htmlFormaRecientePartido, /norte\.svg/);
   assert.equal((htmlFormaRecientePartido.match(/class="match-detail-shield"/g) || []).length, 2);
@@ -3007,6 +3010,7 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderDetallePartido"), /home-featured-time[\s\S]*obtenerHoraPartido\(partido\)/);
   assert.match(extractFunction(appSource, "renderDetallePartido"), /renderEquipoDetallePartido\([\s\S]*partido,[\s\S]*"local"/);
   assert.match(extractFunction(appSource, "renderDetallePartido"), /renderEquipoDetallePartido\([\s\S]*partido,[\s\S]*"visitante"/);
+  assert.match(extractFunction(appSource, "renderDetallePartido"), /match-form-label">ÚLTIMOS RESULTADOS<\/span>/);
   assert.doesNotMatch(appSource, /function renderFormaRecienteDetallePartido|detail-match-form|match-form-grid|match-form-shield/);
   assert.match(extractFunction(appSource, "renderEquipoDetallePartido"), /renderFormaRecienteCabeceraPartido\(partido, lado, nombreEquipo\)/);
   assert.match(extractFunction(appSource, "renderFormaRecienteCabeceraPartido"), /class="match-form-results"/);
@@ -3089,6 +3093,10 @@ async function runTests() {
   assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla,[\s\S]*\.tabla-general-table[\s\S]*table-layout: fixed/);
   assert.doesNotMatch(styleSource, /detail-match-form|match-form-grid|match-form-team|match-form-shield/);
   assert.match(styleSource, /\.match-detail-team \.match-form-results[\s\S]*margin-top: -1px/);
+  assert.match(styleSource, /\.match-detail-scoreboard \{[\s\S]*position: relative/);
+  assert.match(styleSource, /\.match-form-label \{[\s\S]*position: absolute/);
+  assert.match(styleSource, /\.match-form-label \{[\s\S]*bottom: 7px/);
+  assert.match(styleSource, /\.match-form-label \{[\s\S]*font-size: \.52rem/);
   assert.match(styleSource, /\.match-form-results[\s\S]*justify-content: center/);
   assert.match(styleSource, /\.match-form-result[\s\S]*clamp\(23px, 6\.4vw, 25px\)/);
   assert.match(styleSource, /\.match-form-result[\s\S]*border-radius: 6px/);
