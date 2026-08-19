@@ -6151,7 +6151,6 @@ function renderDetallePartido(id) {
     programado: "Programado",
     "sin-fecha": "A confirmar"
   }[estado.tipo] || estado.texto;
-  const formaReciente = renderFormaRecienteDetallePartido(partido);
   const antecedentes = renderAntecedentesDetallePartido(partido);
   const incidencias = renderIncidenciasDetallePartido(
     partido,
@@ -6190,7 +6189,12 @@ function renderDetallePartido(id) {
       </div>
 
       <div class="match-detail-scoreboard">
-        ${renderEquipoDetallePartido(partido.local, partido.local_id)}
+        ${renderEquipoDetallePartido(
+          partido.local,
+          partido.local_id,
+          partido,
+          "local"
+        )}
 
         <div class="match-detail-result home-featured-center">
           ${centro}
@@ -6198,7 +6202,9 @@ function renderDetallePartido(id) {
 
         ${renderEquipoDetallePartido(
           partido.visitante,
-          partido.visitante_id
+          partido.visitante_id,
+          partido,
+          "visitante"
         )}
       </div>
 
@@ -6225,7 +6231,6 @@ function renderDetallePartido(id) {
       </div>
     </article>
 
-    ${formaReciente}
     ${priorizarIncidencias
       ? `${incidencias}${antecedentes}`
       : `${antecedentes}${incidencias}`}
@@ -6696,19 +6701,11 @@ function renderResultadoFormaRecienteDetallePartido(item) {
   `;
 }
 
-function renderEquipoFormaRecienteDetallePartido(partido, lado) {
+function renderFormaRecienteCabeceraPartido(partido, lado, nombreEquipo) {
   const equipo = partido?.[lado];
   if (!equipo) return "";
 
-  const clubId = partido?.[`${lado}_id`];
   const referenciaEquipo = obtenerReferenciaEquipoFormaPartido(partido, lado);
-  const nombreEquipo = nombre(equipo, clubId);
-  const escudo = obtenerEscudoEquipo(equipo, clubId);
-  const escudoEquipo = escudo
-    ? `<img src="${escudo}" alt="Escudo de ${escaparHtml(nombreEquipo)}" width="32" height="32" loading="lazy" decoding="async">`
-    : `<span aria-hidden="true">${escaparHtml(
-        (nombreEquipo || "?").trim().slice(0, 2).toUpperCase()
-      )}</span>`;
   const forma = obtenerFormaRecienteEquipoAntesPartido(
     partido,
     referenciaEquipo,
@@ -6716,39 +6713,14 @@ function renderEquipoFormaRecienteDetallePartido(partido, lado) {
   );
 
   return `
-    <div class="match-form-team">
-      <div class="match-form-team-head">
-        <span class="match-form-shield${escudo ? "" : " is-missing"}">
-          ${escudoEquipo}
-        </span>
-        <strong>${escaparHtml(nombreEquipo)}</strong>
-      </div>
-      <div
-        class="match-form-results"
-        aria-label="Forma reciente de ${escaparHtml(nombreEquipo)}"
-      >
-        ${forma.length > 0
-          ? forma.map(renderResultadoFormaRecienteDetallePartido).join("")
-          : `<span class="match-form-empty">Sin antecedentes recientes</span>`}
-      </div>
-    </div>
-  `;
-}
-
-function renderFormaRecienteDetallePartido(partido) {
-  if (!partido?.local || !partido?.visitante) return "";
-
-  return `
-    <section class="detail-section detail-match-form">
-      <div class="detail-section-head">
-        <h2>Forma reciente</h2>
-        <span>Previa</span>
-      </div>
-      <div class="match-form-grid">
-        ${renderEquipoFormaRecienteDetallePartido(partido, "local")}
-        ${renderEquipoFormaRecienteDetallePartido(partido, "visitante")}
-      </div>
-    </section>
+    <span
+      class="match-form-results"
+      aria-label="Forma reciente de ${escaparHtml(nombreEquipo)}"
+    >
+      ${forma.length > 0
+        ? forma.map(renderResultadoFormaRecienteDetallePartido).join("")
+        : `<span class="match-form-empty">Sin antecedentes recientes</span>`}
+    </span>
   `;
 }
 
@@ -6998,12 +6970,20 @@ function renderAntecedenteDetallePartido(item) {
   `;
 }
 
-function renderEquipoDetallePartido(equipo, clubId = null) {
+function renderEquipoDetallePartido(
+  equipo,
+  clubId = null,
+  partido = null,
+  lado = null
+) {
   const nombreEquipo = equipo ? nombre(equipo, clubId) : "Por definir";
   const escudo = obtenerEscudoEquipo(equipo, clubId);
   const escudoEquipo = equipo && escudo
     ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="72" height="72" decoding="async">`
     : `<span>${equipo ? nombreEquipo.slice(0, 2).toUpperCase() : "?"}</span>`;
+  const formaReciente = partido && lado
+    ? renderFormaRecienteCabeceraPartido(partido, lado, nombreEquipo)
+    : "";
 
   return `
     <button
@@ -7013,6 +6993,7 @@ function renderEquipoDetallePartido(equipo, clubId = null) {
     >
       <span class="match-detail-shield">${escudoEquipo}</span>
       <strong>${nombreEquipo}</strong>
+      ${formaReciente}
     </button>
   `;
 }

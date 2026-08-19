@@ -3691,82 +3691,25 @@ body.detail-mode .app-main {
   text-align: center;
 }
 
-.match-form-grid {
-  display: grid;
-}
-
-.match-form-team {
-  min-width: 0;
-  padding: 10px 14px 12px;
-  display: grid;
-  gap: 9px;
-  border-bottom: 1px solid rgba(58,58,66,.65);
-}
-
-.match-form-team:last-child {
-  border-bottom: 0;
-}
-
-.match-form-team-head {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.match-form-shield {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--card2);
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-.match-form-shield img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-
-.match-form-shield.is-missing {
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-  font-size: .56rem;
-  font-weight: 700;
-}
-
-.match-form-team-head strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--white);
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: .9rem;
-  font-weight: 700;
-  letter-spacing: .02em;
-  line-height: 1.08;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .match-form-results {
   min-width: 0;
-  min-height: 24px;
+  max-width: 100%;
+  min-height: 25px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.match-detail-team .match-form-results {
+  margin-top: -1px;
 }
 
 .match-form-result {
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
+  width: clamp(23px, 6.4vw, 25px);
+  height: clamp(23px, 6.4vw, 25px);
+  flex: 0 0 clamp(23px, 6.4vw, 25px);
   border-radius: 6px;
   color: #fff;
   display: grid;
@@ -3778,26 +3721,14 @@ body.detail-mode .app-main {
 }
 
 .match-form-empty {
+  max-width: 112px;
   color: var(--muted);
   font-family: 'DM Mono', monospace;
   font-size: .58rem;
   letter-spacing: .02em;
   line-height: 1.25;
+  text-align: center;
   text-transform: uppercase;
-}
-
-@media (min-width: 700px) {
-  .match-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .match-form-team {
-    border-bottom: 0;
-  }
-
-  .match-form-team + .match-form-team {
-    border-left: 1px solid rgba(58,58,66,.65);
-  }
 }
 
 .incident-groups {
