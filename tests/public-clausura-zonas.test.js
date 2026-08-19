@@ -721,14 +721,20 @@ function buildFormaRecienteDetallePartido(appSource, overrides = {}) {
   vm.runInNewContext(
     `${extractFunction(appSource, "normalizarEstadoPartidoValor")}
      ${extractFunction(appSource, "partidoTieneResultado")}
+     ${extractFunction(appSource, "obtenerEstadoManualPartido")}
      ${extractFunction(appSource, "crearFechaHoraPartido")}
      ${extractFunction(appSource, "partidoTieneEstadoFinalizadoOficial")}
      ${extractFunction(appSource, "partidoTieneResultadoVisualConfirmado")}
      ${extractFunction(appSource, "clasificarResultadoEquipoPartido")}
      ${extractFunction(appSource, "ordenarPartidosRecientes")}
+     ${extractFunction(appSource, "ordenarPartidosCronologicamente")}
      ${extractFunction(appSource, "obtenerFechaCalendarioPartido")}
      ${extractFunction(appSource, "obtenerReferenciaEquipoFormaPartido")}
      ${extractFunction(appSource, "partidoEsAnteriorAReferenciaForma")}
+     ${extractFunction(appSource, "obtenerNumeroFechaFormaPartido")}
+     ${extractFunction(appSource, "partidoEsAnteriorPorFechaTorneoForma")}
+     ${extractFunction(appSource, "partidoEsProximoSinFechaConfiableForma")}
+     ${extractFunction(appSource, "partidoCuentaComoAntecedenteForma")}
      ${extractFunction(appSource, "obtenerResultadoFormaEquipoPartido")}
      ${extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido")}
      ${extractFunction(appSource, "renderResultadoFormaRecienteDetallePartido")}
@@ -1634,7 +1640,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=82/);
+  assert.match(indexSource, /\/js\/app\.js\?v=83/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -2439,13 +2445,52 @@ async function runTests() {
       .map(item => item.partido.id),
     [790, 801, 802, 803]
   );
-  const partidoSinFechaForma = {
+  const partidoProximoSinFechaForma = {
     ...partidoActualForma,
-    id: 905,
-    fecha_partido: null
+    fecha_partido: null,
+    hora: null
   };
   assert.deepEqual(
-    formaPartidoPrueba.obtener(partidoSinFechaForma, "Equipo Central", 5),
+    formaPartidoPrueba.obtener(partidoProximoSinFechaForma, "Equipo Central", 5)
+      .map(item => [item.partido.id, item.resultado]),
+    [[801, "G"], [802, "E"], [803, "P"], [804, "G"], [805, "G"]]
+  );
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(partidoProximoSinFechaForma, "Club Norte", 5)
+      .map(item => [item.partido.id, item.resultado]),
+    [[821, "P"], [822, "G"], [823, "G"], [824, "E"], [825, "G"]]
+  );
+  const partidoProximoFechaCincoSinFecha = {
+    ...partidoActualForma,
+    id: 907,
+    fecha: 5,
+    fecha_partido: null,
+    hora: null
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(
+      partidoProximoFechaCincoSinFecha,
+      "Equipo Central",
+      5
+    ).map(item => [item.partido.id, item.resultado]),
+    [[801, "G"], [802, "E"], [803, "P"], [804, "G"]]
+  );
+
+  const partidoHistoricoSinCronologiaForma = {
+    ...partidoActualForma,
+    id: 905,
+    estado: "finalizado",
+    goles_local: 1,
+    goles_visitante: 1,
+    fecha_partido: null,
+    hora: null
+  };
+  assert.deepEqual(
+    formaPartidoPrueba.obtener(
+      partidoHistoricoSinCronologiaForma,
+      "Equipo Central",
+      5
+    ),
     []
   );
   const partidoConDosPrevios = {
@@ -2949,9 +2994,12 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderDetallePartido"), /renderFormaRecienteDetallePartido\(partido\)/);
   assert.match(extractFunction(appSource, "renderFormaRecienteDetallePartido"), /detail-match-form/);
   assert.match(extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido"), /obtenerPartidosEquipoTorneo\(equipo, torneo\)/);
-  assert.match(extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido"), /partidoEsAnteriorAReferenciaForma\(partido, partidoActual\)/);
+  assert.match(extractFunction(appSource, "obtenerFormaRecienteEquipoAntesPartido"), /partidoCuentaComoAntecedenteForma\(partido, partidoActual\)/);
   assert.match(extractFunction(appSource, "partidoEsAnteriorAReferenciaForma"), /if \(!fechaActual \|\| !fechaAntecedente\) return false/);
   assert.match(extractFunction(appSource, "partidoEsAnteriorAReferenciaForma"), /fechaAntecedente < fechaActual/);
+  assert.match(extractFunction(appSource, "partidoEsProximoSinFechaConfiableForma"), /if \(partidoTieneResultado\(partido\)\) return false/);
+  assert.match(extractFunction(appSource, "partidoCuentaComoAntecedenteForma"), /partidoEsAnteriorPorFechaTorneoForma\(antecedente, partidoActual\)/);
+  assert.match(extractFunction(appSource, "partidoCuentaComoAntecedenteForma"), /return true/);
   assert.match(extractFunction(appSource, "obtenerResultadoFormaEquipoPartido"), /win: "G"/);
   assert.match(extractFunction(appSource, "torneoPermiteProximoEquipo"), /esTorneoVigente\(torneo\)/);
   assert.match(extractFunction(appSource, "torneoPermiteProximoEquipo"), /state\.torneoPreview\?\.id/);

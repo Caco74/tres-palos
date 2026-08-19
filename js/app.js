@@ -6601,6 +6601,45 @@ function partidoEsAnteriorAReferenciaForma(antecedente, partidoActual) {
   );
 }
 
+function obtenerNumeroFechaFormaPartido(partido) {
+  const fecha = Number(partido?.fecha);
+  return Number.isFinite(fecha) && fecha > 0 ? fecha : null;
+}
+
+function partidoEsAnteriorPorFechaTorneoForma(antecedente, partidoActual) {
+  const fechaActual = obtenerNumeroFechaFormaPartido(partidoActual);
+  const fechaAntecedente = obtenerNumeroFechaFormaPartido(antecedente);
+
+  return fechaActual !== null &&
+    fechaAntecedente !== null &&
+    fechaAntecedente < fechaActual;
+}
+
+function partidoEsProximoSinFechaConfiableForma(partido) {
+  if (obtenerFechaCalendarioPartido(partido)) return false;
+  if (partidoTieneResultado(partido)) return false;
+  if (partidoTieneEstadoFinalizadoOficial(partido)) return false;
+
+  return !obtenerEstadoManualPartido(partido);
+}
+
+function partidoCuentaComoAntecedenteForma(antecedente, partidoActual) {
+  if (partidoEsAnteriorAReferenciaForma(antecedente, partidoActual)) {
+    return true;
+  }
+
+  if (!partidoEsProximoSinFechaConfiableForma(partidoActual)) {
+    return false;
+  }
+
+  const fechaActual = obtenerNumeroFechaFormaPartido(partidoActual);
+  if (fechaActual !== null) {
+    return partidoEsAnteriorPorFechaTorneoForma(antecedente, partidoActual);
+  }
+
+  return true;
+}
+
 function obtenerResultadoFormaEquipoPartido(partido, equipo) {
   return {
     win: "G",
@@ -6620,6 +6659,7 @@ function obtenerFormaRecienteEquipoAntesPartido(
     item => String(item.id) === String(partidoActual.torneo_id)
   ) || { id: partidoActual.torneo_id };
   const maximo = Math.max(0, Number(limite) || 0);
+  if (maximo === 0) return [];
 
   return obtenerPartidosEquipoTorneo(equipo, torneo)
     .filter(
@@ -6627,11 +6667,10 @@ function obtenerFormaRecienteEquipoAntesPartido(
         partido.tipoActividad !== "libre" &&
         String(partido.id) !== String(partidoActual.id) &&
         partidoTieneResultadoVisualConfirmado(partido) &&
-        partidoEsAnteriorAReferenciaForma(partido, partidoActual)
+        partidoCuentaComoAntecedenteForma(partido, partidoActual)
     )
-    .sort(ordenarPartidosRecientes)
-    .slice(0, maximo)
-    .reverse()
+    .sort(ordenarPartidosCronologicamente)
+    .slice(-maximo)
     .map(partido => ({
       partido,
       resultado: obtenerResultadoFormaEquipoPartido(partido, equipo)
