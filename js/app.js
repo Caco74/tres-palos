@@ -8134,6 +8134,174 @@ function renderResumenTorneoEquipo(stats, datosTabla, estadoTorneoEquipo) {
   `;
 }
 
+function obtenerUltimosPartidosFinalizadosEquipo(
+  partidosEquipo,
+  equipo,
+  limite = 5
+) {
+  return partidosEquipo
+    .filter(
+      partido =>
+        partido.tipoActividad !== "libre" &&
+        equipoParticipaEnPartido(partido, equipo) &&
+        partidoFinalizadoRecorridoEquipo(partido)
+    )
+    .sort(ordenarPartidosRecientes)
+    .slice(0, limite);
+}
+
+function obtenerDatosPartidoRecienteEquipo(partido, equipo) {
+  const lado = obtenerLadoEquipoPartido(partido, equipo);
+  if (!lado) return null;
+
+  const esLocal = lado === "local";
+  const rivalLado = esLocal ? "visitante" : "local";
+  const favor = Number(esLocal
+    ? partido.goles_local
+    : partido.goles_visitante);
+  const contra = Number(esLocal
+    ? partido.goles_visitante
+    : partido.goles_local);
+  const resultado = favor > contra ? "G" : favor < contra ? "P" : "E";
+  const claseResultado = {
+    G: "win",
+    E: "draw",
+    P: "loss"
+  }[resultado];
+  const rival = obtenerNombreLadoPartido(partido, rivalLado);
+  const contexto = obtenerEtiquetaInstanciaAntecedente(partido);
+  const fecha = formatearFechaAntecedente(
+    obtenerFechaCalendarioPartido(partido)
+  );
+
+  return {
+    lado,
+    rival,
+    favor,
+    contra,
+    resultado,
+    claseResultado,
+    condicion: esLocal ? "Local" : "Visitante",
+    contexto,
+    fecha
+  };
+}
+
+function calcularResumenUltimosPartidosEquipo(partidos, equipo) {
+  return partidos.reduce((resumen, partido) => {
+    const datos = obtenerDatosPartidoRecienteEquipo(partido, equipo);
+    if (!datos) return resumen;
+
+    resumen.pj++;
+    resumen.gf += datos.favor;
+    resumen.gc += datos.contra;
+
+    if (datos.resultado === "G") resumen.g++;
+    else if (datos.resultado === "P") resumen.p++;
+    else resumen.e++;
+
+    return resumen;
+  }, { pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0 });
+}
+
+function renderResumenUltimosPartidosEquipo(resumen) {
+  const items = [
+    ["PJ", resumen.pj],
+    ["G", resumen.g],
+    ["E", resumen.e],
+    ["P", resumen.p],
+    ["GF", resumen.gf],
+    ["GC", resumen.gc]
+  ];
+
+  return `
+    <div class="team-recent-summary" aria-label="Resumen de ultimos partidos">
+      ${items.map(([etiqueta, valor]) => `
+        <span>
+          <small>${etiqueta}</small>
+          <strong>${valor}</strong>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderPartidoRecienteEquipo(partido, equipo) {
+  const datos = obtenerDatosPartidoRecienteEquipo(partido, equipo);
+  if (!datos) return "";
+
+  const rival = escaparHtml(datos.rival);
+  const detalle = [
+    datos.contexto,
+    datos.condicion,
+    datos.fecha
+  ].filter(Boolean).join(" · ");
+  const marcador = `${datos.favor} - ${datos.contra}`;
+  const etiquetaResultado = {
+    G: "Ganado",
+    E: "Empatado",
+    P: "Perdido"
+  }[datos.resultado];
+
+  return `
+    <button
+      type="button"
+      class="team-recent-match team-match--${datos.claseResultado}"
+      onclick="abrirPartido(${JSON.stringify(partido.id)})"
+      aria-label="${escaparHtml(
+        `${etiquetaResultado}: ${marcador} vs ${datos.rival}. ${detalle}`
+      )}"
+    >
+      <span
+        class="team-recent-result team-form-${datos.resultado.toLowerCase()}"
+        aria-hidden="true"
+      >
+        ${datos.resultado}
+      </span>
+      <span class="team-recent-copy">
+        <strong>vs ${rival}</strong>
+        <small>${escaparHtml(detalle)}</small>
+      </span>
+      <strong class="team-recent-score">${marcador}</strong>
+    </button>
+  `;
+}
+
+function renderUltimosPartidosEquipo(partidosEquipo, equipo) {
+  const ultimos = obtenerUltimosPartidosFinalizadosEquipo(
+    partidosEquipo,
+    equipo,
+    5
+  );
+  const resumen = calcularResumenUltimosPartidosEquipo(ultimos, equipo);
+
+  return `
+    <section class="team-season-block team-season-recent">
+      <div class="team-season-block-head team-recent-head">
+        <div>
+          <h2>&Uacute;ltimos 5</h2>
+          <span>Forma reciente</span>
+        </div>
+        ${renderFormaEquipo(ultimos, equipo)}
+      </div>
+      ${ultimos.length === 0
+        ? `
+          <div class="team-recent-empty">
+            No hay partidos finalizados para este equipo en el campeonato seleccionado.
+          </div>
+        `
+        : `
+          ${renderResumenUltimosPartidosEquipo(resumen)}
+          <div class="team-recent-list">
+            ${ultimos.map(partido =>
+              renderPartidoRecienteEquipo(partido, equipo)
+            ).join("")}
+          </div>
+        `}
+    </section>
+  `;
+}
+
 function agruparPartidosEquipoPorFase(partidosEquipo) {
   const grupos = new Map();
   const orden = [
@@ -8338,12 +8506,6 @@ function renderDetalleEquipo(equipo) {
         .filter(partido => equipoParticipaEnPartido(partido, equipo))
         .sort(ordenarPartidosCronologicamente)
     : [];
-  const libresEquipo = torneoSeleccionado
-    ? obtenerFechasLibresEquipoTorneo(equipo, partidosTorneo, torneoSeleccionado)
-    : [];
-  const actividadesEquipo = partidosEquipo
-    .concat(libresEquipo)
-    .sort(ordenarPartidosCronologicamente);
   const stats = calcularRendimientoEquipoTorneo(partidosEquipo, equipo);
   const datosTabla = obtenerDatosTablaEquipoTorneo(equipo, partidosTorneo);
   const eventosEquipo = obtenerEventosPartidosHistorial(partidosEquipo);
@@ -8411,6 +8573,10 @@ function renderDetalleEquipo(equipo) {
       </section>
       ${renderSelectorTorneosDetalleEquipo(torneosEquipo, torneoSeleccionado)}
       ${renderResumenTorneoEquipo(stats, datosTabla, estadoTorneoEquipo)}
+      ${torneosEquipo.length === 0 ? "" : renderUltimosPartidosEquipo(
+        partidosEquipo,
+        equipo
+      )}
       ${renderDestacadosEquipoTorneo(destacados, equipo)}
     </article>
 
@@ -8422,13 +8588,7 @@ function renderDetalleEquipo(equipo) {
           </div>
         </section>
       `
-      : `
-        ${renderPartidosEquipoPorFase(
-          actividadesEquipo,
-          equipo,
-          torneoSeleccionado
-        )}
-      `}
+      : ""}
   `;
   return;
 }
@@ -8447,9 +8607,12 @@ function renderFormaEquipo(partidos, equipo) {
 }
 
 function resultadoEquipoDetalle(partido, equipo) {
-  const esLocal = partido.local === equipo;
-  const favor = esLocal ? partido.goles_local : partido.goles_visitante;
-  const contra = esLocal ? partido.goles_visitante : partido.goles_local;
+  const lado = obtenerLadoEquipoPartido(partido, equipo);
+  if (!lado) return "E";
+
+  const esLocal = lado === "local";
+  const favor = Number(esLocal ? partido.goles_local : partido.goles_visitante);
+  const contra = Number(esLocal ? partido.goles_visitante : partido.goles_local);
 
   if (favor > contra) return "G";
   if (favor < contra) return "P";

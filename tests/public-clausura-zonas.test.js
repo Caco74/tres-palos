@@ -464,6 +464,95 @@ function buildRenderMiniPartido(appSource) {
   return sandbox.renderMiniPartido;
 }
 
+function buildRenderUltimosPartidosEquipo(appSource) {
+  const sandbox = {
+    JSON,
+    window: {
+      TPPublicTournament: PublicTournament
+    },
+    ESTADOS_PARTIDO_FINALIZADO_OFICIAL: new Set([
+      "finalizado",
+      "finalizada",
+      "resuelto",
+      "resuelta",
+      "cerrado",
+      "cerrada",
+      "terminado",
+      "terminada",
+      "completado",
+      "completada",
+      "homologado",
+      "homologada"
+    ]),
+    obtenerLadoEquipoPartido: (partido, equipo) => {
+      if (partido.local === equipo || String(partido.local_id) === String(equipo)) {
+        return "local";
+      }
+      if (
+        partido.visitante === equipo ||
+        String(partido.visitante_id) === String(equipo)
+      ) {
+        return "visitante";
+      }
+      return null;
+    },
+    equipoParticipaEnPartido: (partido, equipo) =>
+      partido.local === equipo ||
+      partido.visitante === equipo ||
+      String(partido.local_id) === String(equipo) ||
+      String(partido.visitante_id) === String(equipo),
+    obtenerNombreLadoPartido: (partido, lado) => partido[lado] || "Por definir",
+    etiquetaFase: fase => ({
+      octavos: "Octavos",
+      cuartos: "Cuartos",
+      semifinal: "Semifinal",
+      final: "Final"
+    }[fase] || "Playoffs"),
+    etiquetaInstanciaPartido: partido =>
+      partido.tipo === "regular"
+        ? `Fecha ${partido.fecha || ""}`.trim()
+        : `Llave ${partido.numero_playoff || 1}`,
+    escaparHtml: value => String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+  };
+
+  vm.runInNewContext(
+    `${extractFunction(appSource, "normalizarEstadoPartidoValor")}
+     ${extractFunction(appSource, "partidoTieneResultado")}
+     ${extractFunction(appSource, "partidoTieneEstadoFinalizadoOficial")}
+     ${extractFunction(appSource, "partidoTieneResultadoVisualConfirmado")}
+     ${extractFunction(appSource, "partidoFinalizadoRecorridoEquipo")}
+     ${extractFunction(appSource, "ordenarPartidosRecientes")}
+     ${extractFunction(appSource, "obtenerFechaCalendarioPartido")}
+     ${extractFunction(appSource, "obtenerEtiquetaInstanciaAntecedente")}
+     ${extractFunction(appSource, "formatearFechaAntecedente")}
+     ${extractFunction(appSource, "resultadoEquipoDetalle")}
+     ${extractFunction(appSource, "renderFormaEquipo")}
+     ${extractFunction(appSource, "obtenerUltimosPartidosFinalizadosEquipo")}
+     ${extractFunction(appSource, "obtenerDatosPartidoRecienteEquipo")}
+     ${extractFunction(appSource, "calcularResumenUltimosPartidosEquipo")}
+     ${extractFunction(appSource, "renderResumenUltimosPartidosEquipo")}
+     ${extractFunction(appSource, "renderPartidoRecienteEquipo")}
+     ${extractFunction(appSource, "renderUltimosPartidosEquipo")}
+     this.obtenerUltimosPartidosFinalizadosEquipo = obtenerUltimosPartidosFinalizadosEquipo;
+     this.calcularResumenUltimosPartidosEquipo = calcularResumenUltimosPartidosEquipo;
+     this.renderUltimosPartidosEquipo = renderUltimosPartidosEquipo;`,
+    sandbox
+  );
+
+  return {
+    obtener: (partidos, equipo, limite) =>
+      sandbox.obtenerUltimosPartidosFinalizadosEquipo(partidos, equipo, limite),
+    calcular: (partidos, equipo) =>
+      sandbox.calcularResumenUltimosPartidosEquipo(partidos, equipo),
+    render: (partidos, equipo) =>
+      sandbox.renderUltimosPartidosEquipo(partidos, equipo)
+  };
+}
+
 function buildRenderActividadLibre(appSource) {
   const sandbox = {
     escaparHtml: value => String(value)
@@ -612,7 +701,20 @@ function buildAntecedentesDetallePartido(appSource, overrides = {}) {
 
 function buildRenderDetalleEquipo(appSource, overrides = {}) {
   const container = { innerHTML: "" };
-  const torneo = { id: 901, nombre: "Torneo de prueba", activo: true };
+  const torneo = overrides.torneo ||
+    { id: 901, nombre: "Torneo de prueba", activo: true };
+  const torneosEquipo = Object.prototype.hasOwnProperty.call(
+    overrides,
+    "torneosEquipo"
+  )
+    ? overrides.torneosEquipo
+    : [torneo];
+  const torneoSeleccionado = Object.prototype.hasOwnProperty.call(
+    overrides,
+    "torneoSeleccionado"
+  )
+    ? overrides.torneoSeleccionado
+    : torneosEquipo[0] || null;
   const stats = { pj: 0, pg: 0, pe: 0, pp: 0, gf: 0, gc: 0 };
   const sandbox = {
     document: {
@@ -627,14 +729,21 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
     renderEstadoVista: () => "",
     volverDetalle: () => {},
     obtenerClub: () => overrides.club || null,
-    obtenerTorneosDisponiblesEquipo: () => [torneo],
+    obtenerTorneosDisponiblesEquipo: () => torneosEquipo,
     resolverSeleccionTorneoDetalleEquipo: () => ({
-      torneo,
+      torneo: torneoSeleccionado,
       fallbackAplicado: false,
       desdeUrl: false
     }),
-    obtenerPartidosResueltosTorneoHistorial: () => [],
-    equipoParticipaEnPartido: () => false,
+    obtenerPartidosResueltosTorneoHistorial: item =>
+      overrides.partidosPorTorneo?.[String(item?.id)] ||
+      overrides.partidosTorneo ||
+      [],
+    equipoParticipaEnPartido: (partido, nombreEquipo) =>
+      partido.local === nombreEquipo ||
+      partido.visitante === nombreEquipo ||
+      String(partido.local_id) === String(nombreEquipo) ||
+      String(partido.visitante_id) === String(nombreEquipo),
     ordenarPartidosCronologicamente: () => 0,
     obtenerFechasLibresEquipoTorneo: () => [],
     calcularRendimientoEquipoTorneo: () => stats,
@@ -652,6 +761,10 @@ function buildRenderDetalleEquipo(appSource, overrides = {}) {
     guardarVistaEnHistorial: () => {},
     renderSelectorTorneosDetalleEquipo: () => "",
     renderResumenTorneoEquipo: () => "",
+    renderUltimosPartidosEquipo: (partidos, nombreEquipo) => {
+      sandbox.ultimosRecibidos = { partidos, nombreEquipo };
+      return `<section class="team-season-recent">${partidos.map(partido => partido.id).join("|")}</section>`;
+    },
     renderDestacadosEquipoTorneo: () => "",
     renderPartidosEquipoPorFase: () => ""
   };
@@ -1296,7 +1409,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=71/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=72/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1459,7 +1572,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=80/);
+  assert.match(indexSource, /\/js\/app\.js\?v=81/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -1903,6 +2016,208 @@ async function runTests() {
   }, equipoBase), "neutral");
   results.push("detalle equipo: clases resultado local/visitante y neutrales: ok");
 
+  const ultimosEquipoPrueba = buildRenderUltimosPartidosEquipo(appSource);
+  const partidosRecientesEquipo = [
+    {
+      id: 701,
+      tipo: "regular",
+      fecha: 8,
+      estado: "finalizado",
+      local: equipoBase,
+      visitante: "Rival Uno",
+      goles_local: 2,
+      goles_visitante: 1,
+      fecha_partido: "2026-08-15"
+    },
+    {
+      id: 702,
+      tipo: "regular",
+      fecha: 7,
+      estado: "finalizado",
+      local: "Rival Dos",
+      visitante: equipoBase,
+      goles_local: 1,
+      goles_visitante: 3,
+      fecha_partido: "2026-08-14"
+    },
+    {
+      id: 703,
+      tipo: "regular",
+      fecha: 6,
+      estado: "finalizado",
+      local: equipoBase,
+      visitante: "Rival Tres",
+      goles_local: 0,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-13"
+    },
+    {
+      id: 704,
+      tipo: "regular",
+      fecha: 5,
+      estado: "finalizado",
+      local: "Rival Cuatro",
+      visitante: equipoBase,
+      goles_local: 2,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-12"
+    },
+    {
+      id: 705,
+      tipo: "regular",
+      fecha: 4,
+      estado: "finalizado",
+      local: equipoBase,
+      visitante: "Rival Cinco",
+      goles_local: 1,
+      goles_visitante: 4,
+      fecha_partido: "2026-08-11"
+    },
+    {
+      id: 706,
+      tipo: "regular",
+      fecha: 3,
+      estado: "finalizado",
+      local: equipoBase,
+      visitante: "Rival Viejo",
+      goles_local: 5,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-10"
+    },
+    {
+      id: 707,
+      tipo: "regular",
+      fecha: 9,
+      estado: "programado",
+      local: equipoBase,
+      visitante: "Rival Pendiente",
+      goles_local: 9,
+      goles_visitante: 9,
+      fecha_partido: "2026-08-16"
+    },
+    {
+      id: 708,
+      tipo: "regular",
+      fecha: 10,
+      estado: "suspendido",
+      local: equipoBase,
+      visitante: "Rival Suspendido",
+      goles_local: 3,
+      goles_visitante: 0,
+      fecha_partido: "2026-08-17"
+    },
+    {
+      id: 709,
+      tipo: "regular",
+      fecha: 11,
+      estado: "postergado",
+      local: "Rival Postergado",
+      visitante: equipoBase,
+      goles_local: 0,
+      goles_visitante: 3,
+      fecha_partido: "2026-08-18"
+    }
+  ];
+  const ultimosCinco = ultimosEquipoPrueba.obtener(
+    partidosRecientesEquipo,
+    equipoBase
+  );
+  assert.deepEqual(
+    ultimosCinco.map(partido => partido.id),
+    [701, 702, 703, 704, 705]
+  );
+  assert.deepEqual(
+    { ...ultimosEquipoPrueba.calcular(ultimosCinco, equipoBase) },
+    { pj: 5, g: 2, e: 1, p: 2, gf: 6, gc: 8 }
+  );
+
+  const htmlUltimosCinco = ultimosEquipoPrueba.render(
+    partidosRecientesEquipo,
+    equipoBase
+  );
+  assert.match(htmlUltimosCinco, /&Uacute;ltimos 5/);
+  assert.match(htmlUltimosCinco, /Forma reciente/);
+  assert.equal(
+    (htmlUltimosCinco.match(/class="team-recent-match/g) || []).length,
+    5
+  );
+  assert.match(htmlUltimosCinco, /team-form-g/);
+  assert.match(htmlUltimosCinco, /team-form-e/);
+  assert.match(htmlUltimosCinco, /team-form-p/);
+  assert.match(htmlUltimosCinco, /<small>PJ<\/small>[\s\S]*<strong>5<\/strong>/);
+  assert.match(htmlUltimosCinco, /<small>G<\/small>[\s\S]*<strong>2<\/strong>/);
+  assert.match(htmlUltimosCinco, /<small>E<\/small>[\s\S]*<strong>1<\/strong>/);
+  assert.match(htmlUltimosCinco, /<small>P<\/small>[\s\S]*<strong>2<\/strong>/);
+  assert.match(htmlUltimosCinco, /<small>GF<\/small>[\s\S]*<strong>6<\/strong>/);
+  assert.match(htmlUltimosCinco, /<small>GC<\/small>[\s\S]*<strong>8<\/strong>/);
+  assert.match(htmlUltimosCinco, /vs Rival Dos/);
+  assert.match(htmlUltimosCinco, /3 - 1/);
+  assert.match(htmlUltimosCinco, /Visitante/);
+  assert.match(htmlUltimosCinco, /abrirPartido\(701\)/);
+  assert.doesNotMatch(htmlUltimosCinco, /Rival Viejo/);
+  assert.doesNotMatch(htmlUltimosCinco, /Rival Pendiente|Rival Suspendido|Rival Postergado/);
+
+  const htmlMenosDeCinco = ultimosEquipoPrueba.render(
+    partidosRecientesEquipo.slice(0, 3),
+    equipoBase
+  );
+  assert.equal(
+    (htmlMenosDeCinco.match(/class="team-recent-match/g) || []).length,
+    3
+  );
+  assert.match(htmlMenosDeCinco, /<small>PJ<\/small>[\s\S]*<strong>3<\/strong>/);
+
+  const htmlSinFinalizados = ultimosEquipoPrueba.render([
+    {
+      id: 720,
+      tipo: "regular",
+      fecha: 1,
+      estado: "programado",
+      local: equipoBase,
+      visitante: "Rival Futuro",
+      goles_local: null,
+      goles_visitante: null
+    }
+  ], equipoBase);
+  assert.match(htmlSinFinalizados, /team-recent-empty/);
+  assert.match(htmlSinFinalizados, /No hay partidos finalizados/);
+  assert.doesNotMatch(htmlSinFinalizados, /class="team-recent-match/);
+
+  const detalleEquipoTorneoSeleccionado = buildRenderDetalleEquipo(appSource, {
+    equipo: equipoBase,
+    torneosEquipo: [
+      { id: TORNEO_APERTURA, nombre: "Apertura 2026", activo: false },
+      { id: TORNEO_CLAUSURA, nombre: "Clausura 2026", activo: true }
+    ],
+    torneoSeleccionado: {
+      id: TORNEO_APERTURA,
+      nombre: "Apertura 2026",
+      activo: false
+    },
+    partidosPorTorneo: {
+      [TORNEO_APERTURA]: [
+        {
+          id: 730,
+          torneo_id: TORNEO_APERTURA,
+          local: equipoBase,
+          visitante: "Historial Apertura"
+        }
+      ],
+      [TORNEO_CLAUSURA]: [
+        {
+          id: 731,
+          torneo_id: TORNEO_CLAUSURA,
+          local: equipoBase,
+          visitante: "Historial Clausura"
+        }
+      ]
+    }
+  }).render(equipoBase);
+  assert.match(detalleEquipoTorneoSeleccionado, /team-season-recent/);
+  assert.match(detalleEquipoTorneoSeleccionado, /730/);
+  assert.doesNotMatch(detalleEquipoTorneoSeleccionado, /731/);
+  results.push("detalle equipo: ultimos 5 calcula forma, resumen y torneo seleccionado: ok");
+
   const renderActividadLibrePrueba = buildRenderActividadLibre(appSource);
   const libre = renderActividadLibrePrueba({
     tipoActividad: "libre",
@@ -2345,7 +2660,19 @@ async function runTests() {
   assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /torneoEquipoManual = true/);
   assert.match(extractFunction(appSource, "seleccionarTorneoDetalleEquipo"), /renderDetalleEquipo\(vistaActual\.equipo\)/);
   assert.match(extractFunction(appSource, "renderSelectorTorneosDetalleEquipo"), /esTorneoVigente\(torneo\)/);
-  assert.match(extractFunction(appSource, "renderDetalleEquipo"), /actividadesEquipo/);
+  assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /actividadesEquipo|libresEquipo/);
+  assert.match(
+    extractFunction(appSource, "renderDetalleEquipo"),
+    /renderUltimosPartidosEquipo\(\s*partidosEquipo,\s*equipo\s*\)/
+  );
+  assert.match(
+    extractFunction(appSource, "obtenerUltimosPartidosFinalizadosEquipo"),
+    /partidoFinalizadoRecorridoEquipo\(partido\)[\s\S]*slice\(0, limite\)/
+  );
+  assert.doesNotMatch(
+    extractFunction(appSource, "renderUltimosPartidosEquipo"),
+    /state\.partidos|state\.partidosTodos/
+  );
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /calcularRendimientoEquipoTorneo\(partidosEquipo/);
   assert.match(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /getFreeParticipants/);
   assert.doesNotMatch(extractFunction(appSource, "obtenerFechasLibresEquipoTorneo"), /state\.partidos/);
@@ -2433,6 +2760,12 @@ async function runTests() {
   );
   assert.doesNotMatch(extractFunction(utilsSource, "aplicarClubes"), /\.zona\b/);
   assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
+  assert.match(styleSource, /\.team-recent-summary[\s\S]*repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.match(styleSource, /@media \(min-width: 700px\)[\s\S]*\.team-recent-list[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styleSource, /\.team-recent-match[\s\S]*grid-template-columns: 26px minmax\(0, 1fr\) 54px/);
+  assert.match(styleSource, /\.team-recent-copy strong[\s\S]*text-overflow: ellipsis/);
+  assert.match(styleSource, /\.team-recent-score[\s\S]*font-family: 'DM Mono'/);
+  assert.match(styleSource, /\.team-recent-empty[\s\S]*border: 1px dashed/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*padding: 11px 12px 14px/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*border-bottom: 1px solid rgba\(255, 255, 255, \.09\)/);
   assert.match(styleSource, /\.team-match--win[\s\S]*--team-result-win/);
