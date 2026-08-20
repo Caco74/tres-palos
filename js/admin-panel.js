@@ -28,6 +28,12 @@ const authCard = document.getElementById("authCard");
 const authForm = document.getElementById("authForm");
 const adminPassword = document.getElementById("adminPassword");
 const adminApp = document.getElementById("adminApp");
+const adminViewTabs = [
+  ...document.querySelectorAll("[data-admin-view]")
+];
+const adminViewPanels = [
+  ...document.querySelectorAll("[data-admin-view-panel]")
+];
 const statusBox = document.getElementById("statusBox");
 const workTournamentSelect = document.getElementById("workTournamentSelect");
 const workTournamentState = document.getElementById("workTournamentState");
@@ -263,6 +269,7 @@ let busquedaPlantelId = 0;
 let busquedaPlantelTimer = null;
 let busquedaPlantel = null;
 let jugadorPlantelSeleccionado = null;
+let adminViewActual = "partidos";
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -398,9 +405,41 @@ function setLiveBusy(isBusy) {
   renderModoPartido();
 }
 
+function setAdminView(view, options = {}) {
+  const nextView = view === "jugadores" ? "jugadores" : "partidos";
+  adminViewActual = nextView;
+  adminApp.dataset.adminView = nextView;
+
+  adminViewTabs.forEach(tab => {
+    const active = tab.dataset.adminView === nextView;
+    tab.classList.toggle("on", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+    tab.tabIndex = active ? 0 : -1;
+  });
+
+  adminViewPanels.forEach(panel => {
+    const active = panel.dataset.adminViewPanel === nextView;
+    panel.classList.toggle("hidden", !active);
+    panel.hidden = !active;
+  });
+
+  if (
+    nextView === "jugadores" &&
+    !options.preservarRegresoPlantel &&
+    !livePicker.classList.contains("hidden")
+  ) {
+    cerrarSelectorModo({
+      preservarRegresoPlantel: Boolean(liveRosterReturnContext)
+    });
+  }
+}
+
 function showApp() {
   authCard.classList.add("hidden");
   adminApp.classList.remove("hidden");
+  setAdminView(adminViewActual || "partidos", {
+    preservarRegresoPlantel: Boolean(liveRosterReturnContext)
+  });
 }
 
 function showAuth() {
@@ -3889,6 +3928,8 @@ function volverAIncidenciaDesdePlantel(inscripcionId) {
     return false;
   }
 
+  setAdminView("partidos", { preservarRegresoPlantel: true });
+
   if (String(seleccionadoId || "") !== String(contexto.partidoId)) {
     seleccionarPartido(contexto.partidoId, { desplazarAEditor: false });
   }
@@ -4062,6 +4103,7 @@ function abrirPlantelDesdeModo() {
     equipoNombre: liveAction.equipoNombre
   };
   cerrarSelectorModo({ preservarRegresoPlantel: true });
+  setAdminView("jugadores", { preservarRegresoPlantel: true });
   if (torneoId) rosterTournament.value = String(torneoId);
   rosterClub.value = String(equipoId);
   renderPlantel();
@@ -5034,6 +5076,24 @@ function setRecargandoDatos(isReloading) {
 async function recargarDatosPanel() {
   if (recargaDatosEnCurso) return;
   if (!torneoTrabajoValido()) {
+    if (adminViewActual === "jugadores") {
+      const estado = capturarEstadoRecarga();
+      setRecargandoDatos(true);
+      setStatus("Actualizando planteles...");
+      try {
+        await cargarPlantelesAdmin();
+        setStatus("Planteles actualizados.", "ok");
+      } catch (error) {
+        setStatus(
+          `No se pudieron recargar los planteles: ${error.message}`,
+          "error"
+        );
+      } finally {
+        setRecargandoDatos(false);
+        restaurarPosicionPanel(estado);
+      }
+      return;
+    }
     setStatus("Selecciona un torneo de trabajo antes de recargar.", "warn");
     return;
   }
@@ -5057,6 +5117,7 @@ async function recargarDatosPanel() {
 
     await cargarEtapasAdmin();
     await cargarIncidenciasAdmin();
+    await cargarPlantelesAdmin();
 
     const sigueDisponible = partidoSeleccionadoCompatibleConFiltros(
       estado.seleccionadoId
@@ -5852,6 +5913,12 @@ authForm.addEventListener("submit", async event => {
   } catch (error) {
     setStatus(error.message, "error");
   }
+});
+
+adminViewTabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    setAdminView(tab.dataset.adminView);
+  });
 });
 
 matchList.addEventListener("click", event => {

@@ -524,6 +524,71 @@ async function runAdminPlantelesTests() {
     }
   ));
 
+  results.push(await runCase(
+    "baja y reactivacion actualizan estado con PATCH sin DELETE",
+    async () => {
+      const rpcBodies = [];
+      const calls = installFetch(call => {
+        if (call.url.includes("/rest/v1/rpc/admin_guardar_inscripcion_jugador")) {
+          rpcBodies.push(call.body);
+          return mockResponse(200, {
+            jugador: playerRow(),
+            inscripcion: enrollmentRow({
+              id: call.body.p_inscripcion_id,
+              estado: call.body.p_estado,
+              fecha_hasta: call.body.p_fecha_hasta
+            })
+          });
+        }
+        throw new Error(call.url);
+      });
+
+      const inactive = await handler(adminEvent("PATCH", {
+        inscripcion_id: 154,
+        jugador_id: 77,
+        nombre_completo: "Sanchez",
+        aliases: [],
+        club_id: 1,
+        torneo_id: 2,
+        posicion: "sin_definir",
+        dorsal: null,
+        estado: "inactivo",
+        fecha_desde: null,
+        fecha_hasta: "2026-08-20",
+        fuente: null,
+        observaciones: "Baja administrativa"
+      }));
+      assert.equal(inactive.statusCode, 200, inactive.body);
+      assert.equal(rpcBodies[0].p_inscripcion_id, 154);
+      assert.equal(rpcBodies[0].p_jugador_id, 77);
+      assert.equal(rpcBodies[0].p_estado, "inactivo");
+      assert.equal(rpcBodies[0].p_fecha_hasta, "2026-08-20");
+
+      const reactivated = await handler(adminEvent("PATCH", {
+        inscripcion_id: 154,
+        jugador_id: 77,
+        nombre_completo: "Sanchez",
+        aliases: [],
+        club_id: 1,
+        torneo_id: 2,
+        posicion: "sin_definir",
+        dorsal: null,
+        estado: "por_verificar",
+        fecha_desde: null,
+        fecha_hasta: null,
+        fuente: null,
+        observaciones: "Reactivacion administrativa"
+      }));
+      assert.equal(reactivated.statusCode, 200, reactivated.body);
+      assert.equal(rpcBodies[1].p_estado, "por_verificar");
+      assert.equal(rpcBodies[1].p_fecha_hasta, null);
+      assert.equal(
+        calls.some(call => call.method === "DELETE"),
+        false
+      );
+    }
+  ));
+
   return results;
 }
 

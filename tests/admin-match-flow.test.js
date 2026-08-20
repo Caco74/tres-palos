@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const AdminMatchFlow = require("../js/admin-match-flow");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -41,6 +42,56 @@ function countByFilter(matches, filter) {
     tipo: "regular",
     ...filter
   }).length;
+}
+
+function extractFunction(source, name) {
+  const match = new RegExp(`function\\s+${name}\\s*\\(`).exec(source);
+  assert.ok(match, `No se encontro ${name}`);
+  const start = match.index;
+  const paramsOpen = source.indexOf("(", start);
+  let paramsDepth = 0;
+  let open = -1;
+
+  for (let index = paramsOpen; index < source.length; index += 1) {
+    if (source[index] === "(") paramsDepth += 1;
+    else if (source[index] === ")") {
+      paramsDepth -= 1;
+      if (paramsDepth === 0) {
+        open = source.indexOf("{", index);
+        break;
+      }
+    }
+  }
+
+  assert.notEqual(open, -1, `No se encontro cuerpo de ${name}`);
+  let depth = 0;
+
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+
+  throw new Error(`No se pudo extraer ${name}`);
+}
+
+function createClassList(initial = []) {
+  const classes = new Set(initial);
+  return {
+    add: (...names) => names.forEach(name => classes.add(name)),
+    remove: (...names) => names.forEach(name => classes.delete(name)),
+    toggle: (name, force) => {
+      const active = force === undefined ? !classes.has(name) : Boolean(force);
+      if (active) classes.add(name);
+      else classes.delete(name);
+      return active;
+    },
+    contains: name => classes.has(name),
+    has: name => classes.has(name),
+    toString: () => [...classes].join(" ")
+  };
 }
 
 function runTests() {
@@ -266,6 +317,14 @@ function runTests() {
 
     assert.ok(indexOfId("refreshBtn") < indexOfId("matchList"));
     assert.match(html, /id="refreshBtn" class="ghost"[\s\S]*?Recargar datos/);
+    assert.ok(indexOfId("adminViewPartidosTab") < indexOfId("adminViewPartidos"));
+    assert.ok(indexOfId("adminViewJugadoresTab") < indexOfId("adminViewJugadores"));
+    assert.match(html, /role="tablist"[\s\S]*?PARTIDOS[\s\S]*?JUGADORES/);
+    assert.match(html, /id="adminViewPartidosTab"[\s\S]*?aria-selected="true"/);
+    assert.match(html, /id="adminViewJugadoresTab"[\s\S]*?aria-selected="false"/);
+    assert.match(html, /id="adminViewJugadores"[\s\S]*?hidden/);
+    assert.ok(indexOfId("adminViewPartidos") < indexOfId("workTournamentSelect"));
+    assert.ok(indexOfId("workTournamentSelect") < indexOfId("typeFilter"));
     assert.ok(indexOfId("matchList") < indexOfId("selectedMatchSummary"));
     assert.ok(indexOfId("selectedMatchSummary") < indexOfId("matchForm"));
     assert.ok(indexOfId("arbitroInput") < indexOfId("destacadoInicioInput"));
@@ -293,6 +352,7 @@ function runTests() {
     assert.match(html, /id="liveSaveActionBtn" disabled/);
     assert.doesNotMatch(html, /live-action-columns|liveLocalActions|liveAwayActions/);
     assert.ok(indexOfId("matchForm") < indexOfId("eventMatch"));
+    assert.ok(indexOfId("eventMatch") < indexOfId("adminViewJugadores"));
     assert.ok(indexOfId("matchForm") < indexOfId("stageAdminSelect"));
     assert.match(html, /id="rosterPlayerSearch"/);
     assert.match(html, /id="rosterSearchResults"[\s\S]*?role="listbox"/);
@@ -309,6 +369,23 @@ function runTests() {
     assert.match(html, /id="eventMissingResults"[\s\S]*?aria-live="polite"/);
     assert.match(html, /id="eventCreateConfirm" type="checkbox"/);
     assert.doesNotMatch(html, /eventCreateLegacy/);
+    const partidosPanel = html.slice(
+      indexOfId("adminViewPartidos"),
+      indexOfId("adminViewJugadores")
+    );
+    const jugadoresPanel = html.slice(indexOfId("adminViewJugadores"));
+    assert.match(partidosPanel, /id="workTournamentSelect"/);
+    assert.doesNotMatch(partidosPanel, /class="admin-card roster-panel"/);
+    assert.match(partidosPanel, /class="match-dependent-detail"/);
+    assert.match(partidosPanel, /Elegí un partido para continuar/);
+    assert.match(jugadoresPanel, /class="admin-card roster-panel"/);
+    assert.doesNotMatch(jugadoresPanel, /id="workTournamentSelect"/);
+    assert.doesNotMatch(jugadoresPanel, /class="match-dependent-detail"/);
+    assert.doesNotMatch(jugadoresPanel, /class="match-required-message"/);
+    assert.doesNotMatch(
+      jugadoresPanel,
+      /Elegí un partido para continuar/
+    );
     results.push("resultados y seleccion quedan antes de edicion/incidencias/cierre: ok");
   }
 
@@ -343,6 +420,9 @@ function runTests() {
     assert.match(recargaBody, /restaurarPosicionPanel\(estado\)/);
     assert.match(recargaBody, /capturarDatosRecarga\(\)/);
     assert.match(recargaBody, /restaurarDatosRecarga\(datosPrevios, estado\)/);
+    assert.match(recargaBody, /adminViewActual === "jugadores"/);
+    assert.match(recargaBody, /Planteles actualizados\./);
+    assert.match(recargaBody, /await cargarPlantelesAdmin\(\)/);
     assert.match(js, /function restaurarDatosRecarga/);
     assert.doesNotMatch(recargaBody, /cargarPanel\(\)/);
     assert.doesNotMatch(recargaBody, /limpiarContextoTorneo|mostrarEstadoSinTorneo/);
@@ -373,7 +453,15 @@ function runTests() {
     assert.match(js, /function volverAIncidenciaDesdePlantel\(inscripcionId\)/);
     assert.match(js, /liveRosterReturnContext = \{/);
     assert.match(js, /cerrarSelectorModo\(\{ preservarRegresoPlantel: true \}\)/);
-    assert.match(js, /if \(!options\.preservarRegresoPlantel\)/);
+    assert.match(js, /function setAdminView\(view, options = \{\}\)/);
+    assert.match(js, /adminViewTabs\.forEach\(tab =>/);
+    assert.match(js, /adminViewPanels\.forEach\(panel =>/);
+    assert.match(js, /panel\.dataset\.adminViewPanel === nextView/);
+    assert.match(js, /setAdminView\("jugadores", \{ preservarRegresoPlantel: true \}\)/);
+    assert.match(js, /setAdminView\("partidos", \{ preservarRegresoPlantel: true \}\)/);
+    assert.match(js, /adminViewTabs\.forEach\(tab => \{/);
+    assert.match(js, /setAdminView\(tab\.dataset\.adminView\)/);
+    assert.match(js, /preservarRegresoPlantel: Boolean\(liveRosterReturnContext\)/);
     assert.match(js, /liveSelectedPlayerId = Number\(inscripcion\.id\)/);
     assert.match(js, /function guardarSeleccionModo\(\)/);
     assert.match(js, /liveEmptyAddPlayerBtn\.addEventListener\("click", abrirPlantelDesdeModo\)/);
@@ -400,15 +488,213 @@ function runTests() {
   }
 
   {
+    const js = fs.readFileSync(path.join(ROOT, "js", "admin-panel.js"), "utf8");
+    const tabPartidos = {
+      dataset: { adminView: "partidos" },
+      classList: createClassList(["on"]),
+      attributes: {},
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+      },
+      tabIndex: 0
+    };
+    const tabJugadores = {
+      dataset: { adminView: "jugadores" },
+      classList: createClassList(),
+      attributes: {},
+      setAttribute(name, value) {
+        this.attributes[name] = value;
+      },
+      tabIndex: -1
+    };
+    const panelPartidos = {
+      dataset: { adminViewPanel: "partidos" },
+      classList: createClassList(),
+      hidden: false
+    };
+    const panelJugadores = {
+      dataset: { adminViewPanel: "jugadores" },
+      classList: createClassList(["hidden"]),
+      hidden: true
+    };
+
+    const sandbox = {
+      adminViewActual: "partidos",
+      adminApp: { dataset: {} },
+      adminViewTabs: [tabPartidos, tabJugadores],
+      adminViewPanels: [panelPartidos, panelJugadores],
+      liveRosterReturnContext: { partidoId: 10 },
+      livePicker: {
+        classList: createClassList(["hidden"]),
+        attributes: {},
+        setAttribute(name, value) {
+          this.attributes[name] = value;
+        }
+      },
+      closedPickerOptions: null,
+      cerrarSelectorModo(options) {
+        sandbox.closedPickerOptions = options || null;
+      },
+      liveAction: {
+        partidoId: 10,
+        lado: "local",
+        tipo: "gol",
+        equipoId: 1,
+        equipoNombre: "Campaña"
+      },
+      partidoModoSeleccionado: () => ({ id: 10, torneo_id: 2 }),
+      torneoTrabajoId: "2",
+      rosterTournament: { value: "" },
+      rosterClub: { value: "" },
+      rosterRendered: false,
+      renderPlantel() {
+        sandbox.rosterRendered = true;
+      },
+      rosterStarted: false,
+      iniciarNuevaInscripcion() {
+        sandbox.rosterStarted = true;
+      },
+      scrolledRoster: null,
+      document: {
+        body: { classList: createClassList() },
+        querySelector(selector) {
+          if (selector !== ".roster-panel") return null;
+          return {
+            scrollIntoView(options) {
+              sandbox.scrolledRoster = options;
+            }
+          };
+        }
+      },
+      partidos: [{ id: 10, torneo_id: 2 }],
+      seleccionadoId: null,
+      selectedMatch: null,
+      seleccionarPartido(id, options) {
+        sandbox.selectedMatch = { id, options };
+        sandbox.seleccionadoId = id;
+      },
+      liveSelectedSide: null,
+      liveChangeOutId: 99,
+      liveSelectedPlayerId: null,
+      inscripcionDisponibleParaModo: (id, contexto) =>
+        contexto.equipoId === 1 && Number(id) === 154
+          ? { id: 154, estado: "por_verificar" }
+          : null,
+      livePlayerSearch: {
+        value: "sanchez",
+        focused: false,
+        focus() {
+          this.focused = true;
+        }
+      },
+      liveMinute: { value: "33" },
+      modeRendered: false,
+      renderModoPartido() {
+        sandbox.modeRendered = true;
+      },
+      pickerRendered: false,
+      renderSelectorJugadoresModo() {
+        sandbox.pickerRendered = true;
+      },
+      feedback: null,
+      setLiveFeedback(message, type) {
+        sandbox.feedback = { message, type };
+      },
+      window: {
+        requestAnimationFrame(callback) {
+          callback();
+        }
+      },
+      liveSaveActionBtn: {
+        focused: false,
+        focus() {
+          this.focused = true;
+        }
+      },
+      livePlayerSearchWrap: { classList: createClassList() },
+      String,
+      Number,
+      Boolean
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      [
+        extractFunction(js, "setAdminView"),
+        extractFunction(js, "abrirPlantelDesdeModo"),
+        extractFunction(js, "volverAIncidenciaDesdePlantel")
+      ].join("\n"),
+      sandbox
+    );
+
+    sandbox.setAdminView("jugadores");
+    assert.equal(sandbox.adminViewActual, "jugadores");
+    assert.equal(sandbox.adminApp.dataset.adminView, "jugadores");
+    assert.equal(tabPartidos.classList.contains("on"), false);
+    assert.equal(tabJugadores.classList.contains("on"), true);
+    assert.equal(tabPartidos.attributes["aria-selected"], "false");
+    assert.equal(tabJugadores.attributes["aria-selected"], "true");
+    assert.equal(tabPartidos.tabIndex, -1);
+    assert.equal(tabJugadores.tabIndex, 0);
+    assert.equal(panelPartidos.hidden, true);
+    assert.equal(panelJugadores.hidden, false);
+    assert.equal(panelJugadores.classList.contains("hidden"), false);
+    assert.deepEqual(sandbox.liveRosterReturnContext, { partidoId: 10 });
+
+    sandbox.liveRosterReturnContext = null;
+    sandbox.closedPickerOptions = null;
+    sandbox.abrirPlantelDesdeModo();
+    assert.equal(sandbox.adminViewActual, "jugadores");
+    assert.equal(sandbox.closedPickerOptions.preservarRegresoPlantel, true);
+    assert.equal(sandbox.liveRosterReturnContext.partidoId, 10);
+    assert.equal(sandbox.liveRosterReturnContext.torneoId, 2);
+    assert.equal(sandbox.liveRosterReturnContext.equipoId, 1);
+    assert.equal(sandbox.rosterTournament.value, "2");
+    assert.equal(sandbox.rosterClub.value, "1");
+    assert.equal(sandbox.rosterRendered, true);
+    assert.equal(sandbox.rosterStarted, true);
+    assert.equal(sandbox.scrolledRoster.behavior, "smooth");
+    assert.equal(sandbox.scrolledRoster.block, "start");
+
+    const restored = sandbox.volverAIncidenciaDesdePlantel(154);
+    assert.equal(restored, true);
+    assert.equal(sandbox.adminViewActual, "partidos");
+    assert.equal(panelPartidos.hidden, false);
+    assert.equal(panelJugadores.hidden, true);
+    assert.equal(sandbox.selectedMatch.id, 10);
+    assert.equal(sandbox.selectedMatch.options.desplazarAEditor, false);
+    assert.equal(sandbox.liveSelectedSide, "local");
+    assert.equal(sandbox.liveAction.tipo, "gol");
+    assert.equal(sandbox.liveChangeOutId, null);
+    assert.equal(sandbox.liveSelectedPlayerId, 154);
+    assert.equal(sandbox.liveRosterReturnContext, null);
+    assert.equal(sandbox.livePlayerSearch.value, "");
+    assert.equal(sandbox.liveMinute.value, "");
+    assert.equal(sandbox.modeRendered, true);
+    assert.equal(sandbox.pickerRendered, true);
+    assert.equal(sandbox.livePicker.classList.contains("hidden"), false);
+    assert.equal(sandbox.livePicker.attributes["aria-hidden"], "false");
+    assert.equal(sandbox.document.body.classList.contains("live-picker-open"), true);
+    assert.equal(sandbox.feedback.type, "ok");
+    assert.equal(sandbox.liveSaveActionBtn.focused, true);
+    results.push("tabs y retorno plantel/incidencias funcionan por estado: ok");
+  }
+
+  {
     const css = fs.readFileSync(path.join(ROOT, "styles", "admin.css"), "utf8");
     assert.equal(css.includes("overflow-x: hidden;"), true);
     assert.match(css, /\.status\s*\{[\s\S]*?position:\s*static;/);
     assert.equal(css.includes("overflow-wrap: anywhere;"), true);
     assert.match(css, /\.featured-admin-box\s*\{/);
     assert.match(css, /\.featured-toggle input\s*\{[\s\S]*?accent-color:\s*var\(--red\)/);
+    assert.match(css, /\.admin-navigation\s*\{[\s\S]*?order:\s*20;[\s\S]*?display:\s*flex;/);
+    assert.match(css, /\.admin-view-tabs\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(118px, 1fr\)\);/);
+    assert.match(css, /\.admin-view-tab\.on\s*\{[\s\S]*?box-shadow:\s*inset 0 -2px 0 var\(--red\);/);
+    assert.match(css, /\.admin-view-panel\s*\{[\s\S]*?display:\s*grid;[\s\S]*?gap:\s*14px;/);
+    assert.match(css, /\.toolbar\s*\{[\s\S]*?grid-template-columns:\s*130px 105px 105px 145px minmax\(180px, 1fr\);/);
     assert.match(css, /\.match-workflow\s*\{[\s\S]*?order:\s*40;/);
     assert.match(css, /\.events-panel\s*\{[\s\S]*?order:\s*60;/);
-    assert.match(css, /\.roster-panel\s*\{[\s\S]*?order:\s*70;/);
+    assert.match(css, /\.roster-panel\s*\{[\s\S]*?order:\s*40;/);
     assert.match(css, /\.stage-panel\s*\{[\s\S]*?order:\s*90;/);
     assert.match(
       css,
@@ -432,6 +718,7 @@ function runTests() {
     assert.match(css, /\.live-picker-actions\s*\{/);
     assert.doesNotMatch(css, /live-action-columns|live-actions-side/);
     assert.match(css, /\.event-candidate-actions button,[\s\S]*?width:\s*100%;/);
+    assert.match(css, /@media \(max-width: 820px\) \{[\s\S]*?\.admin-navigation\s*\{[\s\S]*?flex-direction:\s*column;/);
     results.push("CSS movil sin overflow, superposicion ni bloques altos vacios: ok");
   }
 
