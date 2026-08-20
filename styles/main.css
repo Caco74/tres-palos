@@ -33,6 +33,8 @@
   --zone3:    #8b5cf6;
   --shield-bg: #ededed;
   --shield-border: rgba(255,255,255,.32);
+  --classify-cuartos: #2bd67f;
+  --classify-octavos: #f2c94c;
   --altura-navegacion-movil: 58px;
 }
 
@@ -2048,37 +2050,48 @@ button {
 .tabla-referencias {
   display: flex;
   gap: 8px;
-  padding: 12px 1rem 6px;
+  padding: 12px 1rem 8px;
   flex-wrap: wrap;
 }
 
 .tabla-ref {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  min-height: 28px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .04);
   color: var(--text);
   font-family: 'DM Mono', monospace;
   font-size: 0.52rem;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
   text-transform: uppercase;
 }
 
+.tabla-ref-general {
+  color: var(--muted);
+  min-height: 30px;
+}
+
 .tabla-ref-color {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+  flex: 0 0 4px;
 }
 
-.ref-cuartos,
-.t-pos-cuartos {
-  background: rgba(46, 204, 113, .25);
-  color: #70e6a2;
+.ref-cuartos {
+  background: var(--classify-cuartos);
+  box-shadow: 0 0 10px rgba(43, 214, 127, .34);
 }
 
-.ref-octavos,
-.t-pos-octavos {
-  background: rgba(244, 185, 66, .24);
-  color: #f4c968;
+.ref-octavos {
+  background: var(--classify-octavos);
+  box-shadow: 0 0 10px rgba(242, 201, 76, .34);
 }
 
 .tabla {
@@ -2114,16 +2127,51 @@ button {
   text-align: center;
 }
 
+.tabla th:first-child,
+.tabla td:first-child {
+  width: 60px;
+}
+
 .tabla td:nth-child(2) {
   text-align: left;
 }
 
 .t-pos {
+  position: relative;
   font-family: 'DM Mono', monospace;
   font-size: 0.58rem;
   color: var(--muted);
   font-weight: 700;
   border-radius: 5px;
+}
+
+.t-pos-cuartos,
+.t-pos-octavos {
+  color: var(--white);
+  background: rgba(255, 255, 255, .035);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+}
+
+.t-pos-cuartos::before,
+.t-pos-octavos::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.t-pos-cuartos::before {
+  background: var(--classify-cuartos);
+  box-shadow: 0 0 10px rgba(43, 214, 127, .38);
+}
+
+.t-pos-octavos::before {
+  background: var(--classify-octavos);
+  box-shadow: 0 0 10px rgba(242, 201, 76, .38);
 }
 
 .t-name {
@@ -2198,8 +2246,32 @@ button {
   color: var(--muted);
 }
 
+.tabla-general-table th:nth-child(3),
+.tabla-general-table td:nth-child(3) {
+  width: 66px;
+  text-align: center;
+}
+
 .tabla-general-table th:nth-child(4) {
   color: rgba(255, 101, 117, .82);
+}
+
+.t-zone {
+  text-align: center;
+}
+
+.t-zone-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .035);
+  color: rgba(238, 238, 238, .74);
+  line-height: 1;
 }
 
 @media (max-width: 420px) {
@@ -2238,7 +2310,13 @@ button {
 
   .tabla-general-table th:nth-child(3),
   .tabla-general-table td:nth-child(3) {
-    width: 42px;
+    width: 34px;
+  }
+
+  .t-zone-pill {
+    min-width: 24px;
+    height: 20px;
+    padding: 0 4px;
   }
 
   .t-name {
@@ -4409,6 +4487,35 @@ body.detail-mode .app-main {
   border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 8px;
   background: rgba(255, 255, 255, .026);
+}
+
+.team-season-campaign > .team-season-stat--points {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255, 101, 117, .24);
+  background:
+    linear-gradient(135deg, rgba(255, 48, 69, .12), rgba(255, 255, 255, .026) 62%);
+  box-shadow: inset 0 0 0 1px rgba(255, 48, 69, .08);
+}
+
+.team-season-campaign > .team-season-stat--points::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: #ff3045;
+  box-shadow: 0 0 10px rgba(255, 48, 69, .32);
+}
+
+.team-season-campaign > .team-season-stat--points span {
+  color: rgba(255, 179, 188, .86);
+}
+
+.team-season-campaign > .team-season-stat--points strong {
+  color: #ff6575;
 }
 
 .team-season-campaign span,

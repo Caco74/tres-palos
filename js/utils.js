@@ -43,6 +43,30 @@ const escudos = {
   "C.A. Barraca": "assets/img/barraca.png"
 };
 
+const escudosTablaLocales = new Set([
+  "almafuerte.png",
+  "america.png",
+  "argentino.png",
+  "barraca.png",
+  "belgrano.png",
+  "campana.png",
+  "carcarana.png",
+  "correa.png",
+  "cosmo.png",
+  "defensores.png",
+  "everton.png",
+  "kemmis.png",
+  "montes.png",
+  "newells.png",
+  "porvenir.png",
+  "sanjeronimo.png",
+  "sport.png",
+  "sportivo.png",
+  "sportsman.png",
+  "union.png",
+  "uniont.png"
+]);
+
 //Nombres cortos
 const nombresCortos = {
   "Sportivo A. Club": "Sportivo",
@@ -162,6 +186,24 @@ function obtenerEscudoEquipo(equipo, clubId = null) {
     club?.escudo_url ||
     escudos[club?.nombre_oficial] ||
     "";
+}
+
+function obtenerEscudoTablaDesdeRuta(escudo) {
+  const ruta = String(escudo || "");
+  const normalizada = ruta.replace(/^\/+/, "");
+  const match = /^assets\/img\/([^/]+\.png)$/i.exec(normalizada);
+  const archivo = match?.[1]?.toLowerCase();
+
+  if (!archivo || !escudosTablaLocales.has(archivo)) {
+    return ruta;
+  }
+
+  const optimizada = `assets/img/tablas/${archivo}`;
+  return ruta.startsWith("/") ? `/${optimizada}` : optimizada;
+}
+
+function obtenerEscudoEquipoTabla(equipo, clubId = null) {
+  return obtenerEscudoTablaDesdeRuta(obtenerEscudoEquipo(equipo, clubId));
 }
 
 function normalizarNombreClub(value) {

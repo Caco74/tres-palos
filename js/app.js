@@ -2,7 +2,6 @@ let etapaActual = null;
 let zonaActual = 1;
 let tablaVistaActual = "posiciones";
 let tablaPosicionesActual = "1";
-let goleadoresTablaExpandida = false;
 let fasePlayoffActiva = null;
 let vistaActual = { id: "inicio", navId: "inicio" };
 let actualizandoDatos = false;
@@ -145,6 +144,9 @@ const TORNEOS_SIN_CRONOLOGIA_CONFIABLE = new Set([1]);
 const LISTADO_NEUTRAL_INCIDENCIAS_PUBLICAS = true;
 const MENSAJE_TORNEO_PUBLICO_INVALIDO =
   "No se pudo determinar el torneo actual. Intentá nuevamente más tarde.";
+const MAXIMO_GOLEADORES_TABLA = 10;
+const LIMITE_ESCUDOS_EAGER_TABLA = 10;
+const LIMITE_ESCUDOS_PRIORIDAD_ALTA_TABLA = 4;
 
 const TIPOS_GOL_PARTIDO = new Set(["gol", "gol-penal", "gol-contra"]);
 const EVENTOS_PUBLICOS_SELECT = [
@@ -3428,67 +3430,82 @@ function obtenerMensajeVacioGoleadoresTabla() {
     "Todav\u00eda no hay snapshot de goleadores para este torneo.";
 }
 
-function contraerListaGoleadoresTabla() {
-  goleadoresTablaExpandida = false;
-}
-
 function obtenerIdListaGoleadoresTabla() {
   return `tablaGoleadoresList-${obtenerClaveFiltroGoleadoresTabla()}`;
 }
 
 function obtenerGoleadoresVisiblesTabla(goleadores) {
-  if (goleadoresTablaExpandida || goleadores.length <= 5) {
-    return goleadores;
+  return goleadores.slice(0, MAXIMO_GOLEADORES_TABLA);
+}
+
+function obtenerEscudoTablaEquipo(equipo, clubId = null) {
+  if (typeof obtenerEscudoEquipoTabla === "function") {
+    return obtenerEscudoEquipoTabla(equipo, clubId);
   }
 
-  return goleadores.slice(0, 5);
+  if (typeof obtenerEscudoEquipo === "function") {
+    return obtenerEscudoEquipo(equipo, clubId);
+  }
+
+  return "";
 }
 
-function renderControlExpansionGoleadoresTabla(total, idLista) {
-  if (total <= 5) return "";
-
-  const texto = goleadoresTablaExpandida
-    ? "Ver menos"
-    : `Ver todos los goleadores (${total})`;
-  const etiqueta = goleadoresTablaExpandida
-    ? "Ver menos goleadores"
-    : `Ver todos los goleadores (${total})`;
-  const direccion = goleadoresTablaExpandida ? "up" : "down";
-
-  return `
-    <button
-      type="button"
-      class="tabla-scorers-toggle"
-      data-goleadores-toggle
-      aria-expanded="${goleadoresTablaExpandida ? "true" : "false"}"
-      aria-controls="${escaparHtml(idLista)}"
-      aria-label="${escaparHtml(etiqueta)}"
-    >
-      <span>${escaparHtml(texto)}</span>
-      <span
-        class="tabla-scorers-toggle-chevron ${direccion}"
-        aria-hidden="true"
-      ></span>
-    </button>
-  `;
-}
-
-function renderFilaGoleadorTabla(goleador, esLider = false) {
-  const goles = Number(goleador.goles || 0);
-  const equipo =
-    nombre(goleador.equipo_nombre, goleador.equipo_id) ||
-    goleador.equipo_nombre ||
-    "Equipo";
-  const escudo = typeof obtenerEscudoEquipo === "function"
-    ? obtenerEscudoEquipo(goleador.equipo_nombre, goleador.equipo_id)
-    : "";
-  const inicialesEquipo = equipo
+function obtenerInicialesEquipoTabla(equipo) {
+  return String(equipo || "Equipo")
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map(parte => parte.charAt(0))
     .join("")
     .toUpperCase() || "EQ";
+}
+
+function obtenerAtributosCargaEscudoTabla(indice = 0) {
+  const fila = Number(indice);
+  const esFilaInicial =
+    Number.isFinite(fila) &&
+    fila >= 0 &&
+    fila < LIMITE_ESCUDOS_EAGER_TABLA;
+  const prioridadAlta =
+    esFilaInicial &&
+    fila < LIMITE_ESCUDOS_PRIORIDAD_ALTA_TABLA;
+
+  return [
+    `loading="${esFilaInicial ? "eager" : "lazy"}"`,
+    'decoding="async"',
+    prioridadAlta ? 'fetchpriority="high"' : ""
+  ].filter(Boolean).join(" ");
+}
+
+function renderImagenEscudoTabla(
+  escudo,
+  alt,
+  tamanio,
+  indice = 0,
+  onerror = ""
+) {
+  const manejadorError = onerror ? ` onerror="${onerror}"` : "";
+
+  return `<img
+    src="${escaparHtml(escudo)}"
+    alt="${escaparHtml(alt)}"
+    width="${tamanio}"
+    height="${tamanio}"
+    ${obtenerAtributosCargaEscudoTabla(indice)}${manejadorError}
+  >`;
+}
+
+function renderFilaGoleadorTabla(goleador, esLider = false, indice = 0) {
+  const goles = Number(goleador.goles || 0);
+  const equipo =
+    nombre(goleador.equipo_nombre, goleador.equipo_id) ||
+    goleador.equipo_nombre ||
+    "Equipo";
+  const escudo = obtenerEscudoTablaEquipo(
+    goleador.equipo_nombre,
+    goleador.equipo_id
+  );
+  const inicialesEquipo = obtenerInicialesEquipoTabla(equipo);
   const claseEscudo = `tabla-scorer-shield${escudo ? "" : " is-missing"}`;
   const escudoEquipo = `
     <span
@@ -3499,15 +3516,13 @@ function renderFilaGoleadorTabla(goleador, esLider = false) {
         ${escaparHtml(inicialesEquipo)}
       </span>
       ${escudo
-        ? `<img
-            src="${escaparHtml(escudo)}"
-            alt=""
-            width="30"
-            height="30"
-            loading="lazy"
-            decoding="async"
-            onerror="this.hidden=true;this.parentElement.classList.add('is-missing')"
-          >`
+        ? renderImagenEscudoTabla(
+            escudo,
+            "",
+            30,
+            indice,
+            "this.hidden=true;this.parentElement.classList.add('is-missing')"
+          )
         : ""}
     </span>
   `;
@@ -5737,10 +5752,15 @@ function renderTablaPosiciones(cont) {
 
   data.forEach((t, i) => {
     const nombreEquipo = nombre(t.equipo);
-    const escudo = obtenerEscudoEquipo(t.equipo);
+    const escudo = obtenerEscudoTablaEquipo(t.equipo);
     const escudoEquipo = escudo
-      ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="40" height="40" loading="lazy" decoding="async">`
-      : nombreEquipo.slice(0, 2).toUpperCase();
+      ? renderImagenEscudoTabla(
+          escudo,
+          `Escudo de ${nombreEquipo}`,
+          40,
+          i
+        )
+      : obtenerInicialesEquipoTabla(nombreEquipo);
     const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
     const clasePosicion = claseClasificacion(
       t.equipo,
@@ -5795,7 +5815,6 @@ function renderTablaGoleadores(cont) {
     0,
     ...goleadores.map(goleador => Number(goleador.goles || 0))
   );
-  const nombreTorneo = obtenerNombreTorneoActivo();
   const filtro = obtenerEtiquetaFiltroGoleadoresTabla();
   const idLista = obtenerIdListaGoleadoresTabla();
   const goleadoresVisibles = obtenerGoleadoresVisiblesTabla(goleadores);
@@ -5813,22 +5832,19 @@ function renderTablaGoleadores(cont) {
     <div class="tabla-general tabla-general--standalone tabla-scorers">
       <div class="tabla-general-head">
         <div>
-          <div class="tabla-general-kicker">
-            ${escaparHtml(nombreTorneo)} &middot; ${escaparHtml(filtro)}
-          </div>
-          <h3>Goleadores destacados</h3>
+          <h3>Goleadores</h3>
         </div>
-        <span>${goleadores.length} jugadores</span>
+        <span>${escaparHtml(filtro)} &middot; Top ${MAXIMO_GOLEADORES_TABLA}</span>
       </div>
       <div class="tabla-scorers-list" id="${escaparHtml(idLista)}">
         ${goleadoresVisibles
-          .map(goleador => renderFilaGoleadorTabla(
+          .map((goleador, indice) => renderFilaGoleadorTabla(
             goleador,
-            Number(goleador.goles || 0) === maximoGoles
+            Number(goleador.goles || 0) === maximoGoles,
+            indice
           ))
           .join("")}
       </div>
-      ${renderControlExpansionGoleadoresTabla(goleadores.length, idLista)}
     </div>
   `;
 }
@@ -5841,11 +5857,10 @@ function renderTablaGeneral(standalone = false) {
 
   return `
     <div class="${clases}">
-      <div class="tabla-general-head">
-        <div>
-          <h3>Tabla general</h3>
+      <div class="tabla-referencias tabla-referencias--general">
+        <div class="tabla-ref tabla-ref-general">
+          Tabla general &middot; ${data.length} equipos
         </div>
-        <span>${data.length} equipos</span>
       </div>
       <div class="tabla-wrap tabla-wrap-general">
         <table class="tabla tabla-general-table">
@@ -5853,7 +5868,7 @@ function renderTablaGeneral(standalone = false) {
             <tr>
               <th>#</th>
               <th>Equipo</th>
-              <th>Zona</th>
+              <th aria-label="Zona">Z</th>
               <th>PTS</th>
               <th>PJ</th>
               <th>PG</th>
@@ -5873,10 +5888,15 @@ function renderTablaGeneral(standalone = false) {
 
 function renderFilaTablaGeneral(t, indice) {
   const nombreEquipo = nombre(t.equipo);
-  const escudo = obtenerEscudoEquipo(t.equipo);
+  const escudo = obtenerEscudoTablaEquipo(t.equipo);
   const escudoEquipo = escudo
-    ? `<img src="${escudo}" alt="Escudo de ${nombreEquipo}" width="40" height="40" loading="lazy" decoding="async">`
-    : nombreEquipo.slice(0, 2).toUpperCase();
+    ? renderImagenEscudoTabla(
+        escudo,
+        `Escudo de ${nombreEquipo}`,
+        40,
+        indice
+      )
+    : obtenerInicialesEquipoTabla(nombreEquipo);
   const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
 
   return `
@@ -5888,7 +5908,9 @@ function renderFilaTablaGeneral(t, indice) {
           ${nombreEquipo}
         </div>
       </td>
-      <td class="t-zone">Zona ${t.zona}</td>
+      <td class="t-zone">
+        <span class="t-zone-pill" aria-label="Zona ${t.zona}" title="Zona ${t.zona}">Z${t.zona}</span>
+      </td>
       <td class="t-pts">${t.pts}</td>
       <td>${t.pj}</td>
       <td>${t.pg}</td>
@@ -6053,8 +6075,10 @@ document.querySelectorAll("[data-tabla-vista]").forEach(btn => {
     const vista = btn.dataset.tablaVista;
     if (!["posiciones", "goleadores"].includes(vista)) return;
 
+    if (vista === "goleadores" && tablaVistaActual !== "goleadores") {
+      tablaPosicionesActual = "general";
+    }
     tablaVistaActual = vista;
-    contraerListaGoleadoresTabla();
     renderTabla();
   });
 });
@@ -6066,21 +6090,8 @@ document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
 
     tablaPosicionesActual = valor;
     if (valor !== "general") zonaActual = Number(valor);
-    contraerListaGoleadoresTabla();
     renderTabla();
   });
-});
-
-document.addEventListener("click", event => {
-  const target = event.target instanceof Element
-    ? event.target.closest("[data-goleadores-toggle]")
-    : null;
-
-  if (!target) return;
-
-  goleadoresTablaExpandida =
-    target.getAttribute("aria-expanded") !== "true";
-  renderTabla();
 });
 
 function renderDetallePartido(id) {
@@ -8093,9 +8104,9 @@ function renderCampaniaEquipo(stats) {
 
   return `
     <div class="team-season-campaign" aria-label="Resumen de campania">
-      <div>
-        <span>Partidos jugados</span>
-        <strong>${stats.pj}</strong>
+      <div class="team-season-stat--points">
+        <span>Puntos</span>
+        <strong>${stats.pts}</strong>
         ${sinPartidosJugados ? "<small>A&uacute;n sin partidos jugados</small>" : ""}
       </div>
       <div>
