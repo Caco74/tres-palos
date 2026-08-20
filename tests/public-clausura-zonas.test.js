@@ -1488,7 +1488,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=80/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=81/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1651,7 +1651,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=89/);
+  assert.match(indexSource, /\/js\/app\.js\?v=90/);
   assert.match(indexSource, /aria-label="Tabla por zona o general"/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
@@ -3064,7 +3064,7 @@ async function runTests() {
   assert.doesNotMatch(extractFunction(appSource, "renderDetalleEquipo"), /<span>Campeonato<\/span>|<span>Estado<\/span>/);
   assert.match(extractFunction(appSource, "renderDetalleEquipo"), /renderResumenTorneoEquipo/);
   assert.match(extractFunction(appSource, "renderResumenTorneoEquipo"), /Resumen del torneo/);
-  assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /<span>Puntos<\/span>[\s\S]*<strong>\$\{stats\.pts\}<\/strong>/);
+  assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /class="team-season-stat--points"[\s\S]*<span>Puntos<\/span>[\s\S]*<strong>\$\{stats\.pts\}<\/strong>/);
   assert.doesNotMatch(extractFunction(appSource, "renderCampaniaEquipo"), /Partidos jugados/);
   assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /<span>Campa&ntilde;a<\/span>[\s\S]*\$\{stats\.pg\}G &middot; \$\{stats\.pe\}E &middot; \$\{stats\.pp\}P/);
   assert.match(extractFunction(appSource, "renderCampaniaEquipo"), /Goles a favor/);
@@ -3146,6 +3146,9 @@ async function runTests() {
   assert.match(styleSource, /\.team-match-row small[\s\S]*letter-spacing: 0\.02em/);
   assert.match(styleSource, /\.team-detail-identity::before[\s\S]*linear-gradient/);
   assert.match(styleSource, /\.team-detail-achievement--champion[\s\S]*--team-achievement-bg/);
+  assert.match(styleSource, /\.team-season-campaign > \.team-season-stat--points[\s\S]*rgba\(255, 48, 69, \.12\)/);
+  assert.match(styleSource, /\.team-season-campaign > \.team-season-stat--points::before[\s\S]*background: #ff3045/);
+  assert.match(styleSource, /\.team-season-stat--points strong[\s\S]*color: #ff6575/);
   assert.match(styleSource, /\.team-season-note-icon--scorers::before/);
   assert.match(styleSource, /\.team-season-note-icon--big-win::before/);
   assert.match(styleSource, /\.t-pts[\s\S]*font-weight: 700/);

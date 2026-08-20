@@ -4489,6 +4489,35 @@ body.detail-mode .app-main {
   background: rgba(255, 255, 255, .026);
 }
 
+.team-season-campaign > .team-season-stat--points {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255, 101, 117, .24);
+  background:
+    linear-gradient(135deg, rgba(255, 48, 69, .12), rgba(255, 255, 255, .026) 62%);
+  box-shadow: inset 0 0 0 1px rgba(255, 48, 69, .08);
+}
+
+.team-season-campaign > .team-season-stat--points::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: #ff3045;
+  box-shadow: 0 0 10px rgba(255, 48, 69, .32);
+}
+
+.team-season-campaign > .team-season-stat--points span {
+  color: rgba(255, 179, 188, .86);
+}
+
+.team-season-campaign > .team-season-stat--points strong {
+  color: #ff6575;
+}
+
 .team-season-campaign span,
 .team-season-note div > span {
   display: block;

@@ -8104,7 +8104,7 @@ function renderCampaniaEquipo(stats) {
 
   return `
     <div class="team-season-campaign" aria-label="Resumen de campania">
-      <div>
+      <div class="team-season-stat--points">
         <span>Puntos</span>
         <strong>${stats.pts}</strong>
         ${sinPartidosJugados ? "<small>A&uacute;n sin partidos jugados</small>" : ""}
