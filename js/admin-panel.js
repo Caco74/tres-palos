@@ -407,6 +407,13 @@ function setLiveBusy(isBusy) {
 
 function setAdminView(view, options = {}) {
   const nextView = view === "jugadores" ? "jugadores" : "partidos";
+  const cambiaVista = nextView !== adminViewActual;
+  const preservarRegresoPlantel = Boolean(options.preservarRegresoPlantel);
+
+  if (cambiaVista && !preservarRegresoPlantel) {
+    liveRosterReturnContext = null;
+  }
+
   adminViewActual = nextView;
   adminApp.dataset.adminView = nextView;
 
@@ -425,7 +432,7 @@ function setAdminView(view, options = {}) {
 
   if (
     nextView === "jugadores" &&
-    !options.preservarRegresoPlantel &&
+    !preservarRegresoPlantel &&
     !livePicker.classList.contains("hidden")
   ) {
     cerrarSelectorModo({

@@ -457,6 +457,10 @@ function runTests() {
     assert.match(js, /adminViewTabs\.forEach\(tab =>/);
     assert.match(js, /adminViewPanels\.forEach\(panel =>/);
     assert.match(js, /panel\.dataset\.adminViewPanel === nextView/);
+    assert.match(js, /const cambiaVista = nextView !== adminViewActual/);
+    assert.match(js, /const preservarRegresoPlantel = Boolean\(options\.preservarRegresoPlantel\)/);
+    assert.match(js, /if \(cambiaVista && !preservarRegresoPlantel\) \{/);
+    assert.match(js, /liveRosterReturnContext = null;/);
     assert.match(js, /setAdminView\("jugadores", \{ preservarRegresoPlantel: true \}\)/);
     assert.match(js, /setAdminView\("partidos", \{ preservarRegresoPlantel: true \}\)/);
     assert.match(js, /adminViewTabs\.forEach\(tab => \{/);
@@ -639,10 +643,16 @@ function runTests() {
     assert.equal(panelPartidos.hidden, true);
     assert.equal(panelJugadores.hidden, false);
     assert.equal(panelJugadores.classList.contains("hidden"), false);
-    assert.deepEqual(sandbox.liveRosterReturnContext, { partidoId: 10 });
+    assert.equal(sandbox.liveRosterReturnContext, null);
+
+    sandbox.liveRosterReturnContext = { partidoId: 22 };
+    sandbox.setAdminView("jugadores");
+    assert.equal(sandbox.adminViewActual, "jugadores");
+    assert.deepEqual(sandbox.liveRosterReturnContext, { partidoId: 22 });
 
     sandbox.liveRosterReturnContext = null;
     sandbox.closedPickerOptions = null;
+    sandbox.setAdminView("partidos");
     sandbox.abrirPlantelDesdeModo();
     assert.equal(sandbox.adminViewActual, "jugadores");
     assert.equal(sandbox.closedPickerOptions.preservarRegresoPlantel, true);
