@@ -1489,7 +1489,15 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=82/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=83/);
+  assert.match(indexSource, /\/js\/utils\.js\?v=9/);
+  assert.match(utilsSource, /"C\.A\. El Porvenir del Norte": "El Porvenir"/);
+  assert.match(utilsSource, /"Porvenir": "El Porvenir"/);
+  assert.match(
+    extractFunction(utilsSource, "aplicarClubes"),
+    /nombresCortos\[club\.nombre_oficial\]\s*\|\|[\s\S]*club\.nombre_corto/
+  );
+  assert.doesNotMatch(utilsSource, /"C\.A\. El Porvenir del Norte": "Porvenir"/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -3154,6 +3162,7 @@ async function runTests() {
     styleSource,
     /\.tabla-general-table|\.tabla-ref-general|\.tabla-wrap-general|\.t-zone\b|\.t-zone-pill|tabla-general-kicker/
   );
+  assert.match(styleSource, /\.zt\[hidden\]\s*\{[\s\S]*display: none/);
   assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla[\s\S]*table-layout: fixed/);
   assert.match(styleSource, /--classify-cuartos: #2bd67f/);
   assert.match(styleSource, /--classify-octavos: #f2c94c/);

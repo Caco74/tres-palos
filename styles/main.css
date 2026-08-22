@@ -1999,6 +1999,10 @@ button {
   padding: 12px 14px;
 }
 
+.zt[hidden] {
+  display: none;
+}
+
 .zt.on {
   color: var(--white);
   border-bottom-color: var(--red);
