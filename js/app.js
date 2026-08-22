@@ -2000,6 +2000,18 @@ function compararPosiciones(a, b) {
   );
 }
 
+function obtenerPromedioPuntosClasificacion(fila) {
+  return fila.pj > 0 ? fila.pts / fila.pj : 0;
+}
+
+function compararQuintosClasificacion(a, b) {
+  return (
+    obtenerPromedioPuntosClasificacion(b) -
+      obtenerPromedioPuntosClasificacion(a) ||
+    compararPosiciones(a, b)
+  );
+}
+
 function calcularClasificados() {
   const tablas = [1, 2, 3].map(zona =>
     calcularTablaZona(zona).map((fila, indice) => ({
@@ -2016,7 +2028,7 @@ function calcularClasificados() {
   const quintos = tablas
     .map(tabla => tabla[4])
     .filter(Boolean)
-    .sort(compararPosiciones);
+    .sort(compararQuintosClasificacion);
 
   const cuartos = new Set(
     primeros.slice(0, 2).map(fila => fila.equipo)

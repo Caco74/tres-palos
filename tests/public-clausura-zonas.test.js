@@ -1490,7 +1490,55 @@ async function runTests() {
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   assert.match(indexSource, /\/styles\/main\.css\?v=83/);
+  assert.match(indexSource, /\/js\/app\.js\?v=92/);
   assert.match(indexSource, /\/js\/utils\.js\?v=9/);
+  const filaClasificacion = (equipo, pts, pj, dg = 0, gf = 0) => ({
+    equipo,
+    pts,
+    pj,
+    dg,
+    gf
+  });
+  const tablasClasificacion = {
+    1: [
+      filaClasificacion("Primero Z1", 30, 14),
+      filaClasificacion("Segundo Z1", 24, 14),
+      filaClasificacion("Tercero Z1", 21, 14),
+      filaClasificacion("Cuarto Z1", 18, 14),
+      filaClasificacion("Quinto total alto", 16, 14)
+    ],
+    2: [
+      filaClasificacion("Primero Z2", 27, 12),
+      filaClasificacion("Segundo Z2", 23, 12),
+      filaClasificacion("Tercero Z2", 20, 12),
+      filaClasificacion("Cuarto Z2", 17, 12),
+      filaClasificacion("Quinto promedio alto", 14, 10)
+    ],
+    3: [
+      filaClasificacion("Primero Z3", 26, 14),
+      filaClasificacion("Segundo Z3", 22, 14),
+      filaClasificacion("Tercero Z3", 19, 14),
+      filaClasificacion("Cuarto Z3", 16, 14),
+      filaClasificacion("Quinto total medio", 15, 14)
+    ]
+  };
+  const clasificacionSandbox = {
+    nombre: value => value,
+    calcularTablaZona: zona => tablasClasificacion[zona] || []
+  };
+  vm.runInNewContext(
+    `${extractFunction(appSource, "compararPosiciones")}
+     ${extractFunction(appSource, "obtenerPromedioPuntosClasificacion")}
+     ${extractFunction(appSource, "compararQuintosClasificacion")}
+     ${extractFunction(appSource, "calcularClasificados")}
+     this.calcularClasificados = calcularClasificados;`,
+    clasificacionSandbox
+  );
+  const clasificadosPorPromedio = clasificacionSandbox.calcularClasificados();
+  assert.equal(clasificadosPorPromedio.octavos.has("Quinto promedio alto"), true);
+  assert.equal(clasificadosPorPromedio.octavos.has("Quinto total alto"), true);
+  assert.equal(clasificadosPorPromedio.octavos.has("Quinto total medio"), false);
+  results.push("clasificacion: los dos mejores quintos se eligen por promedio: ok");
   assert.match(utilsSource, /"C\.A\. El Porvenir del Norte": "El Porvenir"/);
   assert.match(utilsSource, /"Porvenir": "El Porvenir"/);
   assert.match(
@@ -1697,7 +1745,7 @@ async function runTests() {
   results.push("Inicio: partido destacado manual renderiza, aisla y no duplica agenda: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=91/);
+  assert.match(indexSource, /\/js\/app\.js\?v=92/);
   assert.match(indexSource, /aria-label="Filtros de tabla"/);
   assert.match(indexSource, /data-tabla-posiciones="general"[^>]*hidden/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
