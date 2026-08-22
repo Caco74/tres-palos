@@ -28,6 +28,12 @@ const authCard = document.getElementById("authCard");
 const authForm = document.getElementById("authForm");
 const adminPassword = document.getElementById("adminPassword");
 const adminApp = document.getElementById("adminApp");
+const adminViewTabs = [
+  ...document.querySelectorAll("[data-admin-view]")
+];
+const adminViewPanels = [
+  ...document.querySelectorAll("[data-admin-view-panel]")
+];
 const statusBox = document.getElementById("statusBox");
 const workTournamentSelect = document.getElementById("workTournamentSelect");
 const workTournamentState = document.getElementById("workTournamentState");
@@ -223,8 +229,6 @@ const eventFields = {
   createSummary: document.getElementById("eventCreateSummary"),
   createConfirm: document.getElementById("eventCreateConfirm"),
   createPlayer: document.getElementById("eventCreatePlayerBtn"),
-  dataStatus: document.getElementById("eventDataStatus"),
-  source: document.getElementById("eventSource"),
   notes: document.getElementById("eventNotes")
 };
 
@@ -263,6 +267,7 @@ let busquedaPlantelId = 0;
 let busquedaPlantelTimer = null;
 let busquedaPlantel = null;
 let jugadorPlantelSeleccionado = null;
+let adminViewActual = "partidos";
 
 function getPassword() {
   return sessionStorage.getItem(PASSWORD_KEY) || "";
@@ -365,6 +370,42 @@ function incidenciaSeleccionadaEsHistoricaSinVincular() {
   return Boolean(incidencia?.jugador && !incidencia.inscripcion_jugador_id);
 }
 
+function incidenciaOriginalFormulario() {
+  const id = eventFields.id.value;
+  if (!id) return null;
+  return incidencias.find(
+    item => String(item.id) === String(id)
+  ) || null;
+}
+
+function textoIncidenciaExistente(valor) {
+  const texto = String(valor || "").trim();
+  return texto || null;
+}
+
+function incidenciaFormularioConInscripcionSeleccionada() {
+  if (!eventFields.player.value) return false;
+  return eventFields.type.value !== "cambio" ||
+    Boolean(eventFields.relatedPlayer.value);
+}
+
+function verificacionFormularioIncidencia() {
+  const original = incidenciaOriginalFormulario();
+  const fuenteOriginal = textoIncidenciaExistente(original?.fuente);
+
+  if (incidenciaFormularioConInscripcionSeleccionada()) {
+    return {
+      estado_dato: "confirmado",
+      fuente: fuenteOriginal
+    };
+  }
+
+  return {
+    estado_dato: original?.estado_dato || "por_verificar",
+    fuente: fuenteOriginal
+  };
+}
+
 function incidenciaIncompletaParaGuardar() {
   if (eventForm.classList.contains("hidden")) return false;
   if (!eventFields.team.value) return true;
@@ -398,9 +439,48 @@ function setLiveBusy(isBusy) {
   renderModoPartido();
 }
 
+function setAdminView(view, options = {}) {
+  const nextView = view === "jugadores" ? "jugadores" : "partidos";
+  const cambiaVista = nextView !== adminViewActual;
+  const preservarRegresoPlantel = Boolean(options.preservarRegresoPlantel);
+
+  if (cambiaVista && !preservarRegresoPlantel) {
+    liveRosterReturnContext = null;
+  }
+
+  adminViewActual = nextView;
+  adminApp.dataset.adminView = nextView;
+
+  adminViewTabs.forEach(tab => {
+    const active = tab.dataset.adminView === nextView;
+    tab.classList.toggle("on", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+    tab.tabIndex = active ? 0 : -1;
+  });
+
+  adminViewPanels.forEach(panel => {
+    const active = panel.dataset.adminViewPanel === nextView;
+    panel.classList.toggle("hidden", !active);
+    panel.hidden = !active;
+  });
+
+  if (
+    nextView === "jugadores" &&
+    !preservarRegresoPlantel &&
+    !livePicker.classList.contains("hidden")
+  ) {
+    cerrarSelectorModo({
+      preservarRegresoPlantel: Boolean(liveRosterReturnContext)
+    });
+  }
+}
+
 function showApp() {
   authCard.classList.add("hidden");
   adminApp.classList.remove("hidden");
+  setAdminView(adminViewActual || "partidos", {
+    preservarRegresoPlantel: Boolean(liveRosterReturnContext)
+  });
 }
 
 function showAuth() {
@@ -3889,6 +3969,8 @@ function volverAIncidenciaDesdePlantel(inscripcionId) {
     return false;
   }
 
+  setAdminView("partidos", { preservarRegresoPlantel: true });
+
   if (String(seleccionadoId || "") !== String(contexto.partidoId)) {
     seleccionarPartido(contexto.partidoId, { desplazarAEditor: false });
   }
@@ -4018,7 +4100,7 @@ async function guardarSeleccionModo() {
     inscripcion_relacionada_id: relacionadoId,
     periodo: livePeriod.value || null,
     minuto: valorNumero(liveMinute),
-    estado_dato: "por_verificar",
+    estado_dato: "confirmado",
     fuente: null,
     observaciones: "Carga rápida de incidencias del partido."
   };
@@ -4062,6 +4144,7 @@ function abrirPlantelDesdeModo() {
     equipoNombre: liveAction.equipoNombre
   };
   cerrarSelectorModo({ preservarRegresoPlantel: true });
+  setAdminView("jugadores", { preservarRegresoPlantel: true });
   if (torneoId) rosterTournament.value = String(torneoId);
   rosterClub.value = String(equipoId);
   renderPlantel();
@@ -4627,7 +4710,7 @@ async function crearInscripcionParaCandidato(jugadorId) {
       jugador_id: Number(jugadorId),
       busqueda_previa: true,
       confirmar_inscripcion: true,
-      fuente: valorTexto(eventFields.source)
+      fuente: null
     }, EVENTS_API_URL);
     await cargarPlantelesAdmin();
     await usarInscripcionJugadorEvento(
@@ -4663,7 +4746,7 @@ async function crearJugadorDesdeBusqueda() {
       confirmar_homonimo:
         Array.isArray(busquedaJugadorEvento.candidatos) &&
         busquedaJugadorEvento.candidatos.length > 0,
-      fuente: valorTexto(eventFields.source)
+      fuente: null
     }, EVENTS_API_URL);
     await cargarPlantelesAdmin();
     await usarInscripcionJugadorEvento(
@@ -4735,7 +4818,6 @@ async function iniciarNuevaIncidencia() {
   eventFields.type.value = "gol";
   eventFields.period.value = "";
   eventFields.minute.value = "";
-  eventFields.dataStatus.value = "por_verificar";
   renderEquiposIncidencia(
     resolverEquipoPartidoAdmin(partido, "local").id
   );
@@ -4779,9 +4861,6 @@ async function seleccionarIncidencia(id) {
   eventFields.type.value = incidencia.tipo || "gol";
   eventFields.period.value = incidencia.periodo || "";
   eventFields.minute.value = valorInput(incidencia.minuto);
-  eventFields.dataStatus.value =
-    incidencia.estado_dato || "por_verificar";
-  eventFields.source.value = incidencia.fuente || "";
   eventFields.notes.value = incidencia.observaciones || "";
 
   const equipoId = inferirEquipoIncidencia(incidencia, partido);
@@ -4813,6 +4892,8 @@ async function seleccionarIncidencia(id) {
 }
 
 function valoresFormularioIncidencia() {
+  const verificacion = verificacionFormularioIncidencia();
+
   return {
     torneo_id: requerirTorneoTrabajoId(),
     id: eventFields.id.value || null,
@@ -4826,8 +4907,8 @@ function valoresFormularioIncidencia() {
       eventFields.type.value === "cambio"
         ? eventFields.relatedPlayer.value || null
         : null,
-    estado_dato: eventFields.dataStatus.value,
-    fuente: valorTexto(eventFields.source),
+    estado_dato: verificacion.estado_dato,
+    fuente: verificacion.fuente,
     observaciones: valorTexto(eventFields.notes)
   };
 }
@@ -4845,14 +4926,6 @@ function validarIncidencia(valores) {
     )
   ) {
     throw new Error("El minuto debe estar entre 1 y 130.");
-  }
-  if (
-    valores.estado_dato === "confirmado" &&
-    !valores.fuente
-  ) {
-    throw new Error(
-      "Una incidencia confirmada debe tener una fuente."
-    );
   }
   if (
     valores.tipo !== "cambio" &&
@@ -5034,6 +5107,24 @@ function setRecargandoDatos(isReloading) {
 async function recargarDatosPanel() {
   if (recargaDatosEnCurso) return;
   if (!torneoTrabajoValido()) {
+    if (adminViewActual === "jugadores") {
+      const estado = capturarEstadoRecarga();
+      setRecargandoDatos(true);
+      setStatus("Actualizando planteles...");
+      try {
+        await cargarPlantelesAdmin();
+        setStatus("Planteles actualizados.", "ok");
+      } catch (error) {
+        setStatus(
+          `No se pudieron recargar los planteles: ${error.message}`,
+          "error"
+        );
+      } finally {
+        setRecargandoDatos(false);
+        restaurarPosicionPanel(estado);
+      }
+      return;
+    }
     setStatus("Selecciona un torneo de trabajo antes de recargar.", "warn");
     return;
   }
@@ -5057,6 +5148,7 @@ async function recargarDatosPanel() {
 
     await cargarEtapasAdmin();
     await cargarIncidenciasAdmin();
+    await cargarPlantelesAdmin();
 
     const sigueDisponible = partidoSeleccionadoCompatibleConFiltros(
       estado.seleccionadoId
@@ -5852,6 +5944,12 @@ authForm.addEventListener("submit", async event => {
   } catch (error) {
     setStatus(error.message, "error");
   }
+});
+
+adminViewTabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    setAdminView(tab.dataset.adminView);
+  });
 });
 
 matchList.addEventListener("click", event => {
