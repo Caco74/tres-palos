@@ -71,11 +71,12 @@ const escudosTablaLocales = new Set([
 const nombresCortos = {
   "Sportivo A. Club": "Sportivo",
   "C.A. Defensores": "Defensores",
-  "C.A. El Porvenir del Norte": "Porvenir",
+  "C.A. El Porvenir del Norte": "El Porvenir",
+  "Porvenir": "El Porvenir",
   "AD Everton/Olimpia": "ADEO",
   "Sport C. Cañadense": "Sport",
   "C.A. Montes de Oca": "Montes",
-  "C.A. Cosmopolita": "Cosmo",
+  "C.A. Cosmopolita": "Cosmopolita",
 
   "C.A. Almafuerte": "Almafuerte",
   "C.A. Williams Kemmis": "Kemmis",
@@ -154,7 +155,9 @@ function aplicarClubes(clubes) {
         if (clave) clubesPorClave.set(clave, club);
       });
       nombresCortos[club.nombre_oficial] =
-        club.nombre_corto || club.nombre_oficial;
+        nombresCortos[club.nombre_oficial] ||
+        club.nombre_corto ||
+        club.nombre_oficial;
 
       if (club.escudo_url) {
         escudos[club.nombre_oficial] = club.escudo_url;

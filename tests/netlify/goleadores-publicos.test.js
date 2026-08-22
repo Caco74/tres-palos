@@ -643,8 +643,8 @@ async function runGoleadoresPublicosTests() {
         (appSource + utilsSource + indexSource).includes(serviceRoleName),
         false
       );
-      assert.match(indexSource, /\/js\/app\.js\?v=90/);
-      assert.match(indexSource, /aria-label="Tabla por zona o general"/);
+      assert.match(indexSource, /\/js\/app\.js\?v=92/);
+      assert.match(indexSource, /aria-label="Filtros de tabla"/);
       assert.match(styleSource, /\.tabla-scorer[\s\S]*30px minmax\(0, 1fr\) minmax\(78px, auto\)/);
       assert.match(styleSource, /\.tabla-scorer-player strong,[\s\S]*text-overflow: ellipsis/);
       assert.match(styleSource, /\.tabla-scorer-shield[\s\S]*object-fit: contain/);

@@ -88,7 +88,7 @@
 }
 </script>
 
-<link rel="stylesheet" href="/styles/main.css?v=81">
+<link rel="stylesheet" href="/styles/main.css?v=85">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,900;1,700;1,900&family=Bebas+Neue&family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -250,11 +250,11 @@
           </button>
         </div>
 
-        <div id="tablaPosicionesTabs" class="zona-tab-bar" role="tablist" aria-label="Tabla por zona o general">
+        <div id="tablaPosicionesTabs" class="zona-tab-bar" role="tablist" aria-label="Filtros de tabla">
           <button type="button" class="zt on" data-tabla-posiciones="1" role="tab" aria-selected="true"><span class="zt-pip" style="background:var(--zone1)"></span>Zona 1</button>
           <button type="button" class="zt" data-tabla-posiciones="2" role="tab" aria-selected="false"><span class="zt-pip" style="background:var(--zone2)"></span>Zona 2</button>
           <button type="button" class="zt" data-tabla-posiciones="3" role="tab" aria-selected="false"><span class="zt-pip" style="background:var(--zone3)"></span>Zona 3</button>
-          <button type="button" class="zt" data-tabla-posiciones="general" role="tab" aria-selected="false"><span class="zt-pip zt-pip-general"></span>General</button>
+          <button type="button" class="zt" data-tabla-posiciones="general" role="tab" aria-selected="false" hidden><span class="zt-pip zt-pip-general"></span>General</button>
         </div>
 
         <div id="tablaContent" aria-live="polite"></div>
@@ -429,11 +429,11 @@
 
 <script src="/js/config.js?v=3"></script>
 <script src="/js/state.js"></script>
-<script src="/js/utils.js?v=8"></script>
+<script src="/js/utils.js?v=10"></script>
 <script src="/js/public-tournament.js?v=3"></script>
 <script src="/js/api.js"></script>
 <script src="/js/router.js"></script>
 <script src="/js/analytics.js?v=2"></script>
-<script src="/js/app.js?v=90"></script>
+<script src="/js/app.js?v=92"></script>
 </body>
 </html>
