@@ -1491,7 +1491,7 @@ async function runTests() {
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
   assert.match(indexSource, /\/styles\/main\.css\?v=83/);
   assert.match(indexSource, /\/js\/app\.js\?v=92/);
-  assert.match(indexSource, /\/js\/utils\.js\?v=9/);
+  assert.match(indexSource, /\/js\/utils\.js\?v=10/);
   const filaClasificacion = (equipo, pts, pj, dg = 0, gf = 0) => ({
     equipo,
     pts,
@@ -1541,6 +1541,8 @@ async function runTests() {
   results.push("clasificacion: los dos mejores quintos se eligen por promedio: ok");
   assert.match(utilsSource, /"C\.A\. El Porvenir del Norte": "El Porvenir"/);
   assert.match(utilsSource, /"Porvenir": "El Porvenir"/);
+  assert.match(utilsSource, /"C\.A\. Cosmopolita": "Cosmopolita"/);
+  assert.doesNotMatch(utilsSource, /"C\.A\. Cosmopolita": "Cosmo"/);
   assert.match(
     extractFunction(utilsSource, "aplicarClubes"),
     /nombresCortos\[club\.nombre_oficial\]\s*\|\|[\s\S]*club\.nombre_corto/

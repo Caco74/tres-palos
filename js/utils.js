@@ -76,7 +76,7 @@ const nombresCortos = {
   "AD Everton/Olimpia": "ADEO",
   "Sport C. Cañadense": "Sport",
   "C.A. Montes de Oca": "Montes",
-  "C.A. Cosmopolita": "Cosmo",
+  "C.A. Cosmopolita": "Cosmopolita",
 
   "C.A. Almafuerte": "Almafuerte",
   "C.A. Williams Kemmis": "Kemmis",
