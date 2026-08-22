@@ -2072,11 +2072,6 @@ button {
   text-transform: uppercase;
 }
 
-.tabla-ref-general {
-  color: var(--muted);
-  min-height: 30px;
-}
-
 .tabla-ref-color {
   width: 4px;
   height: 16px;
@@ -2224,9 +2219,7 @@ button {
   font-weight: 400;
 }
 
-.tabla-general-head span,
-.tabla-general-kicker,
-.t-zone {
+.tabla-general-head span {
   font-family: 'DM Mono', monospace;
   font-size: 0.52rem;
   letter-spacing: 0.06em;
@@ -2234,49 +2227,8 @@ button {
   color: var(--muted);
 }
 
-.tabla-wrap-general {
-  padding-bottom: 1.75rem;
-}
-
-.tabla-general-table {
-  min-width: 460px;
-}
-
-.tabla-general-table th:nth-child(3) {
-  color: var(--muted);
-}
-
-.tabla-general-table th:nth-child(3),
-.tabla-general-table td:nth-child(3) {
-  width: 66px;
-  text-align: center;
-}
-
-.tabla-general-table th:nth-child(4) {
-  color: rgba(255, 101, 117, .82);
-}
-
-.t-zone {
-  text-align: center;
-}
-
-.t-zone-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  height: 22px;
-  padding: 0 7px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .035);
-  color: rgba(238, 238, 238, .74);
-  line-height: 1;
-}
-
 @media (max-width: 420px) {
-  .tabla,
-  .tabla-general-table {
+  .tabla {
     min-width: 0;
     table-layout: fixed;
   }
@@ -2308,17 +2260,6 @@ button {
     width: 96px;
   }
 
-  .tabla-general-table th:nth-child(3),
-  .tabla-general-table td:nth-child(3) {
-    width: 34px;
-  }
-
-  .t-zone-pill {
-    min-width: 24px;
-    height: 20px;
-    padding: 0 4px;
-  }
-
   .t-name {
     min-width: 0;
     gap: 4px;
@@ -2333,10 +2274,6 @@ button {
     font-size: .48rem;
   }
 
-  .t-zone {
-    font-size: .46rem;
-    letter-spacing: 0;
-  }
 }
 
 .tabla-scorers {
@@ -7141,8 +7078,7 @@ button.team-match-row:focus-visible {
 }
 
 @media (max-width: 420px) {
-  .tabla,
-  .tabla-general-table {
+  .tabla {
     min-width: 0;
   }
 }

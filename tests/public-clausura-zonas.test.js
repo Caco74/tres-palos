@@ -912,7 +912,7 @@ function buildActualizarResumenTorneo(appSource) {
   };
 }
 
-function renderInicioAgendaDeApp(appSource, agenda) {
+function renderInicioAgendaDeApp(appSource, agenda, partidoDestacado = null) {
   const elements = {
     homeFeaturedContent: { innerHTML: "" },
     homeContent: { innerHTML: "" },
@@ -931,8 +931,9 @@ function renderInicioAgendaDeApp(appSource, agenda) {
     obtenerMensajeErrorCargaDatos: fallback => fallback,
     renderSkeletonAgenda: () => "<skeleton></skeleton>",
     obtenerAgendaInicio: () => agenda,
-    obtenerPartidoDestacadoInicio: () => null,
-    renderBloquePartidoDestacadoInicio: () => "",
+    obtenerPartidoDestacadoInicio: () => partidoDestacado,
+    renderBloquePartidoDestacadoInicio: partido =>
+      `<section class="home-highlight-card" data-match-id="${partido.id}">Destacado</section>`,
     obtenerEstadoTorneo: () => ({
       clase: "scheduled",
       animado: false,
@@ -1488,7 +1489,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=81/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=82/);
 
   const renderResumenInicio = buildActualizarResumenTorneo(appSource);
   const resumenRegular = renderResumenInicio({
@@ -1575,6 +1576,11 @@ async function runTests() {
   assert.doesNotMatch(renderInicioSource, /etiquetaCantidadAgenda/);
   assert.doesNotMatch(renderInicioSource, /nc-round|nc-footer-label/);
   assert.doesNotMatch(renderInicioSource, /Ver fecha completa/);
+  assert.match(renderInicioSource, /const partidoDestacadoId = partidoDestacado\?\.id/);
+  assert.match(
+    renderInicioSource,
+    /String\(partido\.id\) !== String\(partidoDestacadoId\)/
+  );
   results.push("Inicio: agenda conserva seleccion, limite y CTA sin contador: ok");
 
   const destacadoBase = {
@@ -1619,6 +1625,38 @@ async function runTests() {
   assert.match(htmlDestacado, /abrirPartido\(881\)/);
   assert.match(htmlDestacado, /Ver partido\s*→/);
 
+  const agendaConDestacado = {
+    tipo: "regular",
+    fase: { valor: "regular", etiqueta: "Fecha 5" },
+    clave: "fecha:5",
+    pendientes: true,
+    partidos: [
+      { ...destacadoBase, id: 881 },
+      { ...destacadoBase, id: 882, destacado_inicio: false },
+      {
+        ...destacadoBase,
+        id: 883,
+        local: "C.A. Correa",
+        visitante: "Sport C.C.",
+        destacado_inicio: false
+      }
+    ]
+  };
+  const inicioConDestacado = renderInicioAgendaDeApp(
+    appSource,
+    agendaConDestacado,
+    partidoDestacado
+  );
+  assert.equal(inicioConDestacado.agendaRenderizada, agendaConDestacado);
+  assert.match(inicioConDestacado.featuredHtml, /data-match-id="881"/);
+  assert.doesNotMatch(inicioConDestacado.html, /data-match-id="881"/);
+  assert.match(inicioConDestacado.html, /data-match-id="882"/);
+  assert.match(inicioConDestacado.html, /data-match-id="883"/);
+  assert.equal(
+    (inicioConDestacado.html.match(/home-match-card-test/g) || []).length,
+    2
+  );
+
   const destacadoOtroTorneo = buildDestacadoInicio(appSource, {
     partidos: [
       {
@@ -1648,11 +1686,12 @@ async function runTests() {
     extractFunction(appSource, "obtenerPartidoDestacadoInicio"),
     /state\.torneoActivo\?\.id/
   );
-  results.push("Inicio: partido destacado manual renderiza y respeta aislamiento: ok");
+  results.push("Inicio: partido destacado manual renderiza, aisla y no duplica agenda: ok");
 
   assert.match(indexSource, /\/js\/public-tournament\.js\?v=3/);
-  assert.match(indexSource, /\/js\/app\.js\?v=90/);
-  assert.match(indexSource, /aria-label="Tabla por zona o general"/);
+  assert.match(indexSource, /\/js\/app\.js\?v=91/);
+  assert.match(indexSource, /aria-label="Filtros de tabla"/);
+  assert.match(indexSource, /data-tabla-posiciones="general"[^>]*hidden/);
   assert.match(indexSource, /id="previewTournamentNotice"/);
   assert.match(indexSource, /id="teamsCountLabel"/);
   assert.match(indexSource, /Clasificaci&oacute;n/);
@@ -3075,8 +3114,6 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderDestacadosEquipoTorneo"), /team-season-note--big-win/);
   assert.doesNotMatch(appSource, /function renderIndicadoresFormaTabla|function obtenerEtiquetaFormaTabla/);
   assert.doesNotMatch(extractFunction(appSource, "renderTablaPosiciones"), /<th>Forma<\/th>|form-row|renderIndicadoresFormaTabla/);
-  assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /<th>Forma<\/th>/);
-  assert.doesNotMatch(extractFunction(appSource, "renderFilaTablaGeneral"), /form-row|renderIndicadoresFormaTabla/);
   assert.match(extractFunction(appSource, "claseClasificacion"), /t-pos-cuartos/);
   assert.match(extractFunction(appSource, "claseClasificacion"), /t-pos-octavos/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /Cuartos directo[\s\S]*Octavos/);
@@ -3084,16 +3121,24 @@ async function runTests() {
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /obtenerEscudoTablaEquipo/);
   assert.match(extractFunction(appSource, "renderTablaPosiciones"), /renderImagenEscudoTabla/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /<th aria-label="Zona">Z<\/th>[\s\S]*<th>PTS<\/th>[\s\S]*<th>DG<\/th>/);
-  assert.match(extractFunction(appSource, "renderFilaTablaGeneral"), /class="t-zone"[\s\S]*class="t-zone-pill"[\s\S]*aria-label="Zona \$\{t\.zona\}"[\s\S]*>Z\$\{t\.zona\}<\/span>/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /tabla-referencias--general/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /tabla-ref-general/);
-  assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-head|<h3>Tabla general<\/h3>/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /Tabla general &middot;/);
-  assert.match(extractFunction(appSource, "renderTablaGeneral"), /\$\{data\.length\} equipos/);
-  assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /tabla-general-kicker">General/);
-  assert.doesNotMatch(extractFunction(appSource, "renderTablaGeneral"), /Tabla general de puntos/);
-  assert.match(extractFunction(appSource, "renderFilaTablaGeneral"), /renderImagenEscudoTabla/);
+  assert.doesNotMatch(appSource, /function renderTablaGeneral|function renderFilaTablaGeneral/);
+  assert.doesNotMatch(
+    extractFunction(appSource, "renderTablaPosiciones"),
+    /renderTablaGeneral|tablaPosicionesActual === "general"/
+  );
+  assert.match(
+    extractFunction(appSource, "actualizarNavegacionTabla"),
+    /btn\.hidden = esGeneral && tablaVistaActual !== "goleadores"/
+  );
+  assert.match(
+    appSource,
+    /valor === "general" && tablaVistaActual !== "goleadores"/
+  );
+  assert.match(extractFunction(appSource, "obtenerPosicionesEquipo"), /calcularTablaGeneral\(\)/);
+  assert.doesNotMatch(
+    appSource,
+    /Tabla general &middot;|tabla-referencias--general|tabla-ref-general|tabla-general-table|t-zone-pill/
+  );
   assert.match(extractFunction(appSource, "obtenerAtributosCargaEscudoTabla"), /eager/);
   assert.match(extractFunction(appSource, "obtenerAtributosCargaEscudoTabla"), /lazy/);
   assert.match(extractFunction(appSource, "aplicarDatosTorneo"), /filtrarPartidosPorTorneo/);
@@ -3105,16 +3150,15 @@ async function runTests() {
   assert.match(styleSource, /\.team-match-line[\s\S]*minmax\(0, 1fr\)/);
   assert.doesNotMatch(styleSource, /team-recent|\.form-row|\.fd\b|\.fw\b|\.fe\b|\.fl\b/);
   assert.match(styleSource, /\.tabla \{[\s\S]*min-width: 320px/);
-  assert.match(styleSource, /\.tabla-general-table \{[\s\S]*min-width: 460px/);
-  assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla,[\s\S]*\.tabla-general-table[\s\S]*table-layout: fixed/);
+  assert.doesNotMatch(
+    styleSource,
+    /\.tabla-general-table|\.tabla-ref-general|\.tabla-wrap-general|\.t-zone\b|\.t-zone-pill|tabla-general-kicker/
+  );
+  assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla[\s\S]*table-layout: fixed/);
   assert.match(styleSource, /--classify-cuartos: #2bd67f/);
   assert.match(styleSource, /--classify-octavos: #f2c94c/);
   assert.match(styleSource, /\.tabla-ref[\s\S]*border-radius: 999px/);
-  assert.match(styleSource, /\.tabla-ref-general[\s\S]*min-height: 30px/);
   assert.match(styleSource, /\.tabla th:first-child,[\s\S]*\.tabla td:first-child[\s\S]*width: 60px/);
-  assert.match(styleSource, /\.tabla-general-table th:nth-child\(3\),[\s\S]*\.tabla-general-table td:nth-child\(3\)[\s\S]*width: 66px/);
-  assert.match(styleSource, /\.t-zone-pill[\s\S]*border-radius: 999px/);
-  assert.match(styleSource, /@media \(max-width: 420px\)[\s\S]*\.tabla-general-table th:nth-child\(3\),[\s\S]*\.tabla-general-table td:nth-child\(3\)[\s\S]*width: 34px/);
   assert.match(styleSource, /\.t-pos-cuartos::before[\s\S]*\.t-pos-octavos::before/);
   assert.match(styleSource, /\.t-pos-cuartos::before[\s\S]*var\(--classify-cuartos\)/);
   assert.match(styleSource, /\.t-pos-octavos::before[\s\S]*var\(--classify-octavos\)/);

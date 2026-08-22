@@ -2848,6 +2848,13 @@ function renderInicio() {
   const estadoTorneo = obtenerEstadoTorneo();
   const serieFinal = obtenerResultadoSerieFinal();
   const partidoDestacado = obtenerPartidoDestacadoInicio();
+  const partidoDestacadoId = partidoDestacado?.id;
+  const partidosAgendaInicio =
+    partidoDestacadoId === null || partidoDestacadoId === undefined
+      ? agenda.partidos
+      : agenda.partidos.filter(
+          partido => String(partido.id) !== String(partidoDestacadoId)
+        );
   if (contDestacado) {
     contDestacado.innerHTML = partidoDestacado
       ? renderBloquePartidoDestacadoInicio(partidoDestacado)
@@ -2893,8 +2900,8 @@ function renderInicio() {
       </div>
 
       <div class="home-match-list">
-        ${agenda.partidos.map(partido =>
-          renderPartidoInicio(partido, agenda.partidos.length === 1)
+        ${partidosAgendaInicio.map(partido =>
+          renderPartidoInicio(partido, partidosAgendaInicio.length === 1)
         ).join("")}
       </div>
 
@@ -5712,12 +5719,6 @@ function renderTablaPosiciones(cont) {
     return;
   }
 
-  if (tablaPosicionesActual === "general") {
-    cont.innerHTML = renderTablaGeneral(true);
-    activarPistasScrollHorizontal(cont, vistaActual.id === "tabla");
-    return;
-  }
-
   const zona = Number(tablaPosicionesActual) || zonaActual || 1;
   zonaActual = zona;
   const data = calcularTablaZona(zona);
@@ -5846,78 +5847,6 @@ function renderTablaGoleadores(cont) {
           .join("")}
       </div>
     </div>
-  `;
-}
-
-function renderTablaGeneral(standalone = false) {
-  const data = calcularTablaGeneral();
-  const clases = standalone
-    ? "tabla-general tabla-general--standalone"
-    : "tabla-general";
-
-  return `
-    <div class="${clases}">
-      <div class="tabla-referencias tabla-referencias--general">
-        <div class="tabla-ref tabla-ref-general">
-          Tabla general &middot; ${data.length} equipos
-        </div>
-      </div>
-      <div class="tabla-wrap tabla-wrap-general">
-        <table class="tabla tabla-general-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Equipo</th>
-              <th aria-label="Zona">Z</th>
-              <th>PTS</th>
-              <th>PJ</th>
-              <th>PG</th>
-              <th>PE</th>
-              <th>PP</th>
-              <th>DG</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map((t, i) => renderFilaTablaGeneral(t, i)).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-function renderFilaTablaGeneral(t, indice) {
-  const nombreEquipo = nombre(t.equipo);
-  const escudo = obtenerEscudoTablaEquipo(t.equipo);
-  const escudoEquipo = escudo
-    ? renderImagenEscudoTabla(
-        escudo,
-        `Escudo de ${nombreEquipo}`,
-        40,
-        indice
-      )
-    : obtenerInicialesEquipoTabla(nombreEquipo);
-  const diferencia = t.dg > 0 ? `+${t.dg}` : String(t.dg);
-
-  return `
-    <tr>
-      <td class="t-pos">${indice + 1}</td>
-      <td>
-        <div class="t-name">
-          <div class="sm-badge">${escudoEquipo}</div>
-          ${nombreEquipo}
-        </div>
-      </td>
-      <td class="t-zone">
-        <span class="t-zone-pill" aria-label="Zona ${t.zona}" title="Zona ${t.zona}">Z${t.zona}</span>
-      </td>
-      <td class="t-pts">${t.pts}</td>
-      <td>${t.pj}</td>
-      <td>${t.pg}</td>
-      <td>${t.pe}</td>
-      <td>${t.pp}</td>
-      <td class="${t.dg > 0 ? 't-dg' : ''}">${diferencia}</td>
-    </tr>
   `;
 }
 
@@ -6064,6 +5993,8 @@ function actualizarNavegacionTabla() {
   }
 
   document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
+    const esGeneral = btn.dataset.tablaPosiciones === "general";
+    btn.hidden = esGeneral && tablaVistaActual !== "goleadores";
     const activa = btn.dataset.tablaPosiciones === tablaPosicionesActual;
     btn.classList.toggle("on", activa);
     btn.setAttribute("aria-selected", activa ? "true" : "false");
@@ -6078,6 +6009,9 @@ document.querySelectorAll("[data-tabla-vista]").forEach(btn => {
     if (vista === "goleadores" && tablaVistaActual !== "goleadores") {
       tablaPosicionesActual = "general";
     }
+    if (vista === "posiciones" && tablaPosicionesActual === "general") {
+      tablaPosicionesActual = String(zonaActual || 1);
+    }
     tablaVistaActual = vista;
     renderTabla();
   });
@@ -6087,6 +6021,7 @@ document.querySelectorAll("[data-tabla-posiciones]").forEach(btn => {
   btn.addEventListener('click', () => {
     const valor = btn.dataset.tablaPosiciones;
     if (!["1", "2", "3", "general"].includes(valor)) return;
+    if (valor === "general" && tablaVistaActual !== "goleadores") return;
 
     tablaPosicionesActual = valor;
     if (valor !== "general") zonaActual = Number(valor);
