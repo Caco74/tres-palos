@@ -3729,7 +3729,7 @@ body.detail-mode .app-main {
 .match-form-label {
   position: absolute;
   left: 50%;
-  bottom: 7px;
+  bottom: 30px;
   transform: translateX(-50%);
   color: var(--muted);
   font-family: 'DM Mono', monospace;
@@ -3747,12 +3747,10 @@ body.detail-mode .app-main {
   width: clamp(23px, 6.4vw, 25px);
   height: clamp(23px, 6.4vw, 25px);
   flex: 0 0 clamp(23px, 6.4vw, 25px);
-  box-sizing: border-box;
   border-radius: 6px;
   color: #fff;
   display: grid;
   place-items: center;
-  padding-bottom: 2px;
   font-family: 'DM Mono', monospace;
   font-size: .62rem;
   font-weight: 800;
