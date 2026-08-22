@@ -1489,7 +1489,7 @@ async function runTests() {
   const utilsSource = fs.readFileSync(path.join(ROOT, "js", "utils.js"), "utf8");
   const styleSource = fs.readFileSync(path.join(ROOT, "styles", "main.css"), "utf8");
   const indexSource = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-  assert.match(indexSource, /\/styles\/main\.css\?v=83/);
+  assert.match(indexSource, /\/styles\/main\.css\?v=84/);
   assert.match(indexSource, /\/js\/app\.js\?v=92/);
   assert.match(indexSource, /\/js\/utils\.js\?v=10/);
   const filaClasificacion = (equipo, pts, pj, dg = 0, gf = 0) => ({
@@ -3230,6 +3230,8 @@ async function runTests() {
   assert.match(styleSource, /\.match-form-results[\s\S]*justify-content: center/);
   assert.match(styleSource, /\.match-form-result[\s\S]*clamp\(23px, 6\.4vw, 25px\)/);
   assert.match(styleSource, /\.match-form-result[\s\S]*border-radius: 6px/);
+  assert.match(styleSource, /\.match-form-result[\s\S]*box-sizing: border-box/);
+  assert.match(styleSource, /\.match-form-result[\s\S]*padding-bottom: 2px/);
   assert.match(styleSource, /\.match-form-result[\s\S]*font-family: 'DM Mono'/);
   assert.match(styleSource, /\.match-form-empty[\s\S]*Sin antecedentes recientes|\.match-form-empty[\s\S]*text-transform: uppercase/);
   assert.match(styleSource, /\.team-match-row \{[\s\S]*padding: 11px 12px 14px/);
