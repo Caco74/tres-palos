@@ -281,7 +281,8 @@ async function runAdminIncidenciasTests() {
         minuto: 67,
         inscripcion_jugador_id: 154,
         jugador: "Nombre adulterado",
-        estado_dato: "por_verificar"
+        estado_dato: "confirmado",
+        fuente: null
       }));
 
       assert.equal(result.statusCode, 201);
@@ -289,6 +290,8 @@ async function runAdminIncidenciasTests() {
       assert.equal(inserted.jugador, "Joaquin Carrizo");
       assert.equal(inserted.equipo_id, 1);
       assert.equal(inserted.tipo, "gol_en_contra");
+      assert.equal(inserted.estado_dato, "confirmado");
+      assert.equal(inserted.fuente, null);
       assert.equal(
         calls.some(call =>
           call.url.includes("/rest/v1/partidos") &&
@@ -403,6 +406,7 @@ async function runAdminIncidenciasTests() {
       assert.equal(result.statusCode, 200, JSON.stringify(bodyOf(result)));
       assert.equal(patched.inscripcion_jugador_id, null);
       assert.equal(patched.jugador, "Historico Sin ID");
+      assert.equal(patched.estado_dato, "por_verificar");
     }
   ));
 
@@ -485,6 +489,8 @@ async function runAdminIncidenciasTests() {
             tipo: "gol",
             jugador: "Snapshot anterior",
             inscripcion_jugador_id: 154,
+            estado_dato: "confirmado",
+            fuente: "Acta oficial Liga",
             orden: 2
           }]);
         }
@@ -514,12 +520,15 @@ async function runAdminIncidenciasTests() {
         equipo_id: 1,
         tipo: "gol",
         minuto: 33,
-        estado_dato: "por_verificar"
+        estado_dato: "confirmado",
+        fuente: null
       }));
 
       assert.equal(result.statusCode, 200);
       assert.equal(patched.inscripcion_jugador_id, 154);
       assert.equal(patched.jugador, "Joaquin Carrizo");
+      assert.equal(patched.estado_dato, "confirmado");
+      assert.equal(patched.fuente, "Acta oficial Liga");
     }
   ));
 

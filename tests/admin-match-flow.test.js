@@ -47,7 +47,12 @@ function countByFilter(matches, filter) {
 function extractFunction(source, name) {
   const match = new RegExp(`function\\s+${name}\\s*\\(`).exec(source);
   assert.ok(match, `No se encontro ${name}`);
-  const start = match.index;
+  const asyncStart = source.lastIndexOf("async ", match.index);
+  const start =
+    asyncStart !== -1 &&
+    source.slice(asyncStart + "async ".length, match.index).trim() === ""
+      ? asyncStart
+      : match.index;
   const paramsOpen = source.indexOf("(", start);
   let paramsDepth = 0;
   let open = -1;
@@ -94,7 +99,7 @@ function createClassList(initial = []) {
   };
 }
 
-function runTests() {
+async function runTests() {
   const results = [];
   const clausura = loadClausuraMatches();
 
@@ -368,6 +373,8 @@ function runTests() {
     assert.match(html, /id="eventPlayerState"[\s\S]*?aria-live="polite"/);
     assert.match(html, /id="eventMissingResults"[\s\S]*?aria-live="polite"/);
     assert.match(html, /id="eventCreateConfirm" type="checkbox"/);
+    assert.doesNotMatch(html, /id="eventDataStatus"/);
+    assert.doesNotMatch(html, /id="eventSource"/);
     assert.doesNotMatch(html, /eventCreateLegacy/);
     const partidosPanel = html.slice(
       indexOfId("adminViewPartidos"),
@@ -468,6 +475,8 @@ function runTests() {
     assert.match(js, /preservarRegresoPlantel: Boolean\(liveRosterReturnContext\)/);
     assert.match(js, /liveSelectedPlayerId = Number\(inscripcion\.id\)/);
     assert.match(js, /function guardarSeleccionModo\(\)/);
+    assert.match(js, /function verificacionFormularioIncidencia\(\)/);
+    assert.doesNotMatch(js, /eventFields\.(dataStatus|source)/);
     assert.match(js, /liveEmptyAddPlayerBtn\.addEventListener\("click", abrirPlantelDesdeModo\)/);
     assert.match(js, /liveSaveActionBtn\.addEventListener\("click"/);
     assert.match(js, /El jugador seleccionado no pertenece al equipo elegido/);
@@ -691,6 +700,220 @@ function runTests() {
   }
 
   {
+    const js = fs.readFileSync(path.join(ROOT, "js", "admin-panel.js"), "utf8");
+    const sandbox = {
+      eventFields: {
+        id: { value: "" },
+        type: { value: "gol" },
+        team: { value: "1" },
+        period: { value: "" },
+        minute: { value: "12" },
+        player: { value: "154" },
+        relatedPlayer: { value: "" },
+        notes: { value: "" }
+      },
+      eventMatch: { value: "10" },
+      incidencias: [],
+      requerirTorneoTrabajoId: () => 2,
+      valorTexto(input) {
+        const value = input.value.trim();
+        return value === "" ? null : value;
+      },
+      valorNumero(input) {
+        const value = input.value.trim();
+        return value === "" ? null : Number(value);
+      },
+      String,
+      Number,
+      Boolean
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      [
+        extractFunction(js, "incidenciaOriginalFormulario"),
+        extractFunction(js, "textoIncidenciaExistente"),
+        extractFunction(js, "incidenciaFormularioConInscripcionSeleccionada"),
+        extractFunction(js, "verificacionFormularioIncidencia"),
+        extractFunction(js, "valoresFormularioIncidencia")
+      ].join("\n"),
+      sandbox
+    );
+
+    const nueva = sandbox.valoresFormularioIncidencia();
+    assert.equal(nueva.estado_dato, "confirmado");
+    assert.equal(nueva.fuente, null);
+    assert.equal(nueva.inscripcion_jugador_id, "154");
+
+    sandbox.eventFields.id.value = "6";
+    sandbox.incidencias = [{
+      id: 6,
+      jugador: "Joaquin Carrizo",
+      inscripcion_jugador_id: 154,
+      estado_dato: "confirmado",
+      fuente: "Acta oficial Liga"
+    }];
+    const editadaConFuente = sandbox.valoresFormularioIncidencia();
+    assert.equal(editadaConFuente.estado_dato, "confirmado");
+    assert.equal(editadaConFuente.fuente, "Acta oficial Liga");
+
+    sandbox.eventFields.id.value = "5";
+    sandbox.eventFields.player.value = "";
+    sandbox.incidencias = [{
+      id: 5,
+      jugador: "Historico Sin ID",
+      inscripcion_jugador_id: null,
+      estado_dato: "por_verificar",
+      fuente: null
+    }];
+    const historicaSinVinculo = sandbox.valoresFormularioIncidencia();
+    assert.equal(historicaSinVinculo.estado_dato, "por_verificar");
+    assert.equal(historicaSinVinculo.fuente, null);
+    assert.equal(historicaSinVinculo.inscripcion_jugador_id, null);
+
+    sandbox.eventFields.id.value = "";
+    sandbox.eventFields.type.value = "cambio";
+    sandbox.eventFields.player.value = "154";
+    sandbox.eventFields.relatedPlayer.value = "155";
+    const cambio = sandbox.valoresFormularioIncidencia();
+    assert.equal(cambio.estado_dato, "confirmado");
+    assert.equal(cambio.fuente, null);
+    assert.equal(cambio.inscripcion_relacionada_id, "155");
+    results.push("formulario de incidencias confirma vinculos y preserva fuentes: ok");
+  }
+
+  {
+    const js = fs.readFileSync(path.join(ROOT, "js", "admin-panel.js"), "utf8");
+    const sandbox = {
+      liveAction: {
+        partidoId: 10,
+        tipo: "gol",
+        equipoId: 1
+      },
+      liveBusy: false,
+      seleccionJugadorListaModo: () => true,
+      requerirTorneoTrabajoId: () => 2,
+      partidos: [{ id: 10, torneo_id: 2 }],
+      partidoPerteneceTorneoTrabajo: () => true,
+      inscripcionesModoEquipo: () => [{ id: 154 }, { id: 155 }],
+      liveChangeOutId: null,
+      liveSelectedPlayerId: 154,
+      livePeriod: { value: "" },
+      liveMinute: { value: "33" },
+      valorNumero(input) {
+        const value = input.value.trim();
+        return value === "" ? null : Number(value);
+      },
+      apiCalls: [],
+      async apiRequest(method, body, url) {
+        sandbox.apiCalls.push({ method, body, url });
+        return {};
+      },
+      EVENTS_API_URL: "/.netlify/functions/admin-incidencias",
+      cerrarSelectorModo() {},
+      async cargarPartidos() {},
+      liveMatch: { value: "" },
+      eventMatch: { value: "" },
+      async cargarIncidenciasAdmin() {},
+      setLiveFeedback() {},
+      setStatus() {},
+      setLiveBusy(value) {
+        sandbox.liveBusy = value;
+      },
+      String,
+      Number,
+      Set
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(extractFunction(js, "guardarSeleccionModo"), sandbox);
+
+    await sandbox.guardarSeleccionModo();
+    assert.equal(sandbox.apiCalls[0].method, "POST");
+    assert.equal(sandbox.apiCalls[0].body.estado_dato, "confirmado");
+    assert.equal(sandbox.apiCalls[0].body.fuente, null);
+    assert.equal(sandbox.apiCalls[0].body.inscripcion_jugador_id, 154);
+
+    sandbox.apiCalls = [];
+    sandbox.liveAction = {
+      partidoId: 10,
+      tipo: "cambio",
+      equipoId: 1
+    };
+    sandbox.liveChangeOutId = 154;
+    sandbox.liveSelectedPlayerId = 155;
+    await sandbox.guardarSeleccionModo();
+    assert.equal(sandbox.apiCalls[0].body.estado_dato, "confirmado");
+    assert.equal(sandbox.apiCalls[0].body.fuente, null);
+    assert.equal(sandbox.apiCalls[0].body.inscripcion_jugador_id, 154);
+    assert.equal(sandbox.apiCalls[0].body.inscripcion_relacionada_id, 155);
+    results.push("modo partido guarda incidencias vinculadas como confirmadas: ok");
+  }
+
+  {
+    const js = fs.readFileSync(path.join(ROOT, "js", "admin-panel.js"), "utf8");
+    const sandbox = {
+      contextoJugadorEvento: () => ({
+        torneoId: 2,
+        partido: { id: 10 },
+        equipoId: 1
+      }),
+      busyStates: [],
+      setBusquedaJugadorBusy(value) {
+        sandbox.busyStates.push(value);
+      },
+      eventFields: {
+        missingResults: {
+          insertAdjacentHTML() {}
+        },
+        createConfirm: { checked: true }
+      },
+      apiCalls: [],
+      async apiRequest(method, body, url) {
+        sandbox.apiCalls.push({ method, body, url });
+        return {
+          existente: false,
+          inscripcion: { id: 400 }
+        };
+      },
+      EVENTS_API_URL: "/.netlify/functions/admin-incidencias",
+      async cargarPlantelesAdmin() {},
+      async usarInscripcionJugadorEvento() {},
+      busquedaJugadorEvento: {
+        nombre: "Nuevo Jugador",
+        candidatos: []
+      },
+      Array,
+      Number,
+      Boolean
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      [
+        extractFunction(js, "crearInscripcionParaCandidato"),
+        extractFunction(js, "crearJugadorDesdeBusqueda")
+      ].join("\n"),
+      sandbox
+    );
+
+    await sandbox.crearInscripcionParaCandidato(77);
+    assert.equal(sandbox.apiCalls[0].body.torneo_id, 2);
+    assert.equal(sandbox.apiCalls[0].body.partido_id, 10);
+    assert.equal(sandbox.apiCalls[0].body.equipo_id, 1);
+    assert.equal(sandbox.apiCalls[0].body.jugador_id, 77);
+    assert.equal(sandbox.apiCalls[0].body.fuente, null);
+
+    await sandbox.crearJugadorDesdeBusqueda();
+    assert.equal(sandbox.apiCalls[1].body.torneo_id, 2);
+    assert.equal(sandbox.apiCalls[1].body.partido_id, 10);
+    assert.equal(sandbox.apiCalls[1].body.equipo_id, 1);
+    assert.equal(sandbox.apiCalls[1].body.nombre_completo, "Nuevo Jugador");
+    assert.equal(sandbox.apiCalls[1].body.fuente, null);
+    results.push("alta desde incidencia usa contexto y no exige fuente: ok");
+  }
+
+  {
     const css = fs.readFileSync(path.join(ROOT, "styles", "admin.css"), "utf8");
     assert.equal(css.includes("overflow-x: hidden;"), true);
     assert.match(css, /\.status\s*\{[\s\S]*?position:\s*static;/);
@@ -736,12 +959,14 @@ function runTests() {
 }
 
 if (require.main === module) {
-  try {
-    runTests().forEach(result => console.log(result));
-  } catch (error) {
-    console.error(error);
-    process.exitCode = 1;
-  }
+  runTests()
+    .then(results => {
+      results.forEach(result => console.log(result));
+    })
+    .catch(error => {
+      console.error(error);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = { runTests };

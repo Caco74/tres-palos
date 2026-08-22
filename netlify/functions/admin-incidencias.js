@@ -1007,7 +1007,7 @@ function sanitizeInput(body, match, existing = null) {
   const estadoDato = String(
     body.estado_dato || "por_verificar"
   ).trim();
-  const fuente = cleanText(body.fuente);
+  const fuente = cleanText(body.fuente) || cleanText(existing?.fuente);
   let inscriptionId = optionalId(body.inscripcion_jugador_id);
   let relatedId = optionalId(body.inscripcion_relacionada_id);
   const periodo = cleanText(body.periodo);
@@ -1045,11 +1045,6 @@ function sanitizeInput(body, match, existing = null) {
     !inscriptionId &&
     !relatedId
   );
-  if (estadoDato === "confirmado" && !fuente) {
-    throw validationError(
-      "Una incidencia confirmada debe tener una fuente."
-    );
-  }
   if (
     tipo === "cambio" &&
     (!inscriptionId || !relatedId) &&
